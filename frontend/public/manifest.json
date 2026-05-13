@@ -1,0 +1,10 @@
+{
+  "name": "Vision RAG",
+  "short_name": "VRAG",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#1a1f36",
+  "background_color": "#0f1219",
+  "icons": []
+}
