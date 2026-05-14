@@ -2,6 +2,12 @@
 .env
 .env.*
 
+# Uploads (사용자 데이터)
+backend/uploads/
+
+# Test files
+backend/test_*.py
+
 # Python
 __pycache__/
 *.py[cod]

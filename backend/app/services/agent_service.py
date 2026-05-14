@@ -1,34 +1,42 @@
+"""
+Gemini AI 기반 에이전트 서비스.
+
+ToC 추출, 타겟 페이지 추론, Vision 분석 등 LLM 호출 로직을 담당합니다.
+"""
 import json
 import base64
-from typing import List, Dict, Any
+from typing import List, Dict, Any, AsyncGenerator
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from app.config import settings
+
+
+def _create_llm(temperature: float = 0) -> ChatGoogleGenerativeAI:
+    """Gemini LLM 인스턴스를 생성합니다."""
+    return ChatGoogleGenerativeAI(
+        model=settings.GEMINI_MODEL_NAME,
+        temperature=temperature,
+        api_key=settings.GEMINI_API_KEY,
+    )
+
+
+def _clean_json_response(content: str) -> str:
+    """LLM 응답에서 마크다운 코드 블록을 제거합니다."""
+    content = content.strip()
+    if content.startswith("```json"):
+        content = content[7:]
+    elif content.startswith("```"):
+        content = content[3:]
+    if content.endswith("```"):
+        content = content[:-3]
+    return content.strip()
+
 
 def extract_toc_with_gemini(pdf_bytes: bytes) -> List[Dict[str, Any]]:
     """
     미니 PDF(또는 짧은 전체 PDF)를 Gemini에 전송하여 목차(ToC)를 JSON 형태로 추출합니다.
     """
-    # ==========================================
-    # [임시 Mock 로직] API 무한 대기 이슈로 임시 더미 데이터 리턴
-    # ==========================================
-    print("\n[Mock] Gemini API 호출을 스킵하고 더미 목차를 반환합니다...")
-    return [
-        {"level": 1, "title": "1. 안전을 위한 주의사항", "page": 4},
-        {"level": 2, "title": "1.1 경고 및 주의", "page": 4},
-        {"level": 1, "title": "2. 시스템 구성", "page": 12},
-        {"level": 2, "title": "2.1 전체 시스템", "page": 12},
-        {"level": 2, "title": "2.2 각부 명칭", "page": 15},
-        {"level": 1, "title": "3. 배선 및 설치", "page": 20},
-    ]
-    # ==========================================
-    
-    llm = ChatGoogleGenerativeAI(
-        model=settings.GEMINI_MODEL_NAME,
-        temperature=0,
-        api_key=settings.GEMINI_API_KEY
-    )
-    
+    llm = _create_llm()
     pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
     
     prompt = """
@@ -56,7 +64,7 @@ def extract_toc_with_gemini(pdf_bytes: bytes) -> List[Dict[str, Any]]:
         content=[
             {"type": "text", "text": prompt},
             {
-                "type": "image_url", # langchain-google-genai uses image_url for base64 files
+                "type": "image_url",
                 "image_url": {
                     "url": f"data:application/pdf;base64,{pdf_base64}"
                 }
@@ -66,16 +74,266 @@ def extract_toc_with_gemini(pdf_bytes: bytes) -> List[Dict[str, Any]]:
     
     try:
         response = llm.invoke([message])
-        content = response.content.strip()
-        
-        # ```json 등 마크다운 제거
-        if content.startswith("```json"):
-            content = content[7:]
-        if content.endswith("```"):
-            content = content[:-3]
-            
-        toc = json.loads(content.strip())
+        content = _clean_json_response(response.content)
+        toc = json.loads(content)
         return toc
     except Exception as e:
         print(f"Gemini ToC Extraction Error: {e}")
         return []
+
+
+def find_and_extract_toc(
+    doc,  # fitz.Document
+    total_pages: int,
+) -> List[Dict[str, Any]]:
+    """
+    PDF에서 목차 페이지를 찾아 세부 ToC를 추출합니다.
+    
+    업로드 시 1회 실행, 결과는 metadata.json에 저장됩니다.
+    
+    Step 1: 앞부분(~10p) 스캔 → "목차 페이지가 어디 있나?" 파악 (Vision 1회)
+    Step 2: 목차 페이지를 읽어 세부 항목 추출 (Vision 1~2회)
+    """
+    from app.services.pdf_service import extract_pages_as_pdf
+
+    llm = _create_llm()
+    
+    # ─── Step 1: 목차 페이지 위치 파악 ───
+    scan_end = min(24, total_pages - 1)  # 0-indexed, 최대 25페이지
+    mini_pdf = extract_pages_as_pdf(doc, 0, scan_end)
+    pdf_base64 = base64.b64encode(mini_pdf).decode("utf-8")
+    
+    find_prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
+첨부된 PDF는 전체 {total_pages}페이지 매뉴얼의 앞부분(1~{scan_end + 1}페이지)입니다.
+
+이 페이지들을 분석하여 **목차(Table of Contents) 페이지**가 어디에 있는지 찾아주세요.
+
+다음 JSON 형식으로만 응답하세요 (마크다운 코드블록 없이):
+{{
+    "has_toc": true 또는 false,
+    "toc_pages": [목차가_있는_절대_페이지_번호들],
+    "toc_extends_beyond": true 또는 false,
+    "estimated_toc_end_page": 목차가_끝나는_추정_절대_페이지_번호,
+    "note": "분석 결과 요약"
+}}
+
+규칙:
+- "has_toc": 목차 페이지가 발견되었으면 true
+- "toc_pages": 스캔 범위 내에서 목차가 있는 페이지 번호 (1-indexed 절대 번호)
+- "toc_extends_beyond": 목차가 스캔 범위({scan_end + 1}페이지)를 넘어서 계속될 것 같으면 true
+- "estimated_toc_end_page": 목차가 대략 몇 페이지까지 이어질지 추정 (스캔 범위 안이면 마지막 목차 페이지)
+- 목차 외의 페이지(표지, 안전 주의사항, 서문 등)는 제외하세요
+"""
+    
+    message = HumanMessage(content=[
+        {"type": "text", "text": find_prompt},
+        {"type": "image_url", "image_url": {"url": f"data:application/pdf;base64,{pdf_base64}"}}
+    ])
+    
+    try:
+        response = llm.invoke([message])
+        find_result = json.loads(_clean_json_response(response.content))
+    except Exception as e:
+        print(f"  ⚠️ 목차 위치 파악 실패: {e}")
+        return []
+    
+    if not find_result.get("has_toc", False):
+        print("  ❌ 목차 페이지를 찾을 수 없습니다.")
+        return []
+    
+    toc_pages_found = find_result.get("toc_pages", [])
+    extends_beyond = find_result.get("toc_extends_beyond", False)
+    estimated_end = find_result.get("estimated_toc_end_page", scan_end + 1)
+    
+    print(f"  📍 목차 페이지 발견: {toc_pages_found} (스캔 범위 초과: {extends_beyond})")
+    
+    # ─── Step 2: 목차 페이지 범위 확정 및 읽기 ───
+    # 실제 읽을 목차 범위 결정
+    if extends_beyond and estimated_end > scan_end + 1:
+        # 목차가 스캔 범위를 넘어서면, 추정 끝 페이지까지 확장
+        read_start = min(toc_pages_found) - 1 if toc_pages_found else 0  # 0-indexed
+        read_end = min(estimated_end - 1, total_pages - 1)  # 0-indexed
+    elif toc_pages_found:
+        read_start = min(toc_pages_found) - 1  # 0-indexed
+        read_end = max(toc_pages_found) - 1  # 0-indexed
+    else:
+        return []
+    
+    # 목차 페이지가 너무 많으면 제한 (최대 15페이지)
+    if read_end - read_start > 14:
+        read_end = read_start + 14
+    
+    print(f"  📖 목차 읽기 범위: p.{read_start + 1}~{read_end + 1}")
+    
+    toc_pdf = extract_pages_as_pdf(doc, read_start, read_end)
+    toc_base64 = base64.b64encode(toc_pdf).decode("utf-8")
+    
+    extract_prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
+첨부된 PDF는 전체 {total_pages}페이지 매뉴얼의 **목차 페이지**입니다.
+이 목차의 모든 항목을 빠짐없이 추출하세요.
+
+다음 JSON 배열로만 응답하세요 (마크다운 코드블록 없이):
+[
+  {{"level": 1, "title": "장/챕터 제목", "page": 절대_페이지_번호}},
+  {{"level": 2, "title": "절/소제목", "page": 절대_페이지_번호}},
+  {{"level": 3, "title": "소절", "page": 절대_페이지_번호}}
+]
+
+⚠️ 중요 규칙:
+- page는 반드시 **절대 페이지 번호(정수)**를 사용하세요.
+- 매뉴얼 내부 표기(예: "3-32", "5-1")가 있으면 다음과 같이 변환하세요:
+  * 해당 챕터의 시작 절대 페이지를 기준으로 계산
+  * 예: 3장이 절대 66페이지에서 시작하고 내부 "3-32"이면 → 66 + 32 - 1 = 97
+- 만약 내부 페이지 번호를 절대 번호로 변환할 수 없으면, 내부 번호를 그대로 문자열로 적어주세요.
+- level 1=장(Chapter), level 2=절(Section), level 3=소절(Subsection)
+- 최대한 많은 항목을 추출하세요.
+"""
+    
+    message = HumanMessage(content=[
+        {"type": "text", "text": extract_prompt},
+        {"type": "image_url", "image_url": {"url": f"data:application/pdf;base64,{toc_base64}"}}
+    ])
+    
+    try:
+        response = llm.invoke([message])
+        raw_toc = json.loads(_clean_json_response(response.content))
+    except Exception as e:
+        print(f"  ⚠️ 목차 추출 실패: {e}")
+        return []
+    
+    # ─── 페이지 번호 정규화 ───
+    import re
+    normalized: List[Dict[str, Any]] = []
+    
+    for item in raw_toc:
+        page = item.get("page")
+        title = item.get("title", "")
+        level = item.get("level", 1)
+        
+        if isinstance(page, int) and 1 <= page <= total_pages:
+            normalized.append({"level": level, "title": title, "page": page})
+        elif isinstance(page, str):
+            # "3-32" 같은 내부 표기 → 일단 추가 (추후 정규화 가능)
+            match = re.match(r"(\d+)-(\d+)", page)
+            if match:
+                # 내부 표기를 그대로 저장 (정확한 변환은 섹션 정보 필요)
+                normalized.append({"level": level, "title": title, "page": page})
+            elif page.isdigit():
+                p = int(page)
+                if 1 <= p <= total_pages:
+                    normalized.append({"level": level, "title": title, "page": p})
+    
+    print(f"  📋 ToC 추출 완료: {len(normalized)}개 항목")
+    return normalized
+
+
+def reason_target_pages(toc: List[Dict[str, Any]], question: str) -> Dict[str, Any]:
+    """
+    ToC(목차)와 사용자 질문을 기반으로, 가장 관련성 높은 타겟 페이지를 추론합니다.
+    
+    Returns:
+        {
+            "reasoning": "추론 과정 텍스트",
+            "target_pages": [45, 46, 47],
+            "section_title": "관련 섹션 제목"
+        }
+    """
+    llm = _create_llm()
+    
+    toc_text = json.dumps(toc, ensure_ascii=False, indent=2)
+    
+    prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
+아래는 PDF 매뉴얼의 목차(Table of Contents)입니다:
+
+{toc_text}
+
+사용자의 질문: "{question}"
+
+위 목차를 분석하여, 이 질문에 답하기 위해 참조해야 할 가장 관련성 높은 페이지 범위를 추론하세요.
+
+다음 JSON 형식으로만 응답하세요 (마크다운 코드블록 없이):
+{{
+    "reasoning": "추론 과정을 한국어로 상세히 설명",
+    "target_pages": [시작페이지, ..., 끝페이지],
+    "section_title": "관련 섹션의 제목"
+}}
+
+규칙:
+- 타겟 페이지는 최소 1개, 최대 5개로 제한합니다.
+- 페이지 번호는 목차에 명시된 page 값을 기준으로 합니다.
+- 연속된 페이지라면 사이 페이지도 포함합니다 (예: 45페이지 섹션이면 45,46,47).
+"""
+    
+    message = HumanMessage(content=prompt)
+    
+    try:
+        response = llm.invoke([message])
+        content = _clean_json_response(response.content)
+        result = json.loads(content)
+        
+        # 타겟 페이지가 5개를 초과하면 자르기
+        if len(result.get("target_pages", [])) > 5:
+            result["target_pages"] = result["target_pages"][:5]
+        
+        return result
+    except Exception as e:
+        print(f"Page Reasoning Error: {e}")
+        return {
+            "reasoning": f"페이지 추론 중 오류 발생: {str(e)}",
+            "target_pages": [1],
+            "section_title": "알 수 없음"
+        }
+
+
+async def analyze_pages_with_vision(
+    pdf_bytes: bytes,
+    question: str,
+) -> AsyncGenerator[str, None]:
+    """
+    미니 PDF를 Gemini Vision에 전송하여 질문에 대한 답변을 스트리밍으로 생성합니다.
+    
+    Yields:
+        답변 텍스트 청크 (마크다운 형식)
+    """
+    llm = _create_llm(temperature=0.1)
+    pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+    
+    prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
+첨부된 PDF 페이지를 분석하여 아래 질문에 정확하게 답변하세요.
+
+질문: "{question}"
+
+답변 형식 (마크다운):
+## 답변 요약
+(핵심 답변을 1-2문장으로)
+
+### 상세 내용
+(매뉴얼 내용을 기반으로 상세하게)
+
+### 조치 방법 (해당 시)
+1. 단계별 조치 방법
+2. ...
+
+> 참고: 해당 정보는 매뉴얼의 첨부 페이지에서 확인된 내용입니다.
+
+규칙:
+- 시각적 정보(표, 도면, 다이어그램)가 있다면 해당 내용을 텍스트로 설명해 주세요.
+- 매뉴얼에 없는 내용은 추측하지 마세요.
+- 한국어로 답변하세요.
+"""
+    
+    message = HumanMessage(
+        content=[
+            {"type": "text", "text": prompt},
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:application/pdf;base64,{pdf_base64}"
+                }
+            }
+        ]
+    )
+    
+    async for chunk in llm.astream([message]):
+        if chunk.content:
+            yield chunk.content
