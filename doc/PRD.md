@@ -96,43 +96,47 @@
 
 | 레이어 | 기술 |
 |--------|------|
-| **Frontend** | Next.js (React) + PWA (반응형 UI) |
-| **Styling** | Tailwind CSS + shadcn/ui |
+| **Frontend** | Next.js 16 (React 19) + Zustand + TailwindCSS 4 |
+| **Styling** | 커스텀 디자인 시스템 (글래스모피즘, oklch 컬러) |
 | **Backend** | Python 3.10+ (FastAPI) |
 | **PDF 처리** | PyMuPDF(fitz) 단일 의존성 (ToC 추출, 미니 PDF 추출, 썸네일 생성) |
-| **AI Orchestration** | LangChain / LangGraph (v0.3+) |
-| **AI Model** | Gemini 3.1 Pro (Vision, PDF 네이티브 입력) |
-| **Architecture** | Vectorless Agentic RAG |
+| **AI Orchestration** | LangChain (ChatGoogleGenerativeAI) |
+| **AI Model** | Gemini 2.5 Pro (Vision, PDF 네이티브 입력) |
+| **Architecture** | Vectorless Agentic RAG + 2단계 추론 파이프라인 |
 | **Deployment** | Vercel (Frontend) + Google Cloud Run (Backend) |
 
 ---
 
-## 6. 기대 효과 및 고도화 전략
+## 6. 구현 완료 현황
 
-### 6.1 기대 효과
+### ✅ 완료된 기능
 
-| 항목 | 효과 |
-|------|------|
-| **인프라 비용 절감** | 벡터 DB 구축·운영 비용 100% 절감 |
-| **비용 및 속도 최적화** | 필요한 페이지만 실시간 API로 전송하여 전체 문서 임베딩 대비 토큰 사용량 최적화 |
-| **정보 보존** | 도면, 표, 배선도 등 시각적 맥락을 원본 그대로 보존하여 정확도 향상 |
-| **현장 적합성** | 도면 및 복잡한 알람 테이블 처리에 특화되어 실제 트러블슈팅 업무에 즉각 도입 가능 |
+| 기능 | 상태 | 비고 |
+|------|------|------|
+| **2단계 추론 파이프라인** | ✅ 완료 | Phase 1(ToC) + Phase 2(Vision) |
+| **Vision 기반 ToC 자동 보강** | ✅ 완료 | 8개 → 291개 항목 |
+| **SSE 스트리밍** | ✅ 완료 | reasoning → reference → answer |
+| **멀티턴 대화** | ✅ 완료 | 최근 6턴 맥락 유지 |
+| **파일명 자동 추출** | ✅ 완료 | PDF 메타데이터 + 첫 페이지 |
+| **프리미엄 UI** | ✅ 완료 | 다크모드, 반응형, 글래스모피즘 |
+| **문서 관리** | ✅ 완료 | 업로드, 삭제, 수정, ToC 조회 |
+| **반응형 레이아웃** | ✅ 완료 | 데스크탑/태블릿/모바일 |
 
-### 6.2 향후 고도화 방향
+### 🔜 향후 고도화 방향
 
-- **멀티턴 대화**: 이전 질의 맥락을 유지하는 대화형 검색 지원
 - **크로스 문서 검색**: 복수 매뉴얼 간 교차 참조 및 통합 답변
 - **캐싱 전략**: 빈번한 질의에 대한 렌더링 결과 캐싱으로 응답 속도 개선
 - **사용자 피드백 루프**: 답변 품질 평가를 통한 지속적 개선
+- **배포**: Vercel + Cloud Run 자동 배포 파이프라인
 
 ---
 
 ## 7. 마일스톤 (Milestones)
 
-| 단계 | 목표 | 주요 산출물 |
-|------|------|-------------|
-| **Phase 1** | 핵심 파이프라인 구축 | ToC 추출, 페이지 렌더링, Vision LLM 연동 |
-| **Phase 2** | Agentic Search 고도화 | 목차 트리 추론 정확도 향상, 멀티페이지 탐색 |
-| **Phase 3** | 웹앱 Frontend 구현 | Next.js PWA UI, 반응형 질의·응답 인터페이스 |
-| **Phase 4** | 배포 및 최적화 | Vercel 배포, 성능 튜닝, 캐싱, 동료 배포 |
+| 단계 | 목표 | 상태 |
+|------|------|------|
+| **Phase 1** | 핵심 파이프라인 구축 (ToC, 페이지 렌더링, Vision) | ✅ 완료 |
+| **Phase 2** | Agentic Search 고도화 (2단계 추론, Vision ToC 보강) | ✅ 완료 |
+| **Phase 3** | 웹앱 Frontend (프리미엄 UI, 반응형, 멀티턴) | ✅ 완료 |
+| **Phase 4** | 배포 및 최적화 (Vercel, Cloud Run, 캐싱) | 🔜 예정 |
 
