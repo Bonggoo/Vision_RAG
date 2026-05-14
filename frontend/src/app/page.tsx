@@ -53,6 +53,12 @@ export default function Home() {
     });
 
     try {
+      // 이전 대화 이력 구성 (최근 6턴만)
+      const prevMessages = activeSession.messages
+        .filter((m) => !m.isStreaming && m.content)
+        .slice(-6)
+        .map((m) => ({ role: m.role, content: m.content.slice(0, 300) }));
+
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const response = await fetch(`${apiUrl}/chat/stream`, {
         method: "POST",
@@ -60,6 +66,7 @@ export default function Home() {
         body: JSON.stringify({
           document_id: activeSession.documentId,
           message: text,
+          chat_history: prevMessages.length > 0 ? prevMessages : undefined,
         }),
       });
 

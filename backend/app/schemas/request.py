@@ -1,11 +1,19 @@
 from pydantic import BaseModel, Field
 from uuid import UUID
+from typing import List, Optional
+
+
+class ChatHistoryItem(BaseModel):
+    """이전 대화 항목."""
+    role: str  # "user" | "assistant"
+    content: str
 
 
 class ChatRequest(BaseModel):
     """질의·응답 요청 스키마. 프론트엔드 호환을 위해 'message' alias도 지원합니다."""
     document_id: UUID
     question: str = Field(..., alias="message")
+    chat_history: Optional[List[ChatHistoryItem]] = None
     
     model_config = {"populate_by_name": True}
 

@@ -32,8 +32,13 @@ async def chat_stream(request: ChatRequest):
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
     
+    # 대화 이력을 딕셔너리 리스트로 변환
+    history = []
+    if request.chat_history:
+        history = [{"role": h.role, "content": h.content} for h in request.chat_history]
+    
     return StreamingResponse(
-        run_agentic_pipeline(doc_id, request.question),
+        run_agentic_pipeline(doc_id, request.question, chat_history=history),
         media_type="text/event-stream",
     )
 

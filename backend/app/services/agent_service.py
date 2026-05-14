@@ -288,9 +288,15 @@ def reason_target_pages(toc: List[Dict[str, Any]], question: str) -> Dict[str, A
 async def analyze_pages_with_vision(
     pdf_bytes: bytes,
     question: str,
+    chat_history: list[dict] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     미니 PDF를 Gemini Vision에 전송하여 질문에 대한 답변을 스트리밍으로 생성합니다.
+    
+    Args:
+        pdf_bytes: 분석할 미니 PDF
+        question: 사용자 질문
+        chat_history: 이전 대화 이력 [{"role": "user"|"assistant", "content": "..."}]
     
     Yields:
         답변 텍스트 청크 (마크다운 형식)
@@ -298,9 +304,30 @@ async def analyze_pages_with_vision(
     llm = _create_llm(temperature=0.1)
     pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
     
+    # 이전 대화 맥락 구성
+    history_text = ""
+    if chat_history:
+        # 최근 6턴(3쌍)만 포함 — 토큰 절약
+        recent = chat_history[-6:]
+        pairs = []
+        for item in recent:
+            role_label = "사용자" if item["role"] == "user" else "AI"
+            pairs.append(f"{role_label}: {item['content'][:300]}")
+        history_text = "\n".join(pairs)
+    
+    context_section = ""
+    if history_text:
+        context_section = f"""
+이전 대화 맥락:
+---
+{history_text}
+---
+위 대화를 참고하여, 사용자의 후속 질문에 자연스럽게 답변하세요.
+"""
+    
     prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
 첨부된 PDF 페이지를 분석하여 아래 질문에 정확하게 답변하세요.
-
+{context_section}
 질문: "{question}"
 
 답변 형식 (마크다운):

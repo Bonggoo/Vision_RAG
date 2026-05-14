@@ -141,6 +141,7 @@ def _refine_pages_with_vision(
 async def run_agentic_pipeline(
     document_id: str,
     question: str,
+    chat_history: list[dict] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     2단계 Agentic Search 파이프라인을 실행합니다.
@@ -246,7 +247,7 @@ async def run_agentic_pipeline(
     yield _sse_event("reasoning", content="Gemini Vision으로 페이지를 분석하고 있습니다...")
     
     try:
-        async for chunk in analyze_pages_with_vision(mini_pdf_bytes, question):
+        async for chunk in analyze_pages_with_vision(mini_pdf_bytes, question, chat_history=chat_history):
             yield _sse_event("answer", content=chunk)
     except Exception as e:
         yield _sse_event("error", content=f"Vision 분석 중 오류: {str(e)}")
