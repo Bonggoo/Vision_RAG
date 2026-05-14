@@ -21,17 +21,23 @@
 
 ## 🏗 아키텍처
 
-```
-┌─────────────┐    ┌──────────────────────────────┐    ┌──────────────┐
-│  사용자 질문   │───▶│  Phase 1: ToC 기반 섹션 추론     │───▶│  섹션 특정     │
-│  (Query)    │    │  (291개 목차에서 관련 항목 탐색)    │    │  (p.862~886) │
-└─────────────┘    └──────────────────────────────┘    └──────┬───────┘
-                                                              │
-                                                              ▼
-┌─────────────┐    ┌──────────────────────────────┐    ┌──────────────┐
-│  최종 답변    │◀───│  Phase 3: Vision LLM 분석      │◀───│  Phase 2:    │
-│  (마크다운)   │    │  (미니 PDF → 시각 정보 분석)      │    │  Vision 스캔  │
-└─────────────┘    └──────────────────────────────┘    └──────────────┘
+```mermaid
+graph TD
+    Query([👤 사용자 질문 입력]) --> P1
+    
+    subgraph "Vectorless Agentic Pipeline"
+        P1["🔍 Phase 1: ToC 기반 섹션 추론<br>목차 트리에서 관련 항목 탐색"] -->|"타겟 페이지 도출"| P2
+        P2["👁️ Phase 2: Vision 스캔<br>해당 범위를 미니 PDF로 추출"] -->|"원본 레이아웃 유지"| P3
+        P3["🧠 Phase 3: Vision LLM 분석<br>도면, 표 등 시각 정보 직접 분석"]
+    end
+    
+    P3 -->|"SSE 스트리밍"| Answer([💡 최종 구조화된 답변])
+    
+    style Query fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#fff
+    style Answer fill:#1e293b,stroke:#10b981,stroke-width:2px,color:#fff
+    style P1 fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#fff
+    style P2 fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#fff
+    style P3 fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#fff
 ```
 
 ---
