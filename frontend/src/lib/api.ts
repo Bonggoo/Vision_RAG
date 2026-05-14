@@ -20,6 +20,17 @@ export const api = {
     return res.json();
   },
 
+  /** 문서 파일명 수정 */
+  renameDocument: async (docId: string, filename: string) => {
+    const res = await fetch(`${API_BASE_URL}/documents/${docId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename }),
+    });
+    if (!res.ok) throw new Error("Failed to rename document");
+    return res.json();
+  },
+
   /** 문서 삭제 */
   deleteDocument: async (docId: string) => {
     const res = await fetch(`${API_BASE_URL}/documents/${docId}`, {

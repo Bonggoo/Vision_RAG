@@ -14,6 +14,7 @@ interface DocumentStore {
   isUploading: boolean;
   fetchDocuments: () => Promise<void>;
   uploadDocument: (file: File) => Promise<Document>;
+  renameDoc: (docId: string, newName: string) => Promise<void>;
   deleteDoc: (docId: string) => Promise<void>;
 }
 
@@ -42,6 +43,19 @@ export const useDocumentStore = create<DocumentStore>((set) => ({
     } catch (error) {
       set({ isUploading: false });
       throw error;
+    }
+  },
+
+  renameDoc: async (docId: string, newName: string) => {
+    try {
+      await api.renameDocument(docId, newName);
+      set((state) => ({
+        documents: state.documents.map((d) =>
+          d.document_id === docId ? { ...d, filename: newName } : d
+        ),
+      }));
+    } catch (error) {
+      console.error("Failed to rename document:", error);
     }
   },
 

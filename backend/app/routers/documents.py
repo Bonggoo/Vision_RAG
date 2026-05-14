@@ -1,10 +1,17 @@
 from fastapi import APIRouter, HTTPException
 from uuid import UUID
+from typing import Optional
+from pydantic import BaseModel
 from app.schemas.response import DocumentListResponse
 from app.services import metadata_service
 import fitz
 
 router = APIRouter()
+
+
+class DocumentUpdateRequest(BaseModel):
+    """문서 메타데이터 수정 요청."""
+    filename: Optional[str] = None
 
 
 @router.get("", response_model=DocumentListResponse)
@@ -14,6 +21,48 @@ async def list_documents():
     return {"documents": docs}
 
 
+@router.get("/{document_id}")
+async def get_document_detail(document_id: UUID):
+    """문서 상세 정보를 반환합니다."""
+    doc_id = str(document_id)
+    meta = metadata_service.get_document(doc_id)
+    if meta is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
+    
+    # ToC 항목 수만 포함 (전체 ToC는 /toc 엔드포인트 사용)
+    toc = meta.get("toc", [])
+    return {
+        "document_id": meta.get("document_id"),
+        "filename": meta.get("filename"),
+        "total_pages": meta.get("total_pages"),
+        "status": meta.get("status"),
+        "uploaded_at": meta.get("uploaded_at"),
+        "toc_count": len(toc),
+    }
+
+
+@router.patch("/{document_id}")
+async def update_document(document_id: UUID, request: DocumentUpdateRequest):
+    """문서 메타데이터(파일명 등)를 수정합니다."""
+    doc_id = str(document_id)
+    meta = metadata_service.get_document(doc_id)
+    if meta is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
+    
+    updates = {}
+    if request.filename is not None:
+        name = request.filename.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="파일명은 비어있을 수 없습니다.")
+        updates["filename"] = name
+    
+    if not updates:
+        raise HTTPException(status_code=400, detail="변경할 항목이 없습니다.")
+    
+    updated = metadata_service.update_document_metadata(doc_id, updates)
+    return {"status": "updated", "document_id": doc_id, "filename": updated.get("filename")}
+
+
 @router.delete("/{document_id}")
 async def remove_document(document_id: UUID):
     """문서를 삭제합니다 (PDF + 메타데이터)."""
@@ -21,6 +70,16 @@ async def remove_document(document_id: UUID):
     if not success:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
     return {"status": "deleted", "document_id": document_id}
+
+
+@router.get("/{document_id}/toc")
+async def get_document_toc(document_id: UUID):
+    """문서의 ToC(목차)를 반환합니다."""
+    doc_id = str(document_id)
+    toc = metadata_service.get_document_toc(doc_id)
+    if toc is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
+    return {"document_id": doc_id, "toc": toc, "toc_count": len(toc)}
 
 
 @router.post("/{document_id}/reindex")
@@ -39,22 +98,14 @@ async def reindex_document(document_id: UUID):
         doc = fitz.open(pdf_path)
         total_pages = doc.page_count
         
-        # 기존 ToC를 뼈대로 사용
-        coarse_toc = meta.get("toc", [])
-        if not coarse_toc:
-            # 북마크에서 추출 시도
-            from app.services.pdf_service import extract_toc
-            coarse_toc = extract_toc(doc)
-        
-        if not coarse_toc:
-            doc.close()
-            raise HTTPException(status_code=400, detail="보강할 ToC 뼈대가 없습니다.")
-        
         from app.services.agent_service import find_and_extract_toc
         enriched = find_and_extract_toc(doc, total_pages)
         doc.close()
         
-        # 메타데이터 업데이트
+        if not enriched:
+            raise HTTPException(status_code=400, detail="목차를 찾을 수 없습니다.")
+        
+        old_count = len(meta.get("toc", []))
         metadata_service.update_document_metadata(doc_id, {
             "toc": enriched,
             "status": "indexed",
@@ -63,7 +114,7 @@ async def reindex_document(document_id: UUID):
         return {
             "status": "reindexed",
             "document_id": doc_id,
-            "toc_count_before": len(coarse_toc),
+            "toc_count_before": old_count,
             "toc_count_after": len(enriched),
         }
     except HTTPException:

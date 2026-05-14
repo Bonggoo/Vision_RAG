@@ -10,6 +10,8 @@ import {
   Trash2,
   X,
   ChevronRight,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
 import { useDocumentStore } from "@/store/useDocumentStore";
@@ -18,8 +20,12 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { sessions, activeSessionId, setActiveSession, createSession, deleteSession } =
     useChatStore();
-  const { documents, uploadDocument, fetchDocuments, isUploading, deleteDoc } =
+  const { documents, uploadDocument, fetchDocuments, isUploading, deleteDoc, renameDoc } =
     useDocumentStore();
+
+  // 인라인 파일명 수정 상태
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
 
   useEffect(() => {
     fetchDocuments();
@@ -60,6 +66,20 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     if (confirm("이 문서를 삭제하시겠습니까?")) {
       await deleteDoc(docId);
     }
+  };
+
+  const handleStartRename = (e: React.MouseEvent, docId: string, currentName: string) => {
+    e.stopPropagation();
+    setEditingDocId(docId);
+    setEditingName(currentName);
+  };
+
+  const handleSaveRename = async (docId: string) => {
+    const trimmed = editingName.trim();
+    if (trimmed && trimmed !== documents.find(d => d.document_id === docId)?.filename) {
+      await renameDoc(docId, trimmed);
+    }
+    setEditingDocId(null);
   };
 
   const sidebarContent = (
@@ -118,7 +138,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
             <FileText className="w-3 h-3" />
             업로드된 문서
           </div>
-          <div className="space-y-0.5 max-h-36 overflow-y-auto scrollbar-thin">
+          <div className="space-y-0.5 max-h-44 overflow-y-auto scrollbar-thin">
             {documents.map((doc) => (
               <div
                 key={doc.document_id}
@@ -129,17 +149,50 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                   <FileText className="w-3 h-3 text-primary/70" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate text-foreground/80 group-hover:text-foreground">
-                    {doc.filename}
-                  </p>
+                  {editingDocId === doc.document_id ? (
+                    <input
+                      autoFocus
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveRename(doc.document_id);
+                        if (e.key === "Escape") setEditingDocId(null);
+                      }}
+                      onBlur={() => handleSaveRename(doc.document_id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full text-xs font-medium bg-accent/40 text-foreground px-1.5 py-0.5 rounded border border-primary/30 focus:outline-none focus:border-primary/60"
+                    />
+                  ) : (
+                    <p className="text-xs font-medium truncate text-foreground/80 group-hover:text-foreground">
+                      {doc.filename}
+                    </p>
+                  )}
                   <p className="text-[10px] text-muted-foreground/50">{doc.total_pages}페이지</p>
                 </div>
-                <button
-                  onClick={(e) => handleDeleteDoc(e, doc.document_id)}
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
+                <div className="flex items-center gap-0.5">
+                  {editingDocId === doc.document_id ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleSaveRename(doc.document_id); }}
+                      className="p-1 rounded hover:bg-primary/20 text-primary/60 hover:text-primary transition-all"
+                    >
+                      <Check className="w-3 h-3" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(e) => handleStartRename(e, doc.document_id, doc.filename)}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent/50 text-muted-foreground/40 hover:text-foreground transition-all"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => handleDeleteDoc(e, doc.document_id)}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
