@@ -1,5 +1,7 @@
-import React, { useState, KeyboardEvent } from 'react';
-import { SendHorizontal } from 'lucide-react';
+"use client";
+
+import React, { useState, KeyboardEvent, useRef, useEffect } from "react";
+import { SendHorizontal, Sparkles } from "lucide-react";
 
 interface ChatInputProps {
   onSubmit: (message: string) => void;
@@ -7,44 +9,64 @@ interface ChatInputProps {
 }
 
 export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // textarea 높이 자동 조절
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+    }
+  }, [text]);
 
   const handleSubmit = () => {
     if (text.trim() && !disabled) {
       onSubmit(text.trim());
-      setText('');
+      setText("");
     }
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
     }
   };
 
   return (
-    <div className="p-4 bg-background border-t border-border">
-      <div className="max-w-3xl mx-auto relative flex items-center">
-        <textarea 
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-          placeholder="매뉴얼에 대해 질문하세요... (예: 알람 E-102 원인이 뭐야?)"
-          className="w-full bg-muted border border-border rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none overflow-hidden h-14 min-h-[56px] max-h-32 text-sm md:text-base transition-all disabled:opacity-50"
-          rows={1}
-        />
-        <button 
-          onClick={handleSubmit}
-          disabled={!text.trim() || disabled}
-          className="absolute right-2 p-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-        >
-          <SendHorizontal className="w-5 h-5" />
-        </button>
-      </div>
-      <div className="text-center mt-2 text-xs text-muted-foreground">
-        AI는 실수를 할 수 있습니다. 중요한 조치 전 매뉴얼 원본을 확인하세요.
+    <div className="chat-input-wrapper p-4 border-t border-border/30">
+      <div className="max-w-3xl mx-auto">
+        <div className="relative flex items-end gap-2">
+          <div className="flex-1 relative">
+            <textarea
+              ref={textareaRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={disabled}
+              placeholder="매뉴얼에 대해 질문하세요... (예: 알람 E-102 해결 방법은?)"
+              className="chat-input w-full rounded-xl pl-4 pr-4 py-3.5 text-sm md:text-[14px] leading-relaxed
+                resize-none overflow-hidden min-h-[52px] max-h-[160px]
+                placeholder:text-muted-foreground/40
+                focus:outline-none
+                disabled:opacity-40 disabled:cursor-not-allowed
+                transition-all"
+              rows={1}
+            />
+          </div>
+          <button
+            onClick={handleSubmit}
+            disabled={!text.trim() || disabled}
+            className="btn-primary p-3 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex-shrink-0"
+          >
+            <SendHorizontal className="w-4.5 h-4.5" />
+          </button>
+        </div>
+        <div className="flex items-center justify-center gap-1.5 mt-2.5 text-[11px] text-muted-foreground/35">
+          <Sparkles className="w-3 h-3" />
+          <span>AI는 실수를 할 수 있습니다. 중요한 조치 전 매뉴얼 원본을 확인하세요.</span>
+        </div>
       </div>
     </div>
   );

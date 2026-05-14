@@ -1,84 +1,223 @@
-import React, { useRef } from 'react';
-import { PlusCircle, MessageSquare, UploadCloud, Loader2 } from 'lucide-react';
-import { useChatStore } from '@/store/useChatStore';
-import { useDocumentStore } from '@/store/useDocumentStore';
+"use client";
 
-export default function Sidebar() {
+import React, { useRef, useEffect, useState } from "react";
+import {
+  PlusCircle,
+  MessageSquare,
+  UploadCloud,
+  Loader2,
+  FileText,
+  Trash2,
+  X,
+  ChevronRight,
+} from "lucide-react";
+import { useChatStore } from "@/store/useChatStore";
+import { useDocumentStore } from "@/store/useDocumentStore";
+
+export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { sessions, activeSessionId, setActiveSession, createSession } = useChatStore();
-  const { uploadDocument, isUploading } = useDocumentStore();
+  const { sessions, activeSessionId, setActiveSession, createSession, deleteSession } =
+    useChatStore();
+  const { documents, uploadDocument, fetchDocuments, isUploading, deleteDoc } =
+    useDocumentStore();
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     try {
       const doc = await uploadDocument(file);
-      // 업로드 완료 후 새 대화 생성
-      const sessionId = createSession(doc.document_id, `${file.name.slice(0, 15)}... 대화`);
+      const title =
+        file.name.length > 18 ? `${file.name.slice(0, 18)}...` : file.name;
+      const sessionId = createSession(doc.document_id, title);
       setActiveSession(sessionId);
-    } catch (err) {
-      alert('파일 업로드에 실패했습니다.');
+      onClose?.();
+    } catch {
+      alert("파일 업로드에 실패했습니다.");
     }
-    
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleDocumentSelect = (docId: string, filename: string) => {
+    const title =
+      filename.length > 18 ? `${filename.slice(0, 18)}...` : filename;
+    const sessionId = createSession(docId, title);
+    setActiveSession(sessionId);
+    onClose?.();
   };
 
   const handleNewChat = () => {
-    const sessionId = createSession(null, '새로운 대화');
+    const sessionId = createSession(null, "새로운 대화");
     setActiveSession(sessionId);
+    onClose?.();
   };
 
-  return (
-    <aside className="w-64 h-full bg-card border-r border-border hidden md:flex flex-col">
-      <div className="p-4 border-b border-border space-y-3">
-        <input 
-          type="file" 
+  const handleDeleteDoc = async (e: React.MouseEvent, docId: string) => {
+    e.stopPropagation();
+    if (confirm("이 문서를 삭제하시겠습니까?")) {
+      await deleteDoc(docId);
+    }
+  };
+
+  const sidebarContent = (
+    <div className="flex flex-col h-full">
+      {/* 로고 + 버튼 */}
+      <div className="p-4 space-y-3">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center">
+              <span className="text-white text-xs font-bold">V</span>
+            </div>
+            <span className="text-sm font-semibold tracking-tight">Vision RAG</span>
+          </div>
+          {onClose && (
+            <button onClick={onClose} className="md:hidden p-1 rounded hover:bg-accent/50 text-muted-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        <input
+          type="file"
           accept="application/pdf"
-          className="hidden" 
+          className="hidden"
           ref={fileInputRef}
           onChange={handleFileUpload}
         />
-        <button 
+        <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="w-full flex items-center justify-center gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 py-2 px-4 rounded-md transition-colors disabled:opacity-50"
+          className="btn-secondary w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium disabled:opacity-50"
         >
-          {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-          <span className="font-medium text-sm">{isUploading ? '업로드 중...' : 'PDF 매뉴얼 업로드'}</span>
+          {isUploading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <UploadCloud className="w-4 h-4" />
+          )}
+          {isUploading ? "업로드 중..." : "PDF 매뉴얼 업로드"}
         </button>
 
-        <button 
+        <button
           onClick={handleNewChat}
-          className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 py-2 px-4 rounded-md transition-colors"
+          className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium"
         >
           <PlusCircle className="w-4 h-4" />
-          <span className="font-medium text-sm">새 대화 시작</span>
+          새 대화 시작
         </button>
       </div>
-      
-      <div className="flex-1 overflow-y-auto p-3 space-y-1">
-        <div className="text-xs font-semibold text-muted-foreground px-2 py-2 uppercase tracking-wider">
+
+      <div className="h-px bg-border/50 mx-4" />
+
+      {/* 업로드된 문서 */}
+      {documents.length > 0 && (
+        <div className="px-3 pt-3 pb-1">
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground/70 px-2 py-1.5 uppercase tracking-widest">
+            <FileText className="w-3 h-3" />
+            업로드된 문서
+          </div>
+          <div className="space-y-0.5 max-h-36 overflow-y-auto scrollbar-thin">
+            {documents.map((doc) => (
+              <div
+                key={doc.document_id}
+                onClick={() => handleDocumentSelect(doc.document_id, doc.filename)}
+                className="doc-item group flex items-center gap-2 px-3 py-2 cursor-pointer"
+              >
+                <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-3 h-3 text-primary/70" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate text-foreground/80 group-hover:text-foreground">
+                    {doc.filename}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/50">{doc.total_pages}페이지</p>
+                </div>
+                <button
+                  onClick={(e) => handleDeleteDoc(e, doc.document_id)}
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="h-px bg-border/50 mx-4 mt-1" />
+
+      {/* 최근 대화 */}
+      <div className="flex-1 overflow-y-auto px-3 pt-3 space-y-0.5 scrollbar-thin">
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground/70 px-2 py-1.5 uppercase tracking-widest">
+          <MessageSquare className="w-3 h-3" />
           최근 대화
         </div>
-        
+
+        {sessions.length === 0 && (
+          <p className="text-[11px] text-muted-foreground/40 px-3 py-3 text-center">
+            대화 기록이 없습니다
+          </p>
+        )}
+
         {sessions.map((session) => (
-          <button 
+          <div
             key={session.id}
-            onClick={() => setActiveSession(session.id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-md text-sm group transition-colors ${
-              activeSessionId === session.id 
-                ? 'bg-accent text-accent-foreground font-medium' 
-                : 'hover:bg-accent/50 text-muted-foreground hover:text-foreground'
+            className={`group flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-all ${
+              activeSessionId === session.id
+                ? "bg-primary/10 text-foreground font-medium border border-primary/20"
+                : "hover:bg-accent/40 text-muted-foreground hover:text-foreground"
             }`}
+            onClick={() => { setActiveSession(session.id); onClose?.(); }}
           >
-            <MessageSquare className="w-4 h-4 shrink-0" />
-            <span className="truncate flex-1">{session.title}</span>
-          </button>
+            <ChevronRight className={`w-3.5 h-3.5 shrink-0 transition-transform ${
+              activeSessionId === session.id ? "text-primary rotate-90" : ""
+            }`} />
+            <span className="truncate flex-1 text-[13px]">{session.title}</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
+              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
         ))}
       </div>
-    </aside>
+
+      {/* 하단 정보 */}
+      <div className="p-4 border-t border-border/30">
+        <p className="text-[10px] text-muted-foreground/40 text-center">
+          Vectorless Agentic Vision RAG v1.0
+        </p>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* 모바일 오버레이 */}
+      {isOpen && (
+        <div className="sidebar-overlay fixed inset-0 z-40 md:hidden animate-fade" onClick={onClose} />
+      )}
+
+      {/* 데스크탑: 항상 표시 / 모바일: isOpen 시 표시 */}
+      <aside className={`
+        sidebar w-72 h-full flex-col z-50
+        hidden md:flex
+      `}>
+        {sidebarContent}
+      </aside>
+
+      {/* 모바일 슬라이드인 */}
+      <aside className={`
+        sidebar fixed top-0 left-0 w-72 h-full flex flex-col z-50
+        md:hidden
+        transition-transform duration-300 ease-out
+        ${isOpen ? "translate-x-0" : "-translate-x-full"}
+      `}>
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

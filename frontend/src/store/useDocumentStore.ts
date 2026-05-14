@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { api } from '@/lib/api';
+import { create } from "zustand";
+import { api } from "@/lib/api";
 
 export interface Document {
   document_id: string;
@@ -14,34 +14,45 @@ interface DocumentStore {
   isUploading: boolean;
   fetchDocuments: () => Promise<void>;
   uploadDocument: (file: File) => Promise<Document>;
+  deleteDoc: (docId: string) => Promise<void>;
 }
 
 export const useDocumentStore = create<DocumentStore>((set) => ({
   documents: [],
   isUploading: false,
-  
+
   fetchDocuments: async () => {
     try {
       const data = await api.getDocuments();
       set({ documents: data.documents || [] });
     } catch (error) {
-      console.error('Failed to fetch documents:', error);
+      console.error("Failed to fetch documents:", error);
     }
   },
-  
+
   uploadDocument: async (file: File) => {
     set({ isUploading: true });
     try {
       const data = await api.uploadDocument(file);
-      // 업로드 성공 후 목록에 추가
-      set((state) => ({ 
+      set((state) => ({
         documents: [data, ...state.documents],
-        isUploading: false 
+        isUploading: false,
       }));
       return data;
     } catch (error) {
       set({ isUploading: false });
       throw error;
     }
-  }
+  },
+
+  deleteDoc: async (docId: string) => {
+    try {
+      await api.deleteDocument(docId);
+      set((state) => ({
+        documents: state.documents.filter((d) => d.document_id !== docId),
+      }));
+    } catch (error) {
+      console.error("Failed to delete document:", error);
+    }
+  },
 }));
