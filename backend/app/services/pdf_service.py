@@ -83,9 +83,13 @@ async def process_document_upload(file: UploadFile) -> Dict[str, Any]:
         
     doc.close()
     
+    # 파일명 자동 추출: PDF 메타데이터 또는 첫 페이지에서 제목 추출
+    auto_title = _extract_document_title(file_path, file.filename)
+    
     metadata = {
         "document_id": str(doc_id),
-        "filename": file.filename,
+        "filename": auto_title,
+        "original_filename": file.filename,
         "total_pages": total_pages,
         "toc": toc,
         "uploaded_at": datetime.now().isoformat(),
@@ -96,6 +100,85 @@ async def process_document_upload(file: UploadFile) -> Dict[str, Any]:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
         
     return metadata
+
+
+def _extract_document_title(pdf_path: str, fallback: str) -> str:
+    """
+    PDF에서 문서 제목을 자동 추출합니다.
+    
+    우선순위:
+    1. PDF 메타데이터의 title 필드
+    2. 첫 페이지 텍스트에서 제목 추출
+    3. 원본 파일명 (fallback)
+    """
+    import re
+    
+    try:
+        doc = fitz.open(pdf_path)
+        
+        # 1단계: PDF 메타데이터에서 title 확인
+        pdf_meta = doc.metadata or {}
+        pdf_title = (pdf_meta.get("title") or "").strip()
+        
+        # 의미 있는 제목인지 검사 (너무 짧거나 파일명과 같으면 스킵)
+        if pdf_title and len(pdf_title) > 5 and pdf_title != fallback:
+            doc.close()
+            return pdf_title
+        
+        # 2단계: 첫 페이지 텍스트에서 제목 조합
+        if doc.page_count > 0:
+            first_page = doc[0]
+            text = first_page.get_text().strip()
+            
+            if text:
+                lines = [l.strip() for l in text.split("\n") if l.strip()]
+                
+                # 1자짜리 제외, 의미 있는 줄만 수집
+                skip_patterns = re.compile(r"^[\d\-\.]+$|^page|^[A-Z]-\d|^\d{4}년", re.IGNORECASE)
+                meaningful = []
+                for l in lines[:15]:
+                    if len(l) > 2 and not skip_patterns.match(l):
+                        meaningful.append(l)
+                
+                if meaningful:
+                    # 모델명 패턴 찾기 (영문+숫자 조합, 예: QD77MS, MELSEC-Q)
+                    model_line = None
+                    doc_type = None
+                    
+                    for l in meaningful:
+                        # 모델명: 영문+숫자가 포함된 가장 긴 줄
+                        if re.search(r"[A-Z][A-Za-z]*[\-]?[A-Z0-9]{2,}", l) and len(l) > 5:
+                            if model_line is None or len(l) > len(model_line):
+                                model_line = l
+                        # 문서 유형: 매뉴얼, 사용자, 설명서 등
+                        if re.search(r"매뉴얼|사용자|설명서|가이드|manual|guide", l, re.IGNORECASE):
+                            doc_type = l
+                    
+                    # 제목 조합
+                    if model_line and doc_type and model_line != doc_type:
+                        title = f"{model_line} {doc_type}"
+                        if len(title) < 80:
+                            doc.close()
+                            return title
+                    
+                    if model_line:
+                        doc.close()
+                        return model_line
+                    
+                    # 모델명 없으면 가장 긴 줄 사용
+                    best = max(meaningful, key=len)
+                    doc.close()
+                    return best
+        
+        doc.close()
+    except Exception as e:
+        print(f"  ⚠️ 문서 제목 자동 추출 실패: {e}")
+    
+    # fallback: 원본 파일명 (.pdf 제거)
+    name = fallback
+    if name.lower().endswith(".pdf"):
+        name = name[:-4]
+    return name
 
 def extract_toc(doc: fitz.Document) -> List[Dict[str, Any]]:
     """
