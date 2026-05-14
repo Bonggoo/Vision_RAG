@@ -141,11 +141,11 @@ export default function Home() {
             <div className="flex-1 flex flex-col justify-center items-center px-6 relative">
               <div className="hero-gradient absolute inset-0 pointer-events-none" />
               <div className="relative z-10 text-center space-y-6 max-w-lg animate-slide-up">
-                <div className="hero-icon w-20 h-20 rounded-2xl flex items-center justify-center mx-auto animate-float">
-                  <span className="text-4xl">📑</span>
+                <div className="hero-icon w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center mx-auto animate-float">
+                  <span className="text-3xl md:text-4xl">📑</span>
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight mb-2">
+                  <h2 className="text-xl md:text-2xl font-bold tracking-tight mb-2">
                     Vision RAG에 오신 것을 환영합니다
                   </h2>
                   <p className="text-sm text-muted-foreground/70 leading-relaxed max-w-md mx-auto">
@@ -154,7 +154,7 @@ export default function Home() {
                 </div>
 
                 {/* 기능 카드 그리드 */}
-                <div className="grid grid-cols-2 gap-3 mt-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 mt-6 md:mt-8">
                   {features.map((f, i) => (
                     <div
                       key={i}
@@ -192,7 +192,7 @@ export default function Home() {
             </div>
           ) : (
             /* ── 메시지 목록 ── */
-            <div className="max-w-3xl w-full mx-auto space-y-5 p-4 md:p-6 pb-6">
+            <div className="max-w-3xl lg:max-w-4xl w-full mx-auto space-y-4 md:space-y-5 p-3 sm:p-4 md:p-6 pb-6">
               {activeSession.messages.map((msg) => (
                 <ChatMessage key={msg.id} message={msg} />
               ))}

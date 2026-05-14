@@ -75,8 +75,8 @@ function ReferenceImages({ references }: { references: ReferenceImage[] }) {
               alt={`페이지 ${ref.pageNumber}`}
               className={`transition-all duration-300 ${
                 expandedIdx === i
-                  ? "w-96 h-auto rounded-lg shadow-xl"
-                  : "w-20 h-28 object-cover rounded-lg border border-border/50 hover:border-primary/40 hover:shadow-lg hover:scale-105"
+                  ? "w-64 sm:w-80 lg:w-96 h-auto rounded-lg shadow-xl"
+                  : "w-16 h-22 sm:w-20 sm:h-28 object-cover rounded-lg border border-border/50 hover:border-primary/40 hover:shadow-lg hover:scale-105"
               }`}
             />
             <span className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded-md font-mono backdrop-blur-sm">
@@ -101,14 +101,14 @@ export default function ChatMessage({ message }: ChatMessageProps) {
   if (isUser) {
     return (
       <div className="flex justify-end animate-slide-up">
-        <div className="flex items-end gap-2.5 max-w-[80%]">
-          <div className="chat-bubble-user rounded-2xl rounded-tr-sm px-5 py-3.5">
+        <div className="flex items-end gap-2 sm:gap-2.5 max-w-[88%] sm:max-w-[80%]">
+          <div className="chat-bubble-user rounded-2xl rounded-tr-sm px-3.5 sm:px-5 py-3 sm:py-3.5">
             <p className="whitespace-pre-wrap leading-relaxed text-[14px] text-white">
               {message.content}
             </p>
           </div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/30 to-blue-500/30 flex items-center justify-center flex-shrink-0 border border-primary/20">
-            <User className="w-4 h-4 text-primary/80" />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-violet-500/30 to-blue-500/30 flex items-center justify-center flex-shrink-0 border border-primary/20">
+            <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary/80" />
           </div>
         </div>
       </div>
@@ -117,11 +117,11 @@ export default function ChatMessage({ message }: ChatMessageProps) {
 
   return (
     <div className="flex justify-start animate-slide-up">
-      <div className="flex items-start gap-2.5 max-w-[85%]">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/20 to-indigo-500/20 flex items-center justify-center flex-shrink-0 mt-0.5 border border-violet-500/15">
-          <Bot className="w-4 h-4 text-violet-400/90" />
+      <div className="flex items-start gap-2 sm:gap-2.5 max-w-[92%] sm:max-w-[85%] lg:max-w-[80%]">
+        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-violet-500/20 to-indigo-500/20 flex items-center justify-center flex-shrink-0 mt-0.5 border border-violet-500/15">
+          <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-violet-400/90" />
         </div>
-        <div className="chat-bubble-ai rounded-2xl rounded-tl-sm px-5 py-4 min-w-0">
+        <div className="chat-bubble-ai rounded-2xl rounded-tl-sm px-3.5 sm:px-5 py-3 sm:py-4 min-w-0">
           {/* 추론 과정 */}
           <ReasoningBlock steps={message.reasoningSteps || []} />
 

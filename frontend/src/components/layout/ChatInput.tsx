@@ -35,8 +35,8 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
   };
 
   return (
-    <div className="chat-input-wrapper p-4 border-t border-border/30">
-      <div className="max-w-3xl mx-auto">
+    <div className="chat-input-wrapper p-2.5 sm:p-3 md:p-4 border-t border-border/30">
+      <div className="max-w-3xl lg:max-w-4xl mx-auto">
         <div className="relative flex items-end gap-2">
           <div className="flex-1 relative">
             <textarea
@@ -45,8 +45,8 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={disabled}
-              placeholder="매뉴얼에 대해 질문하세요... (예: 알람 E-102 해결 방법은?)"
-              className="chat-input w-full rounded-xl pl-4 pr-4 py-3.5 text-sm md:text-[14px] leading-relaxed
+              placeholder="매뉴얼에 대해 질문하세요..."
+              className="chat-input w-full rounded-xl pl-3.5 sm:pl-4 pr-3.5 sm:pr-4 py-3 sm:py-3.5 text-[13px] sm:text-sm md:text-[14px] leading-relaxed
                 resize-none overflow-hidden min-h-[52px] max-h-[160px]
                 placeholder:text-muted-foreground/40
                 focus:outline-none
