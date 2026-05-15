@@ -33,19 +33,18 @@ export default function Header({ onMenuClick }: HeaderProps) {
         <h1 className="md:hidden font-semibold text-[15px] tracking-tight">Vision RAG</h1>
       </div>
 
-      {/* 활성 문서 표시 */}
+      {/* 활성 대화 표시 */}
       <div className="flex items-center gap-3">
-        {activeSession?.documentId && (
+        {activeSession && (
           <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-accent/30 px-3 py-1.5 rounded-full">
-            <FileText className="w-3 h-3 text-primary/70" />
+            <Sparkles className="w-3 h-3 text-primary/70" />
             <span className="max-w-[200px] truncate">{activeSession.title}</span>
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500/70 animate-pulse" />
           </div>
         )}
 
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
           <Sparkles className="w-3.5 h-3.5 text-primary/50" />
-          <span className="hidden sm:inline">Gemini 2.5 Pro</span>
+          <span className="hidden sm:inline">Gemini 3.1 Flash-Lite</span>
         </div>
       </div>
     </header>

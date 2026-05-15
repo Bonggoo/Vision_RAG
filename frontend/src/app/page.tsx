@@ -17,6 +17,7 @@ export default function Home() {
     appendReasoning,
     appendReference,
     finishStreaming,
+    renameSession,
   } = useChatStore();
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
@@ -33,14 +34,10 @@ export default function Home() {
   const handleChatSubmit = async (text: string) => {
     if (!activeSessionId || !activeSession) return;
 
-    if (!activeSession.documentId) {
-      addMessage(activeSessionId, { role: "user", content: text });
-      addMessage(activeSessionId, {
-        role: "assistant",
-        content:
-          "> ⚠️ 문서가 선택되지 않았습니다.\n>\n> 좌측 사이드바에서 **업로드된 문서**를 선택하거나, **PDF 매뉴얼 업로드** 버튼으로 문서를 먼저 업로드해 주세요.",
-      });
-      return;
+    // 첨 메시지면 대화 제목 자동 생성
+    if (activeSession.messages.length === 0) {
+      const title = text.length > 25 ? text.slice(0, 25) + "..." : text;
+      renameSession(activeSessionId, title);
     }
 
     addMessage(activeSessionId, { role: "user", content: text });
@@ -64,7 +61,6 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          document_id: activeSession.documentId,
           message: text,
           chat_history: prevMessages.length > 0 ? prevMessages : undefined,
         }),
@@ -182,11 +178,9 @@ export default function Home() {
                 </h2>
                 <p className="text-sm text-muted-foreground/60 max-w-sm mx-auto">
                   하단 입력창에 질문을 입력해 주세요.
-                  {!activeSession.documentId && (
-                    <span className="block mt-2 text-amber-400/70 text-xs">
-                      ⚠️ 문서가 연결되지 않았습니다. 사이드바에서 문서를 선택하세요.
-                    </span>
-                  )}
+                  <span className="block mt-2 text-primary/50 text-xs">
+                    AI가 업로드된 문서 중 가장 적합한 문서를 자동으로 찾아 답변합니다.
+                  </span>
                 </p>
               </div>
             </div>

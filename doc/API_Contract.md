@@ -2,7 +2,7 @@
 
 > Backend(FastAPI) ↔ Frontend(Next.js) 간 통신 규약
 > 
-> 작성일: 2026-05-12 | 최종 수정: 2026-05-14 | 버전: v2.0
+> 작성일: 2026-05-12 | 최종 수정: 2026-05-15 | 버전: v3.0
 
 ---
 
@@ -24,6 +24,15 @@
 
 PDF 파일을 업로드하고 목차(ToC)를 추출합니다. 파일명은 PDF 메타데이터/첫 페이지에서 자동 추출됩니다.
 
+#### ToC 추출 전략
+
+| 케이스 | 조건 | 동작 |
+|--------|------|------|
+| **A-1** | 북마크 ToC 충분 | 그대로 사용 |
+| **A-2** | 북마크 있지만 부실 | Vision으로 목차 페이지 탐색 → 세부 ToC 추출 |
+| **B** | 북마크 없음 + 텍스트 PDF | 앞부분 15페이지 Gemini 스캔 |
+| **C** | 스캔본 + 50p 초과 | `toc_required` 상태로 반환 → 사용자 범위 지정 필요 |
+
 #### 요청
 
 | 항목 | 값 |
@@ -42,7 +51,6 @@ FormData {
 {
   "document_id": "550e8400-e29b-41d4-a716-446655440000",
   "filename": "MELSEC-Q QD77MS형 심플모션 유닛 사용자 매뉴얼",
-  "original_filename": "QD77MS_위치결정_매뉴얼.pdf",
   "total_pages": 942,
   "toc": [
     { "level": 1, "title": "1. 제품 개요", "page": 1 },
@@ -53,7 +61,39 @@ FormData {
 ```
 
 > `filename`은 PDF 메타데이터 title → 첫 페이지 제목에서 자동 추출됩니다.
-> `original_filename`에 원본 업로드 파일명이 보존됩니다.
+> `status`가 `toc_required`인 경우, `POST /upload/toc`으로 목차 범위를 지정해야 합니다.
+
+---
+
+## 1-1. 스캔 PDF 목차 범위 지정
+
+### `POST /upload/toc`
+
+스캔 PDF(`status: "toc_required"`)에 대해 사용자가 지정한 페이지 범위에서 ToC를 재추출합니다.
+
+#### 요청
+
+```json
+{
+  "document_id": "550e8400-e29b-41d4-a716-446655440000",
+  "toc_start_page": 3,
+  "toc_end_page": 12
+}
+```
+
+#### 응답 — `200 OK`
+
+```json
+{
+  "document_id": "550e8400-...",
+  "filename": "문서 제목",
+  "total_pages": 942,
+  "toc": [
+    { "level": 1, "title": "1. 제품 개요", "page": 1 }
+  ],
+  "status": "indexed"
+}
+```
 
 ---
 
@@ -145,6 +185,8 @@ FormData {
 }
 ```
 
+> `page`는 정수 또는 문자열(예: `"3-32"`)일 수 있습니다. 매뉴얼 내부 페이지 표기를 그대로 보존합니다.
+
 ---
 
 ## 7. ToC 재추출 (Vision 기반)
@@ -172,8 +214,8 @@ FormData {
 
 ```json
 {
-  "document_id": "550e8400-e29b-41d4-a716-446655440000",
   "message": "알람코드 104는 무슨 의미야?",
+  "document_id": "550e8400-e29b-41d4-a716-446655440000",
   "chat_history": [
     { "role": "user", "content": "이전 질문" },
     { "role": "assistant", "content": "이전 답변" }
@@ -181,18 +223,22 @@ FormData {
 }
 ```
 
-> `chat_history`는 선택사항입니다. 멀티턴 대화 시 최근 6턴(3쌍)을 전송하여 맥락을 유지합니다.
+> - `document_id`는 **선택사항**입니다. 생략하면 AI가 업로드된 문서 중 가장 적합한 문서를 자동 선택합니다.
+> - `chat_history`는 **선택사항**입니다. 멀티턴 대화 시 최근 6턴(3쌍)을 전송하여 맥락을 유지합니다.
 
 #### 응답 — `200 OK` (SSE Stream)
 
 **Content-Type**: `text/event-stream`
 
 ```
-# Phase 1: 추론 과정
-data: {"type": "reasoning", "content": "[Phase 1] '알람 코드' 섹션 특정 완료 (p.45~48)"}
+# Phase 0+1: 문서 선택 + 섹션 추론
+data: {"type": "reasoning", "content": "📄 'QD77MS 매뉴얼' → '알람 코드' (p.[45, 48])"}
 
-# Phase 2: 세부 페이지 탐색
-data: {"type": "reasoning", "content": "[Phase 2] Vision 스캔으로 타겟 페이지 [46, 47] 특정"}
+# Phase 2: 텍스트 기반 정밀 탐색
+data: {"type": "reasoning", "content": "[세부 탐색] '알람 코드' 섹션(p.45~60)의 텍스트를 분석..."}
+
+# Phase 2 결과
+data: {"type": "reasoning", "content": "[세부 탐색] '알람 코드 목록' → 타겟 페이지 [46, 47]"}
 
 # 참조 이미지
 data: {"type": "reference", "page_number": 46, "image_base64": "data:image/png;base64,..."}
@@ -209,8 +255,8 @@ data: {"type": "done"}
 
 | type | 설명 |
 |------|------|
-| `reasoning` | AI 에이전트의 목차 탐색·추론 과정 |
-| `reference` | 타겟 페이지 썸네일 (Base64 PNG) |
+| `reasoning` | AI 에이전트의 문서 선택, 목차 탐색, 텍스트 정밀 탐색 과정 |
+| `reference` | 타겟 페이지 썸네일 (Base64 PNG, dpi=150) |
 | `answer` | 최종 답변 텍스트 (마크다운) 청크 |
 | `error` | 에러 발생 시 |
 | `done` | 스트리밍 종료 신호 |
@@ -222,7 +268,7 @@ data: {"type": "done"}
 ```python
 from pydantic import BaseModel, Field
 from uuid import UUID
-from typing import List, Optional
+from typing import List, Optional, Union
 
 # --- 요청 ---
 class ChatHistoryItem(BaseModel):
@@ -230,9 +276,15 @@ class ChatHistoryItem(BaseModel):
     content: str
 
 class ChatRequest(BaseModel):
-    document_id: UUID
+    document_id: Optional[UUID] = None  # None이면 자동 선택
     question: str = Field(..., alias="message")
     chat_history: Optional[List[ChatHistoryItem]] = None
+    model_config = {"populate_by_name": True}
+
+class TocRangeRequest(BaseModel):
+    document_id: UUID
+    toc_start_page: int
+    toc_end_page: int
 
 class DocumentUpdateRequest(BaseModel):
     filename: Optional[str] = None
@@ -241,12 +293,11 @@ class DocumentUpdateRequest(BaseModel):
 class TocItem(BaseModel):
     level: int
     title: str
-    page: int
+    page: Union[int, str]  # 정수 또는 "3-32" 형식 문자열
 
 class UploadResponse(BaseModel):
     document_id: UUID
     filename: str
-    original_filename: str
     total_pages: int
     toc: list[TocItem]
     status: str  # "indexed" | "toc_required"

@@ -18,6 +18,8 @@ async def chat_stream(request: ChatRequest):
     """
     Agentic Search → Vision LLM 분석 후 SSE 스트리밍으로 응답합니다.
     
+    document_id가 없으면 질문 내용 기반으로 자동 선택합니다.
+    
     SSE 이벤트 타입:
     - reasoning: AI 에이전트의 목차 탐색·추론 과정
     - reference: 타겟 페이지 썸네일 이미지 (Base64 PNG)
@@ -25,12 +27,13 @@ async def chat_stream(request: ChatRequest):
     - error: 에러 발생 시
     - done: 스트리밍 종료 신호
     """
-    doc_id = str(request.document_id)
+    doc_id = str(request.document_id) if request.document_id else None
     
-    # 문서 존재 여부 사전 검증
-    meta = metadata_service.get_document(doc_id)
-    if meta is None:
-        raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
+    # document_id가 지정된 경우 사전 검증
+    if doc_id:
+        meta = metadata_service.get_document(doc_id)
+        if meta is None:
+            raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
     
     # 대화 이력을 딕셔너리 리스트로 변환
     history = []

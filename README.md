@@ -10,9 +10,10 @@
 
 | 기능 | 설명 |
 |------|------|
-| **2단계 추론 파이프라인** | Phase 1(ToC → 섹션) + Phase 2(Vision → 정밀 페이지) |
+| **3단계 하이브리드 추론** | Phase 0+1(문서 선택+ToC) → Phase 2(텍스트 정밀 탐색) → Phase 3(Vision 분석) |
 | **Vision 기반 ToC 자동 보강** | PDF 목차 페이지를 자동 탐색하여 3레벨 계층 목차 추출 (최대 291개 항목) |
 | **멀티턴 대화** | 이전 Q&A 맥락을 유지하여 후속 질문 지원 ("그 근처 주소들은?") |
+| **자동 문서 선택** | document_id 없이 질문하면 AI가 가장 적합한 문서를 자동 선택 |
 | **파일명 자동 추출** | PDF 메타데이터 + 첫 페이지에서 문서 제목 자동 인식 |
 | **SSE 스트리밍** | 추론 과정 → 참조 이미지 → 답변을 실시간 스트리밍 |
 | **프리미엄 UI** | 딥 네이비/바이올렛 다크모드, 글래스모피즘, 반응형 레이아웃 |
@@ -23,14 +24,15 @@
 
 ```text
 ┌─────────────┐    ┌──────────────────────────────┐    ┌──────────────┐
-│  사용자 질문   │───▶│  Phase 1: ToC 기반 섹션 추론     │───▶│  섹션 특정     │
-│  (Query)    │    │  (목차 트리에서 관련 항목 탐색)     │    │  (Target)    │
+│  사용자 질문   │───▶│  Phase 0+1: 문서 선택 + ToC 추론  │───▶│  섹션 특정     │
+│  (Query)    │    │  (Flash-Lite, 텍스트 기반)       │    │  (Target)    │
 └─────────────┘    └──────────────────────────────┘    └──────┬───────┘
                                                               │
                                                               ▼
 ┌─────────────┐    ┌──────────────────────────────┐    ┌──────────────┐
-│  최종 답변    │◀───│  Phase 3: Vision LLM 분석      │◀───│  Phase 2:    │
-│  (마크다운)   │    │  (미니 PDF → 시각 정보 직접 분석)   │    │  Vision 스캔  │
+│  Phase 3    │◀───│  Vision LLM 분석              │◀───│  Phase 2:    │
+│  최종 답변    │    │  (미니 PDF → 시각 정보 직접 분석)  │    │  텍스트 정밀   │
+│  (마크다운)   │    │  (Flash, PDF 네이티브 입력)      │    │  페이지 탐색   │
 └─────────────┘    └──────────────────────────────┘    └──────────────┘
 ```
 
@@ -40,11 +42,11 @@
 
 | 레이어 | 기술 |
 |--------|------|
-| **Frontend** | Next.js 16 + React 19 + Zustand + TailwindCSS 4 |
-| **Backend** | Python 3.10+ / FastAPI |
-| **PDF 처리** | PyMuPDF (fitz) — ToC 추출, 미니 PDF, 썸네일 |
-| **AI** | Gemini 2.5 Pro (Vision, PDF 네이티브 입력) |
-| **Orchestration** | LangChain (ChatGoogleGenerativeAI) |
+| **Frontend** | Next.js 16.2 + React 19 + Zustand 5 + TailwindCSS 4 |
+| **Backend** | Python 3.10+ / FastAPI 0.136 |
+| **PDF 처리** | PyMuPDF 1.27 (fitz) — ToC 추출, 미니 PDF, 썸네일 |
+| **AI** | Gemini 3.1 Flash / Flash-Lite (Vision, PDF 네이티브 입력) |
+| **Orchestration** | LangChain Core 1.4 + LangChain Google GenAI 4.2 |
 
 ---
 
@@ -55,6 +57,10 @@
 ```bash
 # backend/.env
 GEMINI_API_KEY=your_gemini_api_key
+# 아래는 선택사항 (기본값 있음)
+# GEMINI_MODEL_NAME=gemini-3.1-flash
+# GEMINI_FLASH_MODEL_NAME=gemini-3.1-flash-lite
+# ALLOWED_ORIGINS=http://localhost:3000
 ```
 
 ### 2. 백엔드 실행
@@ -64,7 +70,7 @@ cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 3. 프론트엔드 실행
@@ -83,6 +89,7 @@ npm run dev
 | 메서드 | 엔드포인트 | 기능 |
 |--------|-----------|------|
 | `POST` | `/upload` | PDF 업로드 + ToC 자동 추출 |
+| `POST` | `/upload/toc` | 스캔 PDF 목차 범위 지정 재추출 |
 | `GET` | `/documents` | 문서 목록 조회 |
 | `GET` | `/documents/{id}` | 문서 상세 정보 |
 | `PATCH` | `/documents/{id}` | 파일명 수정 |
@@ -101,30 +108,34 @@ npm run dev
 Vision_RAG/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                   # FastAPI 앱
-│   │   ├── config.py                 # 설정
+│   │   ├── main.py                   # FastAPI 앱 + CORS + 라우터 등록
+│   │   ├── config.py                 # 환경 변수 설정 (Pydantic Settings)
 │   │   ├── routers/
-│   │   │   ├── chat.py               # 질의·응답 라우터
-│   │   │   ├── documents.py          # 문서 관리 라우터
-│   │   │   └── upload.py             # 업로드 라우터
+│   │   │   ├── chat.py               # 질의·응답 SSE 스트리밍 라우터
+│   │   │   ├── documents.py          # 문서 관리 CRUD 라우터
+│   │   │   └── upload.py             # 업로드 + 스캔 PDF ToC 라우터
 │   │   ├── services/
-│   │   │   ├── agentic_graph.py      # 2단계 추론 파이프라인
-│   │   │   ├── agent_service.py      # Gemini Vision 호출
-│   │   │   ├── metadata_service.py   # 문서 CRUD
-│   │   │   └── pdf_service.py        # PDF 처리 + ToC 추출
-│   │   └── schemas/
-│   │       ├── request.py            # 요청 스키마
-│   │       └── response.py           # 응답 스키마
+│   │   │   ├── agentic_graph.py      # 3단계 하이브리드 추론 파이프라인
+│   │   │   ├── agent_service.py      # Gemini LLM 호출 (ToC, Vision)
+│   │   │   ├── metadata_service.py   # 문서 메타데이터 CRUD
+│   │   │   └── pdf_service.py        # PDF 처리 + ToC 추출 전략
+│   │   ├── schemas/
+│   │   │   ├── request.py            # 요청 스키마 (ChatRequest 등)
+│   │   │   └── response.py           # 응답 스키마 (UploadResponse 등)
+│   │   └── utils/                    # 유틸리티 (확장용)
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── page.tsx              # 메인 페이지
-│   │   │   └── globals.css           # 디자인 시스템
+│   │   │   ├── page.tsx              # 메인 페이지 (웰컴 + 채팅)
+│   │   │   ├── layout.tsx            # 루트 레이아웃 (메타, 폰트)
+│   │   │   └── globals.css           # 디자인 시스템 (oklch, 글래스모피즘)
 │   │   ├── components/
-│   │   │   ├── chat/ChatMessage.tsx   # 채팅 메시지
+│   │   │   ├── chat/ChatMessage.tsx   # 채팅 메시지 (마크다운, 참조 이미지)
 │   │   │   └── layout/               # Sidebar, Header, ChatInput
-│   │   ├── store/                    # Zustand 상태관리
+│   │   ├── store/
+│   │   │   ├── useChatStore.ts       # 채팅 세션 상태 (persist)
+│   │   │   └── useDocumentStore.ts   # 문서 목록 상태
 │   │   └── lib/api.ts                # API 클라이언트
 │   └── package.json
 └── doc/

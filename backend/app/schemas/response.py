@@ -1,12 +1,12 @@
 from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 
 class TocItem(BaseModel):
     level: int
     title: str
-    page: int
+    page: Union[int, str]
 
 class UploadResponse(BaseModel):
     document_id: UUID

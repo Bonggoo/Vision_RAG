@@ -11,18 +11,43 @@ from langchain_core.messages import HumanMessage
 from app.config import settings
 
 
-def _create_llm(temperature: float = 0) -> ChatGoogleGenerativeAI:
-    """Gemini LLM 인스턴스를 생성합니다."""
+def _create_llm(temperature: float = 0, model: str | None = None) -> ChatGoogleGenerativeAI:
+    """Gemini LLM 인스턴스를 생성합니다. model을 지정하면 해당 모델을 사용합니다."""
     return ChatGoogleGenerativeAI(
-        model=settings.GEMINI_MODEL_NAME,
+        model=model or settings.GEMINI_MODEL_NAME,
         temperature=temperature,
         api_key=settings.GEMINI_API_KEY,
     )
 
 
-def _clean_json_response(content: str) -> str:
+def _create_flash_llm(temperature: float = 0) -> ChatGoogleGenerativeAI:
+    """추론/분석용 경량 Flash 모델을 생성합니다. Pro보다 빠르고 저렴합니다."""
+    return _create_llm(temperature=temperature, model=settings.GEMINI_FLASH_MODEL_NAME)
+
+
+def _extract_text_content(content) -> str:
+    """
+    LLM 응답의 content를 문자열로 변환합니다.
+    
+    일부 모델(3.1 등)은 content를 리스트(multipart)로 반환할 수 있습니다.
+    예: [{"type": "text", "text": "..."}] 또는 ["text1", "text2"]
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict) and "text" in item:
+                parts.append(item["text"])
+        return "".join(parts)
+    return str(content)
+
+
+def _clean_json_response(content) -> str:
     """LLM 응답에서 마크다운 코드 블록을 제거합니다."""
-    content = content.strip()
+    content = _extract_text_content(content).strip()
     if content.startswith("```json"):
         content = content[7:]
     elif content.startswith("```"):
@@ -36,7 +61,7 @@ def extract_toc_with_gemini(pdf_bytes: bytes) -> List[Dict[str, Any]]:
     """
     미니 PDF(또는 짧은 전체 PDF)를 Gemini에 전송하여 목차(ToC)를 JSON 형태로 추출합니다.
     """
-    llm = _create_llm()
+    llm = _create_flash_llm()
     pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
     
     prompt = """
@@ -96,7 +121,7 @@ def find_and_extract_toc(
     """
     from app.services.pdf_service import extract_pages_as_pdf
 
-    llm = _create_llm()
+    llm = _create_flash_llm()
     
     # ─── Step 1: 목차 페이지 위치 파악 ───
     scan_end = min(24, total_pages - 1)  # 0-indexed, 최대 25페이지
@@ -238,7 +263,7 @@ def reason_target_pages(toc: List[Dict[str, Any]], question: str) -> Dict[str, A
             "section_title": "관련 섹션 제목"
         }
     """
-    llm = _create_llm()
+    llm = _create_flash_llm()
     
     toc_text = json.dumps(toc, ensure_ascii=False, indent=2)
     
@@ -363,4 +388,4 @@ async def analyze_pages_with_vision(
     
     async for chunk in llm.astream([message]):
         if chunk.content:
-            yield chunk.content
+            yield _extract_text_content(chunk.content)

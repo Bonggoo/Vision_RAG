@@ -108,10 +108,26 @@ def _extract_document_title(pdf_path: str, fallback: str) -> str:
     
     우선순위:
     1. PDF 메타데이터의 title 필드
-    2. 첫 페이지 텍스트에서 제목 추출
+    2. 첫 페이지 텍스트에서 모델명 + 문서 유형 조합
     3. 원본 파일명 (fallback)
     """
     import re
+    
+    # 노이즈 패턴: 저작권, 주소, URL, 날짜, 전화번호, 숫자만 있는 줄 등
+    _noise_patterns = re.compile(
+        r"^[\d\-\.]+$"              # 숫자만
+        r"|^page"                   # 페이지
+        r"|^[A-Z]-\d"              # A-1 형식
+        r"|^\d{4}년"               # 날짜
+        r"|©|all rights reserved"  # 저작권
+        r"|www\.|http"             # URL
+        r"|^\+?\d[\d\s\-]{6,}"    # 전화번호
+        r"|straße|street|road"     # 주소
+        r"|^\d{4,}$"               # 긴 숫자 코드
+        r"|원본.*번역|translation"  # 번역 관련
+        r"|festo\s+se|co\.\s*kg"   # 특정 회사명(제목 아닌 주소/저작권 라인)
+        , re.IGNORECASE
+    )
     
     try:
         doc = fitz.open(pdf_path)
@@ -133,42 +149,60 @@ def _extract_document_title(pdf_path: str, fallback: str) -> str:
             if text:
                 lines = [l.strip() for l in text.split("\n") if l.strip()]
                 
-                # 1자짜리 제외, 의미 있는 줄만 수집
-                skip_patterns = re.compile(r"^[\d\-\.]+$|^page|^[A-Z]-\d|^\d{4}년", re.IGNORECASE)
+                # 노이즈 라인 필터링
                 meaningful = []
-                for l in lines[:15]:
-                    if len(l) > 2 and not skip_patterns.match(l):
+                for l in lines[:20]:
+                    if len(l) > 2 and not _noise_patterns.search(l):
                         meaningful.append(l)
                 
                 if meaningful:
-                    # 모델명 패턴 찾기 (영문+숫자 조합, 예: QD77MS, MELSEC-Q)
-                    model_line = None
+                    # 모델명 패턴: 대문자 영문 + 숫자/하이픈 조합 (예: HPPF, QD77MS, MELSEC-Q)
+                    model_pattern = re.compile(r"^[A-Z][A-Z0-9\-]{2,}$")
+                    # 일반 약어 제외 패턴 (PLC, CPU 등 너무 범용적인 단어)
+                    generic_terms = {"PLC", "CPU", "HMI", "USB", "LED", "LCD", "FAQ", "PDF"}
+                    model_name = None
                     doc_type = None
                     
                     for l in meaningful:
-                        # 모델명: 영문+숫자가 포함된 가장 긴 줄
-                        if re.search(r"[A-Z][A-Za-z]*[\-]?[A-Z0-9]{2,}", l) and len(l) > 5:
-                            if model_line is None or len(l) > len(model_line):
-                                model_line = l
-                        # 문서 유형: 매뉴얼, 사용자, 설명서 등
-                        if re.search(r"매뉴얼|사용자|설명서|가이드|manual|guide", l, re.IGNORECASE):
+                        # 모델명: 대문자+숫자만으로 구성된 줄 (범용 약어 제외)
+                        if model_name is None and model_pattern.match(l) and l not in generic_terms:
+                            model_name = l
+                        
+                        # 문서 유형: 매뉴얼, 사용 설명서, 가이드 등
+                        if doc_type is None and re.search(
+                            r"매뉴얼|사용.*설명서|설명서|가이드|manual|guide|instruction|operating",
+                            l, re.IGNORECASE
+                        ):
                             doc_type = l
                     
+                    # 모델명을 못 찾았으면 완화된 패턴으로 재탐색
+                    # (영문+숫자 조합이 포함된 줄 중 가장 긴 줄 = 가장 설명이 풍부한 줄)
+                    if model_name is None:
+                        model_candidates = []
+                        for l in meaningful:
+                            if re.search(r"[A-Z][A-Za-z]*[\-]?[A-Z0-9]{2,}", l):
+                                model_candidates.append(l)
+                        if model_candidates:
+                            model_name = max(model_candidates, key=len)
+                    
                     # 제목 조합
-                    if model_line and doc_type and model_line != doc_type:
-                        title = f"{model_line} {doc_type}"
+                    if model_name and doc_type and model_name != doc_type:
+                        title = f"{model_name} {doc_type}"
                         if len(title) < 80:
                             doc.close()
                             return title
                     
-                    if model_line:
+                    if model_name:
                         doc.close()
-                        return model_line
+                        return model_name
                     
-                    # 모델명 없으면 가장 긴 줄 사용
-                    best = max(meaningful, key=len)
+                    if doc_type:
+                        doc.close()
+                        return doc_type
+                    
+                    # 둘 다 없으면 첫 번째 의미 있는 줄 사용
                     doc.close()
-                    return best
+                    return meaningful[0]
         
         doc.close()
     except Exception as e:

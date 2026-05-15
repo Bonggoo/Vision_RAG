@@ -10,8 +10,8 @@ class ChatHistoryItem(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    """질의·응답 요청 스키마. 프론트엔드 호환을 위해 'message' alias도 지원합니다."""
-    document_id: UUID
+    """질의·응답 요청 스키마. document_id가 없으면 자동 선택합니다."""
+    document_id: Optional[UUID] = None
     question: str = Field(..., alias="message")
     chat_history: Optional[List[ChatHistoryItem]] = None
     
