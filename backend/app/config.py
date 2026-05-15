@@ -3,7 +3,7 @@ from typing import List
 
 class Settings(BaseSettings):
     GEMINI_API_KEY: str
-    GEMINI_MODEL_NAME: str = "gemini-3.1-flash"
+    GEMINI_MODEL_NAME: str = "gemini-3.1-flash-lite"
     GEMINI_FLASH_MODEL_NAME: str = "gemini-3.1-flash-lite"
     HOST: str = "0.0.0.0"
     PORT: int = 8000
