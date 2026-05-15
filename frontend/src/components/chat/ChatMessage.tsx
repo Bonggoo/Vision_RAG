@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -94,6 +94,32 @@ function ReferenceImages({ references }: { references: ReferenceImage[] }) {
   );
 }
 
+/** 스트리밍 대기 표시 (경과 시간 포함) */
+function StreamingIndicator() {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex items-center gap-3 py-1">
+      <div className="flex gap-1">
+        <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:0ms]" />
+        <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:150ms]" />
+        <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:300ms]" />
+      </div>
+      <span className="text-xs text-muted-foreground/60">
+        분석 중...
+        <span className="ml-1 font-mono text-primary/50">({elapsed}s)</span>
+      </span>
+    </div>
+  );
+}
+
 /** 개별 채팅 메시지 */
 export default function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
@@ -151,14 +177,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
               </ReactMarkdown>
             </div>
           ) : message.isStreaming ? (
-            <div className="flex items-center gap-3 py-1">
-              <div className="flex gap-1">
-                <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:0ms]" />
-                <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:150ms]" />
-                <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:300ms]" />
-              </div>
-              <span className="text-xs text-muted-foreground/60">분석 중...</span>
-            </div>
+            <StreamingIndicator />
           ) : null}
 
           {/* 스트리밍 커서 */}

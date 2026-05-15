@@ -23,9 +23,53 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const { documents, uploadDocument, fetchDocuments, isUploading, deleteDoc, renameDoc } =
     useDocumentStore();
 
+
+
   // 인라인 파일명 수정 상태
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+
+  // 업로드 진행률 상태
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadText, setUploadText] = useState("문서 업로드 중...");
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isUploading) {
+      setUploadProgress(0);
+      setUploadText("문서 업로드 중...");
+      
+      const startTime = Date.now();
+      interval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        
+        setUploadProgress((prev) => {
+          if (prev >= 90) return 90;
+          return prev + (Math.random() * 2 + 0.5);
+        });
+
+        if (elapsed > 12000) {
+          setUploadText("마무리 작업 중...");
+        } else if (elapsed > 7000) {
+          setUploadText("목차(ToC) 데이터를 추출하는 중...");
+        } else if (elapsed > 3000) {
+          setUploadText("AI가 문서 구조를 분석하고 있습니다...");
+        }
+      }, 500);
+    } else {
+      setUploadProgress(100);
+      const timer = setTimeout(() => {
+        setUploadProgress(0);
+        setUploadText("PDF 매뉴얼 업로드");
+      }, 500);
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timer);
+      };
+    }
+
+    return () => clearInterval(interval);
+  }, [isUploading]);
 
   useEffect(() => {
     fetchDocuments();
@@ -36,10 +80,6 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     if (!file) return;
     try {
       const doc = await uploadDocument(file);
-      const title =
-        file.name.length > 18 ? `${file.name.slice(0, 18)}...` : file.name;
-      const sessionId = createSession(doc.document_id, title);
-      setActiveSession(sessionId);
       onClose?.();
     } catch {
       alert("파일 업로드에 실패했습니다.");
@@ -47,16 +87,9 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleDocumentSelect = (docId: string, filename: string) => {
-    const title =
-      filename.length > 18 ? `${filename.slice(0, 18)}...` : filename;
-    const sessionId = createSession(docId, title);
-    setActiveSession(sessionId);
-    onClose?.();
-  };
 
   const handleNewChat = () => {
-    const sessionId = createSession(null, "새로운 대화");
+    const sessionId = createSession("새로운 대화");
     setActiveSession(sessionId);
     onClose?.();
   };
@@ -110,14 +143,28 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="btn-secondary w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium disabled:opacity-50"
+          className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium relative overflow-hidden transition-all ${
+            isUploading ? "bg-primary/5 border border-primary/20 text-primary cursor-not-allowed" : "btn-secondary"
+          }`}
         >
-          {isUploading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <UploadCloud className="w-4 h-4" />
+          {/* 가짜 프로그레스 바 배경 */}
+          {isUploading && (
+            <div 
+              className="absolute left-0 top-0 bottom-0 bg-primary/10 transition-all duration-300 ease-out"
+              style={{ width: `${uploadProgress}%` }}
+            />
           )}
-          {isUploading ? "업로드 중..." : "PDF 매뉴얼 업로드"}
+          
+          <div className="flex items-center gap-2 relative z-10 w-full justify-center">
+            {isUploading ? (
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+            ) : (
+              <UploadCloud className="w-4 h-4 shrink-0" />
+            )}
+            <span className={`truncate text-xs ${isUploading ? "font-semibold" : ""}`}>
+              {isUploading ? uploadText : "PDF 매뉴얼 업로드"}
+            </span>
+          </div>
         </button>
 
         <button
@@ -142,8 +189,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
             {documents.map((doc) => (
               <div
                 key={doc.document_id}
-                onClick={() => handleDocumentSelect(doc.document_id, doc.filename)}
-                className="doc-item group flex items-center gap-2 px-3 py-2 cursor-pointer"
+                className="doc-item group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-accent/40 transition-all"
               >
                 <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
                   <FileText className="w-3 h-3 text-primary/70" />

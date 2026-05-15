@@ -22,7 +22,6 @@ export interface Message {
 
 export interface ChatSession {
   id: string;
-  documentId: string | null;
   title: string;
   messages: Message[];
   createdAt: number;
@@ -31,7 +30,7 @@ export interface ChatSession {
 interface ChatStore {
   sessions: ChatSession[];
   activeSessionId: string | null;
-  createSession: (documentId: string | null, title?: string) => string;
+  createSession: (title?: string) => string;
   setActiveSession: (id: string) => void;
   deleteSession: (id: string) => void;
   addMessage: (sessionId: string, message: Omit<Message, 'id'>) => void;
@@ -43,6 +42,8 @@ interface ChatStore {
   appendReference: (sessionId: string, ref: ReferenceImage) => void;
   /** 스트리밍 완료 처리 */
   finishStreaming: (sessionId: string) => void;
+  /** 세션 제목 변경 */
+  renameSession: (sessionId: string, title: string) => void;
 }
 
 /** 마지막 assistant 메시지를 업데이트하는 헬퍼 */
@@ -68,10 +69,9 @@ export const useChatStore = create<ChatStore>()(
       sessions: [],
       activeSessionId: null,
 
-      createSession: (documentId, title = '새로운 대화') => {
+      createSession: (title = '새로운 대화') => {
         const newSession: ChatSession = {
           id: uuidv4(),
-          documentId,
           title,
           messages: [],
           createdAt: Date.now(),
@@ -142,6 +142,13 @@ export const useChatStore = create<ChatStore>()(
             ...msg,
             isStreaming: false,
           })),
+        })),
+
+      renameSession: (sessionId, title) =>
+        set((state) => ({
+          sessions: state.sessions.map((session) =>
+            session.id === sessionId ? { ...session, title } : session
+          ),
         })),
     }),
     {
