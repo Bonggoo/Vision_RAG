@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -17,6 +18,15 @@ export const metadata: Metadata = {
   title: "Vision RAG",
   description: "Agentic Vision RAG for Industrial Manuals",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Vision RAG",
+  },
+  icons: {
+    icon: "/icon-192x192.png",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -33,6 +43,7 @@ export default function RootLayout({
   return (
     <html lang="ko" className="dark">
       <body className={`${inter.variable} ${notoSansKr.variable} font-sans bg-background text-foreground`}>
+        <ServiceWorkerRegister />
         {children}
       </body>
     </html>
