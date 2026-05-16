@@ -124,7 +124,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen-mobile overflow-hidden bg-background">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col min-w-0">

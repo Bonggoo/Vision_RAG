@@ -21,6 +21,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#1a1f36",
+  viewportFit: "cover",            // iOS 노치 safe area 대응
+  interactiveWidget: "resizes-visual", // 모바일 키보드 올라올 때 레이아웃 유지
 };
 
 export default function RootLayout({
@@ -30,7 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="dark">
-      <body className={`${inter.variable} ${notoSansKr.variable} font-sans min-h-screen bg-background text-foreground`}>
+      <body className={`${inter.variable} ${notoSansKr.variable} font-sans bg-background text-foreground`}>
         {children}
       </body>
     </html>

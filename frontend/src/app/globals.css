@@ -181,6 +181,8 @@
   background: oklch(0.13 0.012 270 / 0.8);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  /* 모바일 홈 인디케이터/하단 바 영역 확보 */
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
 }
 .chat-input {
   background: oklch(0.18 0.016 270);
@@ -246,6 +248,12 @@
 }
 
 /* ─────────────────────── 반응형 유틸리티 ─────────────────────── */
+
+/* 모바일: dvh 기반 전체 높이 (크롬 주소창 대응) */
+.h-screen-mobile {
+  height: 100vh;
+  height: 100dvh; /* dynamic viewport height - 크롬 모바일 주소창 자동 반영 */
+}
 
 /* 모바일: 테이블 가로 스크롤 */
 @media (max-width: 640px) {
