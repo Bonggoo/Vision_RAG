@@ -163,6 +163,8 @@
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
   border-bottom: 1px solid oklch(0.22 0.02 270 / 0.6);
+  /* 모바일 상태바/노치 영역 확보 */
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* ─────────────────────── 채팅 버블 ─────────────────────── */
