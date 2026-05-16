@@ -162,7 +162,7 @@
   background: oklch(0.13 0.012 270 / 0.75);
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  border-bottom: 1px solid oklch(0.22 0.02 270 / 0.6);
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.2);
   /* 모바일 상태바/노치 영역 확보 */
   padding-top: env(safe-area-inset-top, 0px);
 }
