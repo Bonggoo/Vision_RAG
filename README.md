@@ -16,7 +16,8 @@
 | **자동 문서 선택** | document_id 없이 질문하면 AI가 가장 적합한 문서를 자동 선택 |
 | **파일명 자동 추출** | PDF 메타데이터 + 첫 페이지에서 문서 제목 자동 인식 |
 | **SSE 스트리밍** | 추론 과정 → 참조 이미지 → 답변을 실시간 스트리밍 |
-| **프리미엄 UI** | 딥 네이비/바이올렛 다크모드, 글래스모피즘, 반응형 레이아웃 |
+| **PWA 지원** | 홈 화면 설치, 전체화면 모드, 오프라인 캐싱 (갤럭시/iOS 모두 지원) |
+| **프리미엄 UI** | 딥 네이비/바이올렛 다크모드, 글래스모피즘, 모바일 최적화 레이아웃 |
 
 ---
 
@@ -45,8 +46,10 @@
 | **Frontend** | Next.js 16.2 + React 19 + Zustand 5 + TailwindCSS 4 |
 | **Backend** | Python 3.10+ / FastAPI 0.136 |
 | **PDF 처리** | PyMuPDF 1.27 (fitz) — ToC 추출, 미니 PDF, 썸네일 |
-| **AI** | Gemini 3.1 Flash / Flash-Lite (Vision, PDF 네이티브 입력) |
+| **AI** | Gemini 3.1 Flash-Lite (Vision, PDF 네이티브 입력) |
 | **Orchestration** | LangChain Core 1.4 + LangChain Google GenAI 4.2 |
+| **배포** | Vercel (프론트) + Cloud Run (백엔드) + GCS (파일 저장) |
+| **PWA** | 수동 Service Worker + Web App Manifest |
 
 ---
 
@@ -58,7 +61,7 @@
 # backend/.env
 GEMINI_API_KEY=your_gemini_api_key
 # 아래는 선택사항 (기본값 있음)
-# GEMINI_MODEL_NAME=gemini-3.1-flash
+# GEMINI_MODEL_NAME=gemini-3.1-flash-lite
 # GEMINI_FLASH_MODEL_NAME=gemini-3.1-flash-lite
 # ALLOWED_ORIGINS=http://localhost:3000
 ```
@@ -132,7 +135,8 @@ Vision_RAG/
 │   │   │   └── globals.css           # 디자인 시스템 (oklch, 글래스모피즘)
 │   │   ├── components/
 │   │   │   ├── chat/ChatMessage.tsx   # 채팅 메시지 (마크다운, 참조 이미지)
-│   │   │   └── layout/               # Sidebar, Header, ChatInput
+│   │   │   ├── layout/               # Sidebar, Header, ChatInput
+│   │   │   └── ServiceWorkerRegister.tsx  # PWA Service Worker 등록
 │   │   ├── store/
 │   │   │   ├── useChatStore.ts       # 채팅 세션 상태 (persist)
 │   │   │   └── useDocumentStore.ts   # 문서 목록 상태
