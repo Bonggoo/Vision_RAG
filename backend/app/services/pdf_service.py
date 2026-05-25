@@ -7,6 +7,8 @@ import os
 import json
 from datetime import datetime
 from app.config import settings
+from app.utils.logger import logger
+
 
 def is_toc_meaningful(toc: List[Dict[str, Any]], total_pages: int) -> bool:
     """
@@ -100,19 +102,23 @@ async def process_document_upload(file: UploadFile) -> Dict[str, Any]:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
         
     # GCS 업로드 추가
-    try:
-        from google.cloud import storage
-        client = storage.Client()
-        bucket = client.bucket(settings.GCS_BUCKET_NAME)
-        
-        blob_pdf = bucket.blob(f"{doc_id}/original.pdf")
-        blob_pdf.upload_from_filename(file_path, content_type="application/pdf")
-        
-        blob_meta = bucket.blob(f"{doc_id}/metadata.json")
-        blob_meta.upload_from_string(json.dumps(metadata, ensure_ascii=False, indent=2), content_type="application/json")
-        print(f"✅ GCS 업로드 성공: {doc_id}")
-    except Exception as e:
-        print(f"❌ GCS 업로드 실패: {e}")
+    if settings.USE_LOCAL_STORAGE:
+        logger.info(f"📁 로컬 스토리지 모드: GCS 업로드를 건너뜁니다. (ID: {doc_id})")
+    else:
+        try:
+            from google.cloud import storage
+            client = storage.Client()
+            bucket = client.bucket(settings.GCS_BUCKET_NAME)
+            
+            blob_pdf = bucket.blob(f"{doc_id}/original.pdf")
+            blob_pdf.upload_from_filename(file_path, content_type="application/pdf")
+            
+            blob_meta = bucket.blob(f"{doc_id}/metadata.json")
+            blob_meta.upload_from_string(json.dumps(metadata, ensure_ascii=False, indent=2), content_type="application/json")
+            logger.info(f"✅ GCS 업로드 성공: {doc_id}")
+        except Exception as e:
+            logger.error(f"❌ GCS 업로드 실패: {e}")
+
         
     return metadata
 

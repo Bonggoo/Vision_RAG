@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     PDF_UPLOAD_DIR: str = "/tmp/uploads"
     GCS_BUCKET_NAME: str = "vision-rag-uploads-gen-lang-client-0031404090"
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:3001,http://172.20.10.7:3000,http://172.20.10.7:3001,http://192.168.219.109:3000"
+    LOG_DIR: str = "logs"
+    LOG_LEVEL: str = "INFO"
+    USE_LOCAL_STORAGE: bool = False
 
     @property
     def cors_origins(self) -> List[str]:
@@ -18,3 +21,5 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
 settings = Settings()
+
+

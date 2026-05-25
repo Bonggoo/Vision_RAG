@@ -13,6 +13,7 @@ from typing import AsyncGenerator
 from app.services.metadata_service import get_document, get_document_path, get_all_documents
 from app.services.agent_service import analyze_pages_with_vision, _create_flash_llm, _clean_json_response
 from app.services.pdf_service import extract_pages_as_pdf, render_page_thumbnail
+from app.utils.logger import logger
 from langchain_core.messages import HumanMessage
 
 
@@ -89,8 +90,10 @@ def _refine_pages_with_text(
     질문에 답변하기 위한 정확한 타겟 페이지를 추론합니다.
     """
     llm = _create_flash_llm()
+    logger.info(f"🔍 [Phase 2] 정밀 텍스트 탐색 시작: p.{section_start}~{section_end}")
     
     # 전달받은 section_start ~ section_end 전체 텍스트 추출 (최대 200페이지)
+
     scan_end = min(section_end, section_start + 199, doc.page_count)
     
     text_content = []
@@ -143,12 +146,13 @@ def _refine_pages_with_text(
         result["target_pages"] = normalized[:3]
         return result
     except Exception as e:
-        print(f"Text Refine Error: {e}")
+        logger.error(f"❌ [Phase 2] Text Refine Error: {e}", exc_info=True)
         return {
             "reasoning": f"세부 텍스트 분석 실패, 섹션 시작 페이지로 폴백: {str(e)}",
             "target_pages": [section_start],
             "section_title": "알 수 없음"
         }
+
 
 
 def _select_document_and_pages(
@@ -169,8 +173,10 @@ def _select_document_and_pages(
         }
     """
     llm = _create_flash_llm()
+    logger.info(f"🔍 [Phase 0+1] 문서 및 페이지 1차 추론 시작 (질문: {question[:50]}...)")
     
     single_doc = len(documents) == 1
+
     
     # 각 문서의 요약 정보 구성
     doc_summaries = []
@@ -236,13 +242,14 @@ def _select_document_and_pages(
         
         return result
     except Exception as e:
-        print(f"Document+Page Selection Error: {e}")
+        logger.error(f"❌ [Phase 0+1] Document+Page Selection Error: {e}", exc_info=True)
         return {
             "document_id": documents[0]["document_id"],
             "target_pages": [1],
             "section_title": "알 수 없음",
             "reasoning": f"추론 중 오류 발생: {str(e)}"
         }
+
 
 
 async def run_agentic_pipeline(
@@ -258,8 +265,10 @@ async def run_agentic_pipeline(
     Phase 2: 섹션 전체 텍스트 분석 → 정확한 타겟 페이지 특정 (Flash-Lite, 텍스트)
     Phase 3: 타겟 페이지 미니 PDF 분석 → 답변 스트리밍 (Flash-Lite, PDF)
     """
+    logger.info(f"🚀 [Pipeline] Agentic Search 파이프라인 작동 시작 (질문: '{question}')")
     
     # ─── Step 0+1: 문서 선택 + 페이지 추론 (통합) ───
+
     if document_id is None:
         all_docs = get_all_documents()
         
@@ -329,9 +338,11 @@ async def run_agentic_pipeline(
         doc = fitz.open(pdf_path)
         total_pages = doc.page_count
     except Exception as e:
+        logger.error(f"❌ [Pipeline] PDF 파일 열기 실패 ({pdf_path}): {e}", exc_info=True)
         yield _sse_event("error", content=f"PDF 파일 열기 실패: {str(e)}")
         yield _sse_event("done")
         return
+
     
     # 섹션 범위 계산 (ToC 기반으로 정확한 섹션 끝 찾기)
     section_start, section_end = _find_section_page_range(toc, coarse_pages, total_pages)
@@ -383,9 +394,11 @@ async def run_agentic_pipeline(
         
     except Exception as e:
         doc.close()
+        logger.error(f"❌ [Pipeline] PDF 처리 및 참조 이미지 생성 실패: {e}", exc_info=True)
         yield _sse_event("error", content=f"PDF 처리 중 오류: {str(e)}")
         yield _sse_event("done")
         return
+
     
     # ─── Step 5: Vision LLM 분석 (스트리밍) ───
     yield _sse_event("reasoning", content="Gemini Vision으로 페이지를 분석하고 있습니다...")
@@ -394,6 +407,9 @@ async def run_agentic_pipeline(
         async for chunk in analyze_pages_with_vision(mini_pdf_bytes, question, chat_history=chat_history):
             yield _sse_event("answer", content=chunk)
     except Exception as e:
+        logger.error(f"❌ [Pipeline] Vision 분석 중 오류 발생: {e}", exc_info=True)
         yield _sse_event("error", content=f"Vision 분석 중 오류: {str(e)}")
     
+    logger.info("🏁 [Pipeline] Agentic Search 파이프라인 처리 완료")
     yield _sse_event("done")
+
