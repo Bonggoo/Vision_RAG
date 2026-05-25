@@ -4,6 +4,7 @@
 
 # Uploads (사용자 데이터)
 backend/uploads/
+backend/logs/
 
 # Test files
 backend/test_*.py

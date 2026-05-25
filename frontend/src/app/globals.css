@@ -33,33 +33,64 @@
 }
 
 :root {
-  /* 프리미엄 다크 테마: 깊은 네이비 + 바이올렛 악센트 */
-  --background: oklch(0.13 0.012 270);
-  --foreground: oklch(0.96 0.005 270);
-  --card: oklch(0.16 0.014 270);
-  --card-foreground: oklch(0.96 0.005 270);
-  --popover: oklch(0.18 0.016 270);
-  --popover-foreground: oklch(0.96 0.005 270);
-  --primary: oklch(0.62 0.18 265);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.22 0.018 270);
-  --secondary-foreground: oklch(0.92 0.005 270);
-  --muted: oklch(0.20 0.014 270);
-  --muted-foreground: oklch(0.65 0.015 270);
-  --accent: oklch(0.22 0.025 270);
-  --accent-foreground: oklch(0.96 0.005 270);
-  --destructive: oklch(0.55 0.2 25);
-  --destructive-foreground: oklch(0.96 0 0);
-  --border: oklch(0.24 0.018 270);
-  --input: oklch(0.20 0.014 270);
-  --ring: oklch(0.55 0.15 265);
-  --radius: 0.625rem;
+  /* ─── 프리미엄 라이트 테마: 눈이 편안한 프로스트 화이트 & 로얄 블루 ─── */
+  --background: oklch(0.98 0.005 240);
+  --foreground: oklch(0.20 0.02 245);
+  --card: oklch(0.99 0.003 240 / 0.85);
+  --card-foreground: oklch(0.20 0.02 245);
+  --popover: oklch(0.99 0.003 240);
+  --popover-foreground: oklch(0.20 0.02 245);
+  --primary: oklch(0.55 0.18 250); /* 세련된 로얄 블루/바이올렛 */
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.93 0.008 240);
+  --secondary-foreground: oklch(0.25 0.02 245);
+  --muted: oklch(0.94 0.006 240);
+  --muted-foreground: oklch(0.48 0.015 245);
+  --accent: oklch(0.91 0.02 250);
+  --accent-foreground: oklch(0.20 0.02 245);
+  --destructive: oklch(0.60 0.18 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.86 0.01 240 / 0.8);
+  --input: oklch(0.95 0.006 240);
+  --ring: oklch(0.55 0.18 250);
+  --radius: 0.75rem;
 
-  /* 커스텀 그래디언트 & 글로우 컬러 */
-  --glow-primary: oklch(0.62 0.18 265 / 0.15);
-  --glow-accent: oklch(0.58 0.2 290 / 0.1);
-  --sidebar-bg: oklch(0.11 0.015 270);
-  --sidebar-border: oklch(0.20 0.02 270);
+  /* 커스텀 그래디언트 & 글로우 컬러 (라이트) */
+  --glow-primary: oklch(0.55 0.18 250 / 0.12);
+  --glow-accent: oklch(0.60 0.15 290 / 0.08);
+  --sidebar-bg: oklch(0.95 0.007 240);
+  --sidebar-border: oklch(0.88 0.01 240 / 0.7);
+  --hero-gradient-color: oklch(0.55 0.18 250 / 0.08);
+}
+
+.dark {
+  /* ─── 프리미엄 다크 테마: 깊고 몰입감 있는 스페이스 블랙 & 네온 바이올렛 ─── */
+  --background: oklch(0.10 0.012 260);
+  --foreground: oklch(0.98 0.003 260);
+  --card: oklch(0.13 0.015 260 / 0.85);
+  --card-foreground: oklch(0.98 0.003 260);
+  --popover: oklch(0.14 0.017 260);
+  --popover-foreground: oklch(0.98 0.003 260);
+  --primary: oklch(0.64 0.22 285); /* 빛나는 네온 바이올렛 */
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.16 0.016 260);
+  --secondary-foreground: oklch(0.92 0.003 260);
+  --muted: oklch(0.15 0.014 260);
+  --muted-foreground: oklch(0.68 0.012 260);
+  --accent: oklch(0.18 0.02 260);
+  --accent-foreground: oklch(0.98 0.003 260);
+  --destructive: oklch(0.55 0.20 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.22 0.015 260 / 0.6);
+  --input: oklch(0.15 0.014 260);
+  --ring: oklch(0.64 0.22 285);
+
+  /* 커스텀 그래디언트 & 글로우 컬러 (다크) */
+  --glow-primary: oklch(0.64 0.22 285 / 0.18);
+  --glow-accent: oklch(0.76 0.15 195 / 0.12);
+  --sidebar-bg: oklch(0.07 0.01 260);
+  --sidebar-border: oklch(0.18 0.015 260 / 0.7);
+  --hero-gradient-color: oklch(0.64 0.22 285 / 0.15);
 }
 
 @layer base {
@@ -71,6 +102,19 @@
   }
 }
 
+/* ─────────────────────── 테마 전환 트랜지션 효과 ─────────────────────── */
+body, 
+.sidebar, 
+header, 
+.glass, 
+.glass-subtle, 
+.chat-bubble-ai, 
+.doc-item, 
+button, 
+.chat-input-wrapper {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease, box-shadow 0.3s ease;
+}
+
 /* ─────────────────────── 글로벌 스크롤바 ─────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
@@ -80,11 +124,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.32 0.02 270);
-  border-radius: 3px;
+  background: var(--border);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.40 0.02 270);
+  background: oklch(from var(--border) l c h / 0.9);
 }
 
 .scrollbar-thin::-webkit-scrollbar {
@@ -109,157 +153,153 @@
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-@keyframes gradientShift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 0 0 var(--glow-primary); }
-  50% { box-shadow: 0 0 20px 4px var(--glow-primary); }
-}
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.02); }
+}
+@keyframes float-shadow {
+  0%, 100% { filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
+  50% { filter: drop-shadow(0 20px 25px rgba(0,0,0,0.15)); }
 }
 
-.animate-in { animation: fadeSlideIn 0.2s ease-out; }
-.animate-slide-up { animation: fadeSlideUp 0.4s ease-out; }
+.animate-in { animation: fadeSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-slide-up { animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .animate-fade { animation: fadeIn 0.3s ease-out; }
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent 0%, oklch(0.4 0.02 270 / 0.3) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, var(--border) 50%, transparent 100%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 2s infinite;
 }
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradientShift 3s ease infinite;
-}
-.animate-pulse-glow { animation: pulseGlow 2s ease-in-out infinite; }
-.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-float { animation: float 4s ease-in-out infinite; }
 
-/* ─────────────────────── 글래스모피즘 ─────────────────────── */
+/* ─────────────────────── 고급 글래스모피즘 ─────────────────────── */
 .glass {
-  background: oklch(0.16 0.015 270 / 0.6);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  border: 1px solid oklch(0.28 0.02 270 / 0.5);
+  background: var(--card);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px -10px oklch(0 0 0 / 0.12);
 }
 .glass-subtle {
-  background: oklch(0.15 0.012 270 / 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid oklch(0.25 0.02 270 / 0.3);
+  background: oklch(from var(--card) l c h / 0.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  border: 1px solid oklch(from var(--border) l c h / 0.6);
+  box-shadow: 0 8px 20px -8px oklch(0 0 0 / 0.08);
 }
 
-/* ─────────────────────── 사이드바 ─────────────────────── */
+/* ─────────────────────── 사이드바 리디자인 ─────────────────────── */
 .sidebar {
-  background: linear-gradient(180deg, var(--sidebar-bg) 0%, oklch(0.13 0.012 270) 100%);
+  background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
-  /* 모바일 상태바/노치 영역 확보 */
   padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* ─────────────────────── 헤더 블러 ─────────────────────── */
 .header-blur {
-  background: oklch(0.13 0.012 270 / 0.75);
-  backdrop-filter: blur(20px) saturate(1.5);
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  box-shadow: 0 1px 3px oklch(0 0 0 / 0.2);
-  /* 모바일 상태바/노치 영역 확보 */
+  background: oklch(from var(--background) l c h / 0.8);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border-bottom: 1px solid var(--sidebar-border);
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* ─────────────────────── 채팅 버블 ─────────────────────── */
+/* ─────────────────────── 채팅 버블 리디자인 ─────────────────────── */
 .chat-bubble-user {
-  background: linear-gradient(135deg, oklch(0.55 0.17 265), oklch(0.50 0.20 280));
-  box-shadow: 0 2px 12px oklch(0.50 0.18 265 / 0.2);
+  background: linear-gradient(135deg, var(--primary), oklch(from var(--primary) l c h + 15));
+  box-shadow: 0 4px 16px var(--glow-primary);
+  border: 1px solid oklch(from var(--primary) l c h / 0.3);
 }
 .chat-bubble-ai {
-  background: oklch(0.18 0.018 270);
-  border: 1px solid oklch(0.26 0.02 270 / 0.7);
-  box-shadow: 0 2px 12px oklch(0 0 0 / 0.15);
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 20px -8px oklch(0 0 0 / 0.15);
 }
 
-/* ─────────────────────── 인풋 ─────────────────────── */
+/* ─── AI 버블의 라이트/다크 전용 광채 테두리 ─── */
+.dark .chat-bubble-ai {
+  background: oklch(0.12 0.012 260 / 0.85);
+  box-shadow: 0 4px 30px -10px oklch(0 0 0 / 0.5), inset 0 1px 1px oklch(1 0 0 / 0.05);
+  border-color: oklch(0.24 0.02 260 / 0.7);
+}
+
+/* ─────────────────────── 인풋 영역 ─────────────────────── */
 .chat-input-wrapper {
-  background: oklch(0.13 0.012 270 / 0.8);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  /* 모바일 홈 인디케이터/하단 바 영역 확보 */
+  background: oklch(from var(--background) l c h / 0.85);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border-top: 1px solid var(--sidebar-border);
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
 }
 .chat-input {
-  background: oklch(0.18 0.016 270);
-  border: 1px solid oklch(0.26 0.02 270 / 0.5);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  background: var(--card);
+  border: 1px solid var(--border);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .chat-input:focus {
-  border-color: oklch(0.55 0.15 265 / 0.5);
-  box-shadow: 0 0 0 3px oklch(0.55 0.15 265 / 0.1);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--glow-primary);
 }
 
-/* ─────────────────────── 버튼 ─────────────────────── */
+/* ─────────────────────── 버튼 디자인 ─────────────────────── */
 .btn-primary {
-  background: linear-gradient(135deg, oklch(0.55 0.17 265), oklch(0.48 0.20 280));
+  background: linear-gradient(135deg, var(--primary), oklch(from var(--primary) l c h + 15));
   color: white;
-  box-shadow: 0 2px 8px oklch(0.50 0.18 265 / 0.25);
-  transition: all 0.2s;
+  box-shadow: 0 4px 14px var(--glow-primary);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.btn-primary:hover {
-  box-shadow: 0 4px 16px oklch(0.50 0.18 265 / 0.35);
-  transform: translateY(-1px);
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 6px 20px var(--glow-primary);
+  transform: translateY(-1.5px);
 }
-.btn-primary:active {
+.btn-primary:active:not(:disabled) {
   transform: translateY(0);
 }
 .btn-secondary {
-  background: oklch(0.22 0.018 270);
-  border: 1px solid oklch(0.28 0.02 270 / 0.5);
-  transition: all 0.2s;
+  background: var(--card);
+  border: 1px solid var(--border);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px oklch(0 0 0 / 0.04);
 }
-.btn-secondary:hover {
-  background: oklch(0.26 0.022 270);
-  border-color: oklch(0.34 0.03 270 / 0.5);
+.btn-secondary:hover:not(:disabled) {
+  background: var(--secondary);
+  border-color: oklch(from var(--border) l c h / 0.8);
+  transform: translateY(-1px);
 }
 
-/* ─────────────────────── 도큐먼트 아이템 ─────────────────────── */
+/* ─────────────────────── 문서 카드 아이템 ─────────────────────── */
 .doc-item {
-  transition: all 0.15s ease;
-  border-radius: 8px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 10px;
 }
 .doc-item:hover {
-  background: oklch(0.22 0.025 265 / 0.4);
+  background: oklch(from var(--primary) l c h / 0.08);
+  transform: translateX(2px);
 }
 
-/* ─────────────────────── 웰컴 히어로 ─────────────────────── */
+/* ─────────────────────── 오로라 백그라운드 광원 ─────────────────────── */
 .hero-gradient {
   background: radial-gradient(
-    ellipse 600px 400px at 50% 45%,
-    oklch(0.35 0.12 265 / 0.15) 0%,
-    transparent 70%
+    circle at 50% 35%,
+    var(--hero-gradient-color) 0%,
+    transparent 65%
   );
-}
-.hero-icon {
-  background: linear-gradient(135deg, oklch(0.55 0.17 265 / 0.2), oklch(0.48 0.20 290 / 0.15));
-  border: 1px solid oklch(0.55 0.15 265 / 0.15);
+  filter: blur(60px);
 }
 
 /* ─────────────────────── 모바일 오버레이 ─────────────────────── */
 .sidebar-overlay {
-  background: oklch(0 0 0 / 0.5);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: oklch(0 0 0 / 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 /* ─────────────────────── 반응형 유틸리티 ─────────────────────── */
-
-/* 모바일: dvh 기반 전체 높이 (크롬 주소창 대응) */
 .h-screen-mobile {
   height: 100vh;
-  height: 100dvh; /* dynamic viewport height - 크롬 모바일 주소창 자동 반영 */
+  height: 100dvh;
 }
 
-/* 모바일: 테이블 가로 스크롤 */
 @media (max-width: 640px) {
   .prose table {
     display: block;
@@ -269,20 +309,6 @@
   }
   .prose pre {
     overflow-x: auto;
-    max-width: calc(100vw - 6rem);
-  }
-  .prose code {
-    word-break: break-all;
-  }
-}
-
-/* 대형 데스크탑: hero 그래디언트 확장 */
-@media (min-width: 1280px) {
-  .hero-gradient {
-    background: radial-gradient(
-      ellipse 800px 500px at 50% 45%,
-      oklch(0.35 0.12 265 / 0.12) 0%,
-      transparent 70%
-    );
+    max-width: calc(100vw - 4.5rem);
   }
 }

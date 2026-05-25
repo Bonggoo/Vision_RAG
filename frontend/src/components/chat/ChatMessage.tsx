@@ -127,14 +127,16 @@ export default function ChatMessage({ message }: ChatMessageProps) {
   if (isUser) {
     return (
       <div className="flex justify-end animate-slide-up">
-        <div className="flex items-end gap-2 sm:gap-2.5 max-w-[88%] sm:max-w-[80%]">
-          <div className="chat-bubble-user rounded-2xl rounded-tr-sm px-3.5 sm:px-5 py-3 sm:py-3.5">
-            <p className="whitespace-pre-wrap leading-relaxed text-[14px] text-white">
+        <div className="flex items-end gap-2.5 max-w-[88%] sm:max-w-[80%]">
+          {/* 유저 말풍선 */}
+          <div className="chat-bubble-user rounded-2xl rounded-tr-sm px-4 py-3 shadow-md hover:shadow-lg transition-shadow duration-350">
+            <p className="whitespace-pre-wrap leading-relaxed text-[13.5px] text-white font-medium">
               {message.content}
             </p>
           </div>
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-violet-500/30 to-blue-500/30 flex items-center justify-center flex-shrink-0 border border-primary/20">
-            <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary/80" />
+          {/* 유저 아바타 */}
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/20 to-indigo-500/20 flex items-center justify-center flex-shrink-0 border border-primary/20 shadow-sm">
+            <User className="w-4 h-4 text-primary" />
           </div>
         </div>
       </div>
@@ -143,32 +145,35 @@ export default function ChatMessage({ message }: ChatMessageProps) {
 
   return (
     <div className="flex justify-start animate-slide-up">
-      <div className="flex items-start gap-2 sm:gap-2.5 max-w-[92%] sm:max-w-[85%] lg:max-w-[80%]">
-        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-violet-500/20 to-indigo-500/20 flex items-center justify-center flex-shrink-0 mt-0.5 border border-violet-500/15">
-          <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-violet-400/90" />
+      <div className="flex items-start gap-2.5 max-w-[92%] sm:max-w-[85%] lg:max-w-[80%]">
+        {/* AI 아바타 - 라이트/다크 다이나믹 컬러 */}
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/10 to-indigo-600/10 dark:from-violet-500/20 dark:to-indigo-500/20 flex items-center justify-center flex-shrink-0 mt-0.5 border border-violet-500/20 dark:border-violet-500/30 shadow-sm">
+          <Bot className="w-4 h-4 text-violet-600 dark:text-violet-400" />
         </div>
-        <div className="chat-bubble-ai rounded-2xl rounded-tl-sm px-3.5 sm:px-5 py-3 sm:py-4 min-w-0">
+        
+        {/* AI 말풍선 (글래스모피즘) */}
+        <div className="chat-bubble-ai rounded-2xl rounded-tl-sm px-4 sm:px-5 py-3.5 sm:py-4 min-w-0">
           {/* 추론 과정 */}
           <ReasoningBlock steps={message.reasoningSteps || []} />
 
           {/* 참조 이미지 */}
           <ReferenceImages references={message.references || []} />
 
-          {/* 답변 본문 */}
+          {/* 답변 본문 (라이트/다크 가독성 분기) */}
           {message.content ? (
-            <div className="prose prose-invert prose-sm max-w-none leading-relaxed
-              prose-headings:text-foreground prose-headings:font-semibold prose-headings:tracking-tight
-              prose-h2:text-[15px] prose-h2:mt-5 prose-h2:mb-2 prose-h2:pb-1.5 prose-h2:border-b prose-h2:border-border/30
+            <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed
+              prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight
+              prose-h2:text-[14.5px] prose-h2:mt-5 prose-h2:mb-2 prose-h2:pb-1.5 prose-h2:border-b prose-h2:border-border/30
               prose-h3:text-[13px] prose-h3:mt-4 prose-h3:mb-1.5 prose-h3:text-foreground/90
-              prose-p:text-[13px] prose-p:text-foreground/85 prose-p:leading-[1.75]
-              prose-li:text-[13px] prose-li:text-foreground/85 prose-li:leading-[1.75]
-              prose-strong:text-foreground prose-strong:font-semibold
-              prose-blockquote:border-primary/25 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:py-2 prose-blockquote:pr-3
+              prose-p:text-[13px] prose-p:text-foreground/85 prose-p:leading-[1.8]
+              prose-li:text-[13px] prose-li:text-foreground/85 prose-li:leading-[1.8]
+              prose-strong:text-foreground prose-strong:font-bold
+              prose-blockquote:border-l-4 prose-blockquote:border-primary/40 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:py-2.5 prose-blockquote:pl-4 prose-blockquote:pr-3
               prose-blockquote:text-muted-foreground prose-blockquote:text-xs prose-blockquote:not-italic
-              prose-code:text-violet-300 prose-code:bg-violet-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-mono
-              prose-table:text-xs
-              prose-th:text-foreground/90 prose-th:border-border/50 prose-th:bg-accent/30 prose-th:px-3 prose-th:py-1.5
-              prose-td:border-border/30 prose-td:px-3 prose-td:py-1.5
+              prose-code:text-violet-600 dark:prose-code:text-violet-300 prose-code:bg-violet-500/5 dark:prose-code:bg-violet-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-mono
+              prose-table:text-xs prose-table:my-4
+              prose-th:text-foreground/90 prose-th:border-border/40 prose-th:bg-secondary/60 prose-th:px-3 prose-th:py-2 prose-th:font-semibold
+              prose-td:border-border/20 prose-td:px-3 prose-td:py-2
               prose-a:text-primary prose-a:no-underline hover:prose-a:underline
               prose-hr:border-border/20"
             >
@@ -189,3 +194,4 @@ export default function ChatMessage({ message }: ChatMessageProps) {
     </div>
   );
 }
+
