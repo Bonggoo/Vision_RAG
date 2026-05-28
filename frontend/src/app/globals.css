@@ -203,6 +203,10 @@ button,
   border-bottom: 1px solid var(--sidebar-border);
 }
 
+.header-safe-area {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 /* ─────────────────────── 채팅 버블 리디자인 ─────────────────────── */
 .chat-bubble-user {
   background: linear-gradient(135deg, var(--primary), oklch(from var(--primary) l c h + 15));

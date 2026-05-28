@@ -38,7 +38,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="header-blur sticky top-0 z-30 w-full pt-[env(safe-area-inset-top,0px)]">
+    <header className="header-blur header-safe-area sticky top-0 z-30 w-full">
       <div className="h-14 w-full flex items-center justify-between px-4">
         <div className="flex items-center gap-3">
           <button
