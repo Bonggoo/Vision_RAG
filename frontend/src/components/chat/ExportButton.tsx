@@ -19,6 +19,11 @@ export default function ExportButton() {
       return;
     }
 
+    // 💡 내보내기 전 다운로드 여부 확인 (사용자 취소 지원)
+    if (!confirm(`'${session.title}' 대화 기록을 마크다운(.md) 파일로 내보내시겠습니까?`)) {
+      return;
+    }
+
     // 1. 마크다운 생성
     const today = new Date().toISOString().split("T")[0];
     let markdown = `# 💎 Vision RAG 대화 기록\n`;

@@ -1,7 +1,11 @@
 # 📋 To Do List (Vision RAG)
 
 ## 향후 작업 (Next Tasks)
-- [/] 문서 관리 고도화 및 기존 문서 마이그레이션 (총 10개 기능 + 마이그레이션)
+- [ ] 답변 품질 개선 (알람코드, 표, 도면 인식률)
+- [ ] 챗 서비스 활용 가이드라인 배포
+
+## 완료된 작업 (Completed Tasks)
+- [x] 문서 관리 고도화 및 기존 문서 마이그레이션 (총 10개 기능 + 마이그레이션)
   - [x] 1. 백엔드: 커스텀 예외 정의 (`app/exceptions.py`)
   - [x] 2. 백엔드: AI 기반 제조사/모델 시리즈 자동 분류 기능 (`app/services/agent_service.py` 수정)
   - [x] 3. 백엔드: 중복 방지(SHA-256) 및 빈 파일(0바이트) 검증 기능 추가 (`app/services/pdf_service.py` 수정)
@@ -14,9 +18,7 @@
   - [x] 10. 프론트엔드: 문서 개별 다운로드 및 인라인 메타데이터 편집 팝오버 UI 구현 (`src/components/layout/Sidebar.tsx` 수정)
   - [x] 11. 프론트엔드: 대화 기록 마크다운 내보내기 기능 구현 (`src/components/chat/ExportButton.tsx` 신설, `page.tsx` 연동)
   - [x] 12. 전체 빌드 검증, 로컬 테스트 및 Cloud Run/Vercel 배포
-  - [ ] 13. 변경사항 Git 커밋 및 PR 생성 (Conventional Commits 준수)
-
-## 완료된 작업 (Completed Tasks)
+  - [x] 13. 변경사항 Git 커밋 및 PR 생성 (Conventional Commits 준수)
 - [x] PWA 지원 추가 (앱 설치, 전체화면, 오프라인 캐싱)
 - [x] 모바일 크롬 입력창 위치 수정 (dvh + viewport-fit)
 - [x] 헤더 safe-area-inset-top 패딩 추가
