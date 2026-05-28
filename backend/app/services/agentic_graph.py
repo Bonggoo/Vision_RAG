@@ -305,7 +305,8 @@ async def run_agentic_pipeline(
 """
         try:
             response = await llm.ainvoke([HumanMessage(content=chat_prompt)])
-            answer = response.content
+            from app.services.agent_service import _extract_text_content
+            answer = _extract_text_content(response.content)
             yield _sse_event("answer", content=answer)
         except Exception as e:
             logger.error(f"Error in general chatbot response: {e}")
