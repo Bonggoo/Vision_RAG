@@ -183,7 +183,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
         <button
           onClick={handleNewChat}
-          className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium !text-slate-900 dark:!text-white"
+          className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium !text-white"
         >
           <PlusCircle className="w-4 h-4" />
           새 대화 시작
