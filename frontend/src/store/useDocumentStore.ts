@@ -61,6 +61,11 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       if (file.size === 0) {
         throw new Error("파일이 로컬에 저장되어 있지 않거나 손상되었습니다. 파일을 확인한 후 다시 시도해 주세요.");
       }
+      // 💡 32MB 파일 크기 필터링 추가
+      const MAX_SIZE = 32 * 1024 * 1024;
+      if (file.size > MAX_SIZE) {
+        throw new Error("파일 크기가 32MB를 초과하여 업로드할 수 없습니다. PDF를 분할하거나 용량을 줄인 후 다시 시도해 주세요.");
+      }
       const data = await api.uploadDocument(file);
       set((state) => ({
         documents: [data, ...state.documents],
@@ -96,6 +101,19 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       // 빈 파일 감지 (0바이트)
       if (file.size === 0) {
         const errorMsg = "파일이 로컬에 저장되어 있지 않거나 손상되었습니다. 파일을 확인한 후 다시 시도해 주세요.";
+        results.push({
+          filename: file.name,
+          status: "error",
+          errorMsg
+        });
+        set({ uploadResults: [...results] });
+        continue;
+      }
+
+      // 💡 32MB 파일 크기 필터링 추가
+      const MAX_SIZE = 32 * 1024 * 1024;
+      if (file.size > MAX_SIZE) {
+        const errorMsg = "파일 크기가 32MB를 초과하여 업로드할 수 없습니다. PDF를 분할하거나 용량을 줄인 후 다시 시도해 주세요.";
         results.push({
           filename: file.name,
           status: "error",
