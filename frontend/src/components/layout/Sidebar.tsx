@@ -71,16 +71,30 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     return () => clearInterval(interval);
   }, [isUploading]);
 
+  // 15초마다 문서 목록 자동 갱신 (기기 간 상태 동기화)
   useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
+    const isDesktop = () => typeof window !== "undefined" && window.innerWidth >= 768;
+    
+    // 모바일이면서 사이드바가 닫혀있다면 폴링을 돌리지 않음
+    if (!isDesktop() && !isOpen) return;
+
+    fetchDocuments(); // 마운트 또는 오픈 시 즉시 최신화
+
+    const interval = setInterval(() => {
+      if (!isUploading) {
+        fetchDocuments();
+      }
+    }, 15000); // 15초 주기
+
+    return () => clearInterval(interval);
+  }, [isOpen, fetchDocuments, isUploading]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       const doc = await uploadDocument(file);
-      onClose?.();
+      // 업로드 후 사이드바 유지 (onClose?.() 호출 제거)
     } catch {
       alert("파일 업로드에 실패했습니다.");
     }
@@ -169,7 +183,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
         <button
           onClick={handleNewChat}
-          className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium"
+          className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium text-slate-900 dark:text-white"
         >
           <PlusCircle className="w-4 h-4" />
           새 대화 시작
@@ -227,14 +241,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                   ) : (
                     <button
                       onClick={(e) => handleStartRename(e, doc.document_id, doc.filename)}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent/50 text-muted-foreground/40 hover:text-foreground transition-all"
+                      className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent/50 text-muted-foreground/40 hover:text-foreground transition-all"
                     >
                       <Pencil className="w-3 h-3" />
                     </button>
                   )}
                   <button
                     onClick={(e) => handleDeleteDoc(e, doc.document_id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
+                    className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>

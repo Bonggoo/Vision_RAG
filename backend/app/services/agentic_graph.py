@@ -251,6 +251,29 @@ def _select_document_and_pages(
         }
 
 
+def _is_general_conversation(question: str) -> bool:
+    """
+    사용자의 질문이 매뉴얼 검색이 필요 없는 일반적인 인사말이나 일상 대화인지 판별합니다.
+    """
+    llm = _create_flash_llm()
+    
+    prompt = f"""사용자의 질문을 분석하여, 이 질문이 산업용 매뉴얼(기계 작동법, 알람 코드, 기술 매뉴얼 내용 등)의 검색이 필요한 **기술적 질문**인지, 
+아니면 매뉴얼 검색이 필요 없는 **단순 인사말, 시스템 소개 요구, 감사 인사 또는 일상적 대화**인지 판별하세요.
+
+사용자 질문: "{question}"
+
+다음 형식으로만 대답하세요 (추가 텍스트나 마크다운 없이 오직 단어 하나만):
+- 매뉴얼 검색이 불필요한 일상 대화/인사/잡담인 경우: "general"
+- 매뉴얼에서 정보를 찾아야 하는 기술적 질문인 경우: "technical"
+"""
+    try:
+        response = llm.invoke([HumanMessage(content=prompt)])
+        result = _clean_json_response(response.content).strip().lower()
+        return "general" in result
+    except Exception as e:
+        logger.error(f"Failed to classify conversation type: {e}")
+        return False
+
 
 async def run_agentic_pipeline(
     document_id: str | None,
@@ -266,6 +289,30 @@ async def run_agentic_pipeline(
     Phase 3: 타겟 페이지 미니 PDF 분석 → 답변 스트리밍 (Flash-Lite, PDF)
     """
     logger.info(f"🚀 [Pipeline] Agentic Search 파이프라인 작동 시작 (질문: '{question}')")
+    
+    # ─── Step 0: 일상 대화 / 인사말 판별 (Early Exit) ───
+    if _is_general_conversation(question):
+        yield _sse_event("reasoning", content="일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다...")
+        
+        llm = _create_flash_llm()
+        chat_prompt = f"""당신은 산업용 매뉴얼 분석 비서 'Vision RAG 에이전트'입니다.
+사용자가 매뉴얼 검색과 관계없는 일반적인 인사나 일상적 대화를 건넸습니다.
+친절하고 자연스럽게 인사하고, 매뉴얼 PDF를 업로드하여 질문하면 해당 매뉴얼(알람코드, 도면, 표 등)을 원본 레이아웃 그대로 분석하여 정확하게 답변할 수 있는 도구임을 알려주세요.
+
+사용자 입력: "{question}"
+
+친절하고 자연스럽게 한국어로 답변을 생성해 주세요.
+"""
+        try:
+            response = await llm.ainvoke([HumanMessage(content=chat_prompt)])
+            answer = response.content
+            yield _sse_event("answer", content=answer)
+        except Exception as e:
+            logger.error(f"Error in general chatbot response: {e}")
+            yield _sse_event("answer", content="안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요? 매뉴얼 PDF를 업로드하신 뒤 관련 질문(예: 특정 에러 코드나 조치 방법)을 입력해 주시면 정확히 분석하여 답변해 드리겠습니다.")
+        
+        yield _sse_event("done")
+        return
     
     # ─── Step 0+1: 문서 선택 + 페이지 추론 (통합) ───
 
