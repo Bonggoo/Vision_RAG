@@ -8,6 +8,17 @@
   - [x] ChatMessage.tsx 리디자인 (테마별 유저/AI 글래스 버블 분기 처리, 참조 이미지 호버 고도화)
 - [x] Git 원격 브랜치 푸시 및 GitHub Pull Request 생성 완료 (#2)
 - [ ] PDF 업로드 흐름 UX 개선 (모바일)
+- [x] 프론트엔드 UI/UX 모바일 대응 및 버그 수정
+  - [x] iOS PWA/웹앱 상단 헤더 safe-area-inset-top 겹침 현상 대응 (`Header.tsx` & `globals.css` 수정)
+  - [x] 모바일 채팅창 입력 줌인 방지 (`ChatInput.tsx` 글자 크기 16px 대응)
+  - [x] 라이트 모드 유저 메시지 버블 글자 색상 수정 (`ChatMessage.tsx` text-slate-900 적용)
+- [x] 백엔드 PDF 문서 제목 추출 알고리즘 개선
+  - [x] `agent_service.py`에 Gemini Vision 기반 비동기 제목 추출 함수 추가
+  - [x] `pdf_service.py` 제목 추출 로직 비동기화 및 Gemini Vision 우선 적용 (실패 시 기존 로직 fallback)
+- [x] 검증 및 빌드 확인
+  - [x] 로컬 제목 추출 기능 수동 테스트 진행 및 결과 검증 (페스토 그리퍼 PDF 테스트 통과)
+  - [x] 프론트엔드 빌드 검증 (`npm run build` 통과)
+  - [x] Git 원격 브랜치 커밋 및 PR 생성
 - [ ] 답변 품질 개선 (알람코드, 표, 도면 인식률)
 - [ ] 여러 PDF 문서 관리 (삭제, 정렬 등)
 

@@ -86,7 +86,7 @@ async def process_document_upload(file: UploadFile) -> Dict[str, Any]:
     doc.close()
     
     # 파일명 자동 추출: PDF 메타데이터 또는 첫 페이지에서 제목 추출
-    auto_title = _extract_document_title(file_path, file.filename)
+    auto_title = await _extract_document_title(file_path, file.filename)
     
     metadata = {
         "document_id": str(doc_id),
@@ -123,14 +123,15 @@ async def process_document_upload(file: UploadFile) -> Dict[str, Any]:
     return metadata
 
 
-def _extract_document_title(pdf_path: str, fallback: str) -> str:
+async def _extract_document_title(pdf_path: str, fallback: str) -> str:
     """
     PDF에서 문서 제목을 자동 추출합니다.
     
     우선순위:
     1. PDF 메타데이터의 title 필드
-    2. 첫 페이지 텍스트에서 모델명 + 문서 유형 조합
-    3. 원본 파일명 (fallback)
+    2. Gemini Vision을 이용한 표지 분석 제목 추출
+    3. 첫 페이지 텍스트에서 모델명 + 문서 유형 조합 (로컬 휴리스틱)
+    4. 원본 파일명 (fallback)
     """
     import re
     
@@ -161,8 +162,21 @@ def _extract_document_title(pdf_path: str, fallback: str) -> str:
         if pdf_title and len(pdf_title) > 5 and pdf_title != fallback:
             doc.close()
             return pdf_title
+
+        # 2단계: Gemini Vision을 이용해 표지 페이지 분석하여 제목 추출
+        try:
+            if doc.page_count > 0:
+                first_page_pdf = extract_pages_as_pdf(doc, 0, 0)
+                from app.services.agent_service import extract_document_title_with_gemini
+                gemini_title = await extract_document_title_with_gemini(first_page_pdf)
+                if gemini_title:
+                    doc.close()
+                    logger.info(f"✨ Gemini Vision 기반 제목 추출 성공: {gemini_title}")
+                    return gemini_title
+        except Exception as gemini_err:
+            logger.error(f"⚠️ Gemini 기반 제목 추출 오류: {gemini_err}")
         
-        # 2단계: 첫 페이지 텍스트에서 제목 조합
+        # 3단계: 첫 페이지 텍스트에서 제목 조합
         if doc.page_count > 0:
             first_page = doc[0]
             text = first_page.get_text().strip()

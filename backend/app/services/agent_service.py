@@ -389,3 +389,46 @@ async def analyze_pages_with_vision(
     async for chunk in llm.astream([message]):
         if chunk.content:
             yield _extract_text_content(chunk.content)
+
+
+async def extract_document_title_with_gemini(pdf_bytes: bytes) -> str | None:
+    """
+    첫 페이지 PDF 바이트를 Gemini Vision에 전달하여 문서의 공식 제목을 분석/추출합니다. (비동기)
+    """
+    llm = _create_flash_llm()
+    pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+    
+    prompt = """당신은 산업용 매뉴얼 분석 전문가입니다.
+첨부된 PDF 페이지(문서의 첫 페이지/표지)를 분석하여 이 문서의 **공식 제목**을 한국어로 추출해 주세요.
+
+규칙:
+1. 표지에서 가장 크고 중심이 되는 텍스트를 찾아 제조사(브랜드), 모델명(시리즈), 문서 유형(매뉴얼, 사용 설명서 등)을 조합하여 하나의 대표 제목으로 만드세요.
+   - 예: "로보스타 N1 시리즈 알람코드 설명서"
+   - 예: "페스토 사용 설명서"
+2. 표지 하단이나 구석에 작게 적힌 주소, 연락처, 웹사이트 URL, 문서 번호, 날짜, 개정번호(Rev) 및 저작권 문구는 제목에 포함하지 마세요.
+3. 표지에 있는 선택지나 체크박스 목록(예: "취급 및 유지보수 설명서", "GAIN 설정", "알람코드 설명서") 중 특정 항목에 체크 표시(V 등)가 되어 있다면, 전체 제목 혹은 해당 체크된 항목을 적극적으로 반영하여 정확한 제목을 만드세요. 다른 체크되지 않은 항목(예: "GAIN 설정")을 단순 텍스트로 인식해 제목으로 오해하면 안 됩니다.
+4. 어떤 추가 설명이나 마크다운 서식(예: ```json 등)도 없이, 오직 추출한 제목 문자열 딱 한 줄만 반환하세요.
+"""
+    
+    message = HumanMessage(
+        content=[
+            {"type": "text", "text": prompt},
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:application/pdf;base64,{pdf_base64}"
+                }
+            }
+        ]
+    )
+    
+    try:
+        response = await llm.ainvoke([message])
+        title = _extract_text_content(response.content).strip()
+        title = title.replace('"', '').replace("'", "").replace("`", "").strip()
+        if title and len(title) > 2 and "error" not in title.lower():
+            return title
+    except Exception as e:
+        print(f"Gemini Title Extraction Error: {e}")
+    
+    return None

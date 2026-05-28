@@ -130,7 +130,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         <div className="flex items-end gap-2.5 max-w-[88%] sm:max-w-[80%]">
           {/* 유저 말풍선 */}
           <div className="chat-bubble-user rounded-2xl rounded-tr-sm px-4 py-3 shadow-md hover:shadow-lg transition-shadow duration-350">
-            <p className="whitespace-pre-wrap leading-relaxed text-[13.5px] text-white font-medium">
+            <p className="whitespace-pre-wrap leading-relaxed text-[13.5px] text-slate-900 dark:text-white font-medium">
               {message.content}
             </p>
           </div>
