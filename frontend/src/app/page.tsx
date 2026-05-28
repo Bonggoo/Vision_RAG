@@ -12,6 +12,7 @@ export default function Home() {
   const {
     sessions,
     activeSessionId,
+    createSession,
     addMessage,
     appendAnswerChunk,
     appendReasoning,
@@ -32,16 +33,24 @@ export default function Home() {
   }, [activeSession?.messages]);
 
   const handleChatSubmit = async (text: string) => {
-    if (!activeSessionId || !activeSession) return;
+    let targetSessionId = activeSessionId;
 
-    // 첨 메시지면 대화 제목 자동 생성
-    if (activeSession.messages.length === 0) {
-      const title = text.length > 25 ? text.slice(0, 25) + "..." : text;
-      renameSession(activeSessionId, title);
+    // 활성 세션이 없으면 자동으로 새 세션 생성
+    if (!targetSessionId) {
+      targetSessionId = createSession(text.length > 25 ? text.slice(0, 25) + "..." : text);
+    } else {
+      // 기존 세션이 있고 첫 메시지인 경우 제목 변경
+      const currentSession = sessions.find((s) => s.id === targetSessionId);
+      if (currentSession && currentSession.messages.length === 0) {
+        const title = text.length > 25 ? text.slice(0, 25) + "..." : text;
+        renameSession(targetSessionId, title);
+      }
     }
 
-    addMessage(activeSessionId, { role: "user", content: text });
-    addMessage(activeSessionId, {
+    if (!targetSessionId) return;
+
+    addMessage(targetSessionId, { role: "user", content: text });
+    addMessage(targetSessionId, {
       role: "assistant",
       content: "",
       isStreaming: true,
@@ -50,11 +59,13 @@ export default function Home() {
     });
 
     try {
-      // 이전 대화 이력 구성 (최근 6턴만)
-      const prevMessages = activeSession.messages
-        .filter((m) => !m.isStreaming && m.content)
-        .slice(-6)
-        .map((m) => ({ role: m.role, content: m.content.slice(0, 300) }));
+      const currentSession = sessions.find((s) => s.id === targetSessionId);
+      const prevMessages = currentSession
+        ? currentSession.messages
+            .filter((m) => !m.isStreaming && m.content)
+            .slice(-6)
+            .map((m) => ({ role: m.role, content: m.content.slice(0, 300) }))
+        : [];
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const response = await fetch(`${apiUrl}/chat/stream`, {
@@ -84,22 +95,22 @@ export default function Home() {
               const data = JSON.parse(line.slice(6));
               switch (data.type) {
                 case "reasoning":
-                  appendReasoning(activeSessionId, data.content);
+                  appendReasoning(targetSessionId, data.content);
                   break;
                 case "reference":
-                  appendReference(activeSessionId, {
+                  appendReference(targetSessionId, {
                     pageNumber: data.page_number,
                     imageBase64: data.image_base64,
                   });
                   break;
                 case "answer":
-                  appendAnswerChunk(activeSessionId, data.content);
+                  appendAnswerChunk(targetSessionId, data.content);
                   break;
                 case "error":
-                  appendAnswerChunk(activeSessionId, `\n\n> ⚠️ 오류: ${data.content}\n`);
+                  appendAnswerChunk(targetSessionId, `\n\n> ⚠️ 오류: ${data.content}\n`);
                   break;
                 case "done":
-                  finishStreaming(activeSessionId);
+                  finishStreaming(targetSessionId);
                   break;
               }
             } catch {
@@ -108,11 +119,11 @@ export default function Home() {
           }
         }
       }
-      finishStreaming(activeSessionId);
+      finishStreaming(targetSessionId);
     } catch (error) {
       console.error(error);
-      appendAnswerChunk(activeSessionId, "\n\n> ⚠️ 네트워크 오류가 발생했습니다.");
-      finishStreaming(activeSessionId);
+      appendAnswerChunk(targetSessionId, "\n\n> ⚠️ 네트워크 오류가 발생했습니다.");
+      finishStreaming(targetSessionId);
     }
   };
 
@@ -209,7 +220,6 @@ export default function Home() {
         <ChatInput
           onSubmit={handleChatSubmit}
           disabled={
-            !activeSessionId ||
             activeSession?.messages[activeSession.messages.length - 1]?.isStreaming
           }
         />
