@@ -38,52 +38,54 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="header-blur h-14 flex items-center justify-between px-4 sticky top-0 z-30">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onMenuClick}
-          className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg transition-colors"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+    <header className="header-blur header-safe-area sticky top-0 z-30 w-full">
+      <div className="h-14 w-full flex items-center justify-between px-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onMenuClick}
+            className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
 
-        <div className="hidden md:flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
-            <span className="text-white text-[10px] font-bold">V</span>
+          <div className="hidden md:flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
+              <span className="text-white text-[10px] font-bold">V</span>
+            </div>
+            <h1 className="font-semibold text-[15px] tracking-tight">Vision RAG</h1>
           </div>
-          <h1 className="font-semibold text-[15px] tracking-tight">Vision RAG</h1>
+
+          {/* 모바일에서 제목 표시 */}
+          <h1 className="md:hidden font-semibold text-[15px] tracking-tight">Vision RAG</h1>
         </div>
 
-        {/* 모바일에서 제목 표시 */}
-        <h1 className="md:hidden font-semibold text-[15px] tracking-tight">Vision RAG</h1>
-      </div>
-
-      {/* 활성 대화 표시 및 우측 제어 */}
-      <div className="flex items-center gap-3">
-        {activeSession && (
-          <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-accent/30 px-3 py-1.5 rounded-full">
-            <Sparkles className="w-3 h-3 text-primary/70" />
-            <span className="max-w-[150px] truncate">{activeSession.title}</span>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
-          <Sparkles className="w-3.5 h-3.5 text-primary/50" />
-          <span className="hidden sm:inline">Gemini 3.1 Flash-Lite</span>
-        </div>
-
-        {/* 테마 토글 버튼 (마이크로 모션 제공) */}
-        <button
-          onClick={toggleTheme}
-          aria-label="테마 전환"
-          className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent/40 rounded-lg border border-border/20 transition-all duration-300 hover:scale-105 active:scale-95"
-        >
-          {theme === "dark" ? (
-            <Sun className="w-4 h-4 text-amber-400 rotate-0 transition-transform duration-500" />
-          ) : (
-            <Moon className="w-4 h-4 text-violet-600 -rotate-12 transition-transform duration-500" />
+        {/* 활성 대화 표시 및 우측 제어 */}
+        <div className="flex items-center gap-3">
+          {activeSession && (
+            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-accent/30 px-3 py-1.5 rounded-full">
+              <Sparkles className="w-3 h-3 text-primary/70" />
+              <span className="max-w-[150px] truncate">{activeSession.title}</span>
+            </div>
           )}
-        </button>
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+            <Sparkles className="w-3.5 h-3.5 text-primary/50" />
+            <span className="hidden sm:inline">Gemini 3.1 Flash-Lite</span>
+          </div>
+
+          {/* 테마 토글 버튼 (마이크로 모션 제공) */}
+          <button
+            onClick={toggleTheme}
+            aria-label="테마 전환"
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent/40 rounded-lg border border-border/20 transition-all duration-300 hover:scale-105 active:scale-95"
+          >
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4 text-amber-400 rotate-0 transition-transform duration-500" />
+            ) : (
+              <Moon className="w-4 h-4 text-violet-600 -rotate-12 transition-transform duration-500" />
+            )}
+          </button>
+        </div>
       </div>
     </header>
   );

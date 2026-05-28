@@ -201,6 +201,9 @@ button,
   backdrop-filter: blur(20px) saturate(1.6);
   -webkit-backdrop-filter: blur(20px) saturate(1.6);
   border-bottom: 1px solid var(--sidebar-border);
+}
+
+.header-safe-area {
   padding-top: env(safe-area-inset-top, 0px);
 }
 

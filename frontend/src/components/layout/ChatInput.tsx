@@ -46,7 +46,7 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
               onKeyDown={handleKeyDown}
               disabled={disabled}
               placeholder="매뉴얼에 대해 질문하세요..."
-              className="chat-input w-full rounded-xl pl-3.5 sm:pl-4 pr-3.5 sm:pr-4 py-3 sm:py-3.5 text-[13px] sm:text-sm md:text-[14px] leading-relaxed
+              className="chat-input w-full rounded-xl pl-3.5 sm:pl-4 pr-3.5 sm:pr-4 py-3 sm:py-3.5 text-base md:text-[14px] leading-relaxed
                 resize-none overflow-hidden min-h-[52px] max-h-[160px]
                 placeholder:text-muted-foreground/40
                 focus:outline-none
