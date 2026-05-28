@@ -170,8 +170,10 @@ async def download_document(document_id: UUID):
     
     from urllib.parse import quote
     encoded_filename = quote(download_name)
+    # filename에는 안전한 ASCII fallback 값을 제공하고, 실제 한글명은 URL 인코딩된 filename*를 사용해 UnicodeEncodeError 방지
     headers = {
-        "Content-Disposition": f'attachment; filename="{download_name}"; filename*=UTF-8\'\'{encoded_filename}'
+        "Content-Disposition": f"attachment; filename=\"document.pdf\"; filename*=UTF-8''{encoded_filename}"
     }
     
     return FileResponse(pdf_path, media_type="application/pdf", headers=headers)
+
