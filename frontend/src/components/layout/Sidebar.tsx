@@ -95,6 +95,30 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     return () => clearInterval(interval);
   }, [isOpen, fetchDocuments, isUploading]);
 
+  // 문서 다운로드 확인 대화상자 처리
+  const handleDownloadDoc = (e: React.MouseEvent, doc: any) => {
+    e.stopPropagation();
+    
+    // 다운로드 파일명 조합
+    const parts = [
+      doc.manufacturer,
+      doc.model_series,
+      doc.doc_type || doc.filename
+    ].filter(Boolean);
+    
+    const fallbackName = doc.filename.endsWith(".pdf") ? doc.filename : `${doc.filename}.pdf`;
+    let downloadName = parts.length > 0 ? `${parts.join("_")}` : fallbackName;
+    if (parts.length > 0 && !downloadName.endsWith(".pdf")) {
+      downloadName += ".pdf";
+    }
+    
+    const confirmMessage = `📥 "${downloadName}" 문서를 다운로드하시겠습니까?\n\n💡 안내: 클라우드 스토리지에서 원본 파일을 가져와 전송하는 방식으로, 최초 다운로드 시 혹은 서버 환경에 따라 수 초간의 대기 시간이 발생할 수 있습니다.`;
+    
+    if (window.confirm(confirmMessage)) {
+      downloadDoc(doc.document_id);
+    }
+  };
+
   // 다중 파일 업로드 처리
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
@@ -432,7 +456,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
             <div className="flex items-center gap-0.5 shrink-0 self-start">
               {/* 다운로드 버튼 */}
               <button
-                onClick={(e) => { e.stopPropagation(); downloadDoc(doc.document_id); }}
+                onClick={(e) => handleDownloadDoc(e, doc)}
                 title="다운로드"
                 className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"
               >
