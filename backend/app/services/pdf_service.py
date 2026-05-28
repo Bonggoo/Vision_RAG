@@ -5,9 +5,12 @@ from fastapi import UploadFile
 
 import os
 import json
+import hashlib
 from datetime import datetime
 from app.config import settings
 from app.utils.logger import logger
+from app.exceptions import EmptyFileError, DuplicateDocumentError
+from app.services import metadata_service
 
 
 def is_toc_meaningful(toc: List[Dict[str, Any]], total_pages: int) -> bool:
@@ -21,24 +24,36 @@ def is_toc_meaningful(toc: List[Dict[str, Any]], total_pages: int) -> bool:
     if total_pages > 100 and len(toc) < (total_pages / 100):
         return False
         
-    # 기준 2: 모든 항목이 Level 1이고 항목이 너무 적은 경우 (단순 파트 구분)
     has_sublevels = any(item["level"] > 1 for item in toc)
     if not has_sublevels and len(toc) < 20:
         return False
         
     return True
 
+
 async def process_document_upload(file: UploadFile) -> Dict[str, Any]:
     """
     업로드된 PDF 파일을 저장하고, 3단계 ToC 추출 전략(A,B,C)을 수행한 후 메타데이터를 반환합니다.
     ToC가 부실한 경우 자동으로 Vision 기반 세부 목차 보강을 실행합니다.
     """
+    content = await file.read()
+    
+    # 1. 빈 파일(0바이트) 검증
+    if len(content) == 0:
+        raise EmptyFileError()
+        
+    # 2. SHA-256 해시 계산 및 중복 검증
+    file_hash = hashlib.sha256(content).hexdigest()
+    existing_docs = metadata_service.get_all_documents()
+    for doc_meta in existing_docs:
+        if doc_meta.get("file_hash") == file_hash:
+            raise DuplicateDocumentError(doc_meta["filename"])
+
     doc_id = uuid.uuid4()
     doc_dir = os.path.join(settings.PDF_UPLOAD_DIR, str(doc_id))
     os.makedirs(doc_dir, exist_ok=True)
     
     file_path = os.path.join(doc_dir, "original.pdf")
-    content = await file.read()
     with open(file_path, "wb") as f:
         f.write(content)
         
@@ -85,17 +100,21 @@ async def process_document_upload(file: UploadFile) -> Dict[str, Any]:
         
     doc.close()
     
-    # 파일명 자동 추출: PDF 메타데이터 또는 첫 페이지에서 제목 추출
-    auto_title = await _extract_document_title(file_path, file.filename)
+    # 3. AI 기반 자동 분류 및 제목 추출
+    classification = await _extract_document_classification(file_path, file.filename)
     
     metadata = {
         "document_id": str(doc_id),
-        "filename": auto_title,
+        "filename": classification["title"],
         "original_filename": file.filename,
         "total_pages": total_pages,
         "toc": toc,
         "uploaded_at": datetime.now().isoformat(),
-        "status": status
+        "status": status,
+        "file_hash": file_hash,
+        "manufacturer": classification.get("manufacturer"),
+        "model_series": classification.get("model_series"),
+        "doc_type": classification.get("doc_type"),
     }
     
     with open(os.path.join(doc_dir, "metadata.json"), "w", encoding="utf-8") as f:
@@ -111,30 +130,31 @@ async def process_document_upload(file: UploadFile) -> Dict[str, Any]:
             bucket = client.bucket(settings.GCS_BUCKET_NAME)
             
             blob_pdf = bucket.blob(f"{doc_id}/original.pdf")
-            blob_pdf.upload_from_filename(file_path, content_type="application/pdf")
+            blob_pdf.upload_from_string(content, content_type="application/pdf")
             
             blob_meta = bucket.blob(f"{doc_id}/metadata.json")
             blob_meta.upload_from_string(json.dumps(metadata, ensure_ascii=False, indent=2), content_type="application/json")
             logger.info(f"✅ GCS 업로드 성공: {doc_id}")
         except Exception as e:
             logger.error(f"❌ GCS 업로드 실패: {e}")
-
         
     return metadata
 
 
-async def _extract_document_title(pdf_path: str, fallback: str) -> str:
+async def _extract_document_classification(pdf_path: str, fallback: str) -> dict:
     """
-    PDF에서 문서 제목을 자동 추출합니다.
-    
-    우선순위:
-    1. PDF 메타데이터의 title 필드
-    2. Gemini Vision을 이용한 표지 분석 제목 추출
-    3. 첫 페이지 텍스트에서 모델명 + 문서 유형 조합 (로컬 휴리스틱)
-    4. 원본 파일명 (fallback)
+    PDF에서 메타데이터(제조사, 모델, 문서유형, 제목)를 자동 추출 및 분류합니다.
     """
     import re
-    
+    from app.services.agent_service import extract_document_metadata_with_gemini
+
+    result = {
+        "title": None,
+        "manufacturer": None,
+        "model_series": None,
+        "doc_type": None
+    }
+
     # 노이즈 패턴: 저작권, 주소, URL, 날짜, 전화번호, 숫자만 있는 줄 등
     _noise_patterns = re.compile(
         r"^[\d\-\.]+$"              # 숫자만
@@ -150,104 +170,100 @@ async def _extract_document_title(pdf_path: str, fallback: str) -> str:
         r"|festo\s+se|co\.\s*kg"   # 특정 회사명(제목 아닌 주소/저작권 라인)
         , re.IGNORECASE
     )
-    
+
     try:
         doc = fitz.open(pdf_path)
         
-        # 1단계: PDF 메타데이터에서 title 확인
-        pdf_meta = doc.metadata or {}
-        pdf_title = (pdf_meta.get("title") or "").strip()
-        
-        # 의미 있는 제목인지 검사 (너무 짧거나 파일명과 같으면 스킵)
-        if pdf_title and len(pdf_title) > 5 and pdf_title != fallback:
-            doc.close()
-            return pdf_title
-
-        # 2단계: Gemini Vision을 이용해 표지 페이지 분석하여 제목 추출
+        # 1단계: Gemini Vision을 이용해 표지 페이지 분석하여 메타데이터 추출
         try:
             if doc.page_count > 0:
                 first_page_pdf = extract_pages_as_pdf(doc, 0, 0)
-                from app.services.agent_service import extract_document_title_with_gemini
-                gemini_title = await extract_document_title_with_gemini(first_page_pdf)
-                if gemini_title:
-                    doc.close()
-                    logger.info(f"✨ Gemini Vision 기반 제목 추출 성공: {gemini_title}")
-                    return gemini_title
+                gemini_meta = await extract_document_metadata_with_gemini(first_page_pdf)
+                if gemini_meta:
+                    result["title"] = gemini_meta.get("title")
+                    result["manufacturer"] = gemini_meta.get("manufacturer")
+                    result["model_series"] = gemini_meta.get("model_series")
+                    result["doc_type"] = gemini_meta.get("doc_type")
+                    logger.info(f"✨ Gemini Vision 기반 분류 성공: {result}")
         except Exception as gemini_err:
-            logger.error(f"⚠️ Gemini 기반 제목 추출 오류: {gemini_err}")
-        
-        # 3단계: 첫 페이지 텍스트에서 제목 조합
-        if doc.page_count > 0:
-            first_page = doc[0]
-            text = first_page.get_text().strip()
+            logger.error(f"⚠️ Gemini 기반 분류 오류: {gemini_err}")
+
+        # 2단계: Gemini가 실패했거나 특정 필드가 없는 경우, 기존 로컬 룰 적용하여 제목 채우기
+        if not result["title"]:
+            # PDF 메타데이터에서 title 확인
+            pdf_meta = doc.metadata or {}
+            pdf_title = (pdf_meta.get("title") or "").strip()
+            if pdf_title and len(pdf_title) > 5 and pdf_title != fallback:
+                result["title"] = pdf_title
             
-            if text:
-                lines = [l.strip() for l in text.split("\n") if l.strip()]
-                
-                # 노이즈 라인 필터링
-                meaningful = []
-                for l in lines[:20]:
-                    if len(l) > 2 and not _noise_patterns.search(l):
-                        meaningful.append(l)
-                
-                if meaningful:
-                    # 모델명 패턴: 대문자 영문 + 숫자/하이픈 조합 (예: HPPF, QD77MS, MELSEC-Q)
-                    model_pattern = re.compile(r"^[A-Z][A-Z0-9\-]{2,}$")
-                    # 일반 약어 제외 패턴 (PLC, CPU 등 너무 범용적인 단어)
-                    generic_terms = {"PLC", "CPU", "HMI", "USB", "LED", "LCD", "FAQ", "PDF"}
-                    model_name = None
-                    doc_type = None
+            # 첫 페이지 텍스트에서 제목 조합
+            if not result["title"] and doc.page_count > 0:
+                first_page = doc[0]
+                text = first_page.get_text().strip()
+                if text:
+                    lines = [l.strip() for l in text.split("\n") if l.strip()]
+                    meaningful = []
+                    for l in lines[:20]:
+                        if len(l) > 2 and not _noise_patterns.search(l):
+                            meaningful.append(l)
                     
-                    for l in meaningful:
-                        # 모델명: 대문자+숫자만으로 구성된 줄 (범용 약어 제외)
-                        if model_name is None and model_pattern.match(l) and l not in generic_terms:
-                            model_name = l
+                    if meaningful:
+                        model_pattern = re.compile(r"^[A-Z][A-Z0-9\-]{2,}$")
+                        generic_terms = {"PLC", "CPU", "HMI", "USB", "LED", "LCD", "FAQ", "PDF"}
+                        model_name = None
+                        doc_type_extracted = None
                         
-                        # 문서 유형: 매뉴얼, 사용 설명서, 가이드 등
-                        if doc_type is None and re.search(
-                            r"매뉴얼|사용.*설명서|설명서|가이드|manual|guide|instruction|operating",
-                            l, re.IGNORECASE
-                        ):
-                            doc_type = l
-                    
-                    # 모델명을 못 찾았으면 완화된 패턴으로 재탐색
-                    # (영문+숫자 조합이 포함된 줄 중 가장 긴 줄 = 가장 설명이 풍부한 줄)
-                    if model_name is None:
-                        model_candidates = []
                         for l in meaningful:
-                            if re.search(r"[A-Z][A-Za-z]*[\-]?[A-Z0-9]{2,}", l):
-                                model_candidates.append(l)
-                        if model_candidates:
-                            model_name = max(model_candidates, key=len)
-                    
-                    # 제목 조합
-                    if model_name and doc_type and model_name != doc_type:
-                        title = f"{model_name} {doc_type}"
-                        if len(title) < 80:
-                            doc.close()
-                            return title
-                    
-                    if model_name:
-                        doc.close()
-                        return model_name
-                    
-                    if doc_type:
-                        doc.close()
-                        return doc_type
-                    
-                    # 둘 다 없으면 첫 번째 의미 있는 줄 사용
-                    doc.close()
-                    return meaningful[0]
-        
+                            if model_name is None and model_pattern.match(l) and l not in generic_terms:
+                                model_name = l
+                            if doc_type_extracted is None and re.search(
+                                r"매뉴얼|사용.*설명서|설명서|가이드|manual|guide|instruction|operating",
+                                l, re.IGNORECASE
+                            ):
+                                doc_type_extracted = l
+                        
+                        if model_name is None:
+                            model_candidates = []
+                            for l in meaningful:
+                                if re.search(r"[A-Z][A-Za-z]*[\-]?[A-Z0-9]{2,}", l):
+                                    model_candidates.append(l)
+                            if model_candidates:
+                                model_name = max(model_candidates, key=len)
+                        
+                        if model_name and doc_type_extracted and model_name != doc_type_extracted:
+                            result["title"] = f"{model_name} {doc_type_extracted}"
+                        elif model_name:
+                            result["title"] = model_name
+                        elif doc_type_extracted:
+                            result["title"] = doc_type_extracted
+                        else:
+                            result["title"] = meaningful[0]
+            
+            # 최종 fallback: 파일명 사용
+            if not result["title"]:
+                name = fallback
+                if name.lower().endswith(".pdf"):
+                    name = name[:-4]
+                result["title"] = name
+
         doc.close()
     except Exception as e:
-        print(f"  ⚠️ 문서 제목 자동 추출 실패: {e}")
-    
-    # fallback: 원본 파일명 (.pdf 제거)
-    name = fallback
-    if name.lower().endswith(".pdf"):
-        name = name[:-4]
-    return name
+        logger.error(f"⚠️ 문서 분류 및 제목 추출 실패: {e}")
+        # 예외 발생 시 최종 fallback
+        name = fallback
+        if name.lower().endswith(".pdf"):
+            name = name[:-4]
+        result["title"] = name
+
+    # 정규화: null/미분류 값 통일
+    if result["manufacturer"] == "null" or result["manufacturer"] == "":
+        result["manufacturer"] = None
+    if result["model_series"] == "null" or result["model_series"] == "":
+        result["model_series"] = None
+    if result["doc_type"] == "null" or result["doc_type"] == "":
+        result["doc_type"] = None
+
+    return result
 
 def extract_toc(doc: fitz.Document) -> List[Dict[str, Any]]:
     """

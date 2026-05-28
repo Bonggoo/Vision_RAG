@@ -1,10 +1,12 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from uuid import UUID
 from typing import Optional
 from pydantic import BaseModel
 from app.schemas.response import DocumentListResponse
 from app.services import metadata_service
 import fitz
+import os
 
 router = APIRouter()
 
@@ -12,6 +14,8 @@ router = APIRouter()
 class DocumentUpdateRequest(BaseModel):
     """문서 메타데이터 수정 요청."""
     filename: Optional[str] = None
+    manufacturer: Optional[str] = None
+    model_series: Optional[str] = None
 
 
 @router.get("", response_model=DocumentListResponse)
@@ -43,7 +47,7 @@ async def get_document_detail(document_id: UUID):
 
 @router.patch("/{document_id}")
 async def update_document(document_id: UUID, request: DocumentUpdateRequest):
-    """문서 메타데이터(파일명 등)를 수정합니다."""
+    """문서 메타데이터(파일명, 제조사, 모델 등)를 수정합니다."""
     doc_id = str(document_id)
     meta = metadata_service.get_document(doc_id)
     if meta is None:
@@ -55,12 +59,26 @@ async def update_document(document_id: UUID, request: DocumentUpdateRequest):
         if not name:
             raise HTTPException(status_code=400, detail="파일명은 비어있을 수 없습니다.")
         updates["filename"] = name
+        
+    if request.manufacturer is not None:
+        mfg = request.manufacturer.strip()
+        updates["manufacturer"] = mfg if mfg else None
+        
+    if request.model_series is not None:
+        model = request.model_series.strip()
+        updates["model_series"] = model if model else None
     
     if not updates:
         raise HTTPException(status_code=400, detail="변경할 항목이 없습니다.")
     
     updated = metadata_service.update_document_metadata(doc_id, updates)
-    return {"status": "updated", "document_id": doc_id, "filename": updated.get("filename")}
+    return {
+        "status": "updated", 
+        "document_id": doc_id, 
+        "filename": updated.get("filename"),
+        "manufacturer": updated.get("manufacturer"),
+        "model_series": updated.get("model_series"),
+    }
 
 
 @router.delete("/{document_id}")
@@ -121,3 +139,39 @@ async def reindex_document(document_id: UUID):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ToC 보강 실패: {str(e)}")
+
+
+@router.get("/{document_id}/download")
+async def download_document(document_id: UUID):
+    """
+    문서 PDF를 다운로드합니다.
+    파일명 형식: 제조사_모델시리즈_문서유형.pdf
+    """
+    doc_id = str(document_id)
+    meta = metadata_service.get_document(doc_id)
+    if meta is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
+    
+    pdf_path = metadata_service.get_document_path(doc_id)
+    if pdf_path is None or not os.path.isfile(pdf_path):
+        raise HTTPException(status_code=404, detail="PDF 파일을 찾을 수 없습니다.")
+    
+    # 다운로드 파일명 조합
+    parts = filter(None, [
+        meta.get("manufacturer"),
+        meta.get("model_series"),
+        meta.get("doc_type") or meta.get("filename")
+    ])
+    download_name = "_".join(parts) + ".pdf"
+    
+    # 특수문자 제거하여 안전한 파일명 생성
+    import re
+    download_name = re.sub(r'[\\/*?:"<>|]', "", download_name)
+    
+    from urllib.parse import quote
+    encoded_filename = quote(download_name)
+    headers = {
+        "Content-Disposition": f'attachment; filename="{download_name}"; filename*=UTF-8\'\'{encoded_filename}'
+    }
+    
+    return FileResponse(pdf_path, media_type="application/pdf", headers=headers)

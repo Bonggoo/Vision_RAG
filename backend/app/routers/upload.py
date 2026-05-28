@@ -4,6 +4,7 @@ from app.schemas.request import TocRangeRequest
 from app.services.pdf_service import process_document_upload, extract_pages_as_pdf
 from app.services.agent_service import extract_toc_with_gemini
 from app.services import metadata_service
+from app.exceptions import DuplicateDocumentError, EmptyFileError
 import fitz
 
 router = APIRouter()
@@ -13,13 +14,23 @@ router = APIRouter()
 async def upload_document(file: UploadFile = File(...)):
     """PDF 파일을 업로드하고 목차(ToC)를 추출합니다."""
     if not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+        raise HTTPException(status_code=400, detail="PDF 파일만 지원합니다.")
     
     try:
         result = await process_document_upload(file)
         return result
+    except DuplicateDocumentError as e:
+        raise HTTPException(
+            status_code=409,
+            detail=f"이미 동일한 문서가 업로드되어 있습니다: '{e.existing_filename}'"
+        )
+    except EmptyFileError:
+        raise HTTPException(
+            status_code=400,
+            detail="파일이 로컬에 저장되어 있지 않거나 손상되었습니다. 파일을 확인한 후 다시 시도해 주세요."
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process PDF: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"PDF 처리 실패: {str(e)}")
 
 
 @router.post("/toc", response_model=UploadResponse)

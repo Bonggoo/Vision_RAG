@@ -10,97 +10,154 @@ import {
   Trash2,
   X,
   ChevronRight,
+  ChevronDown,
   Pencil,
   Check,
+  Download,
+  Building,
+  Cpu,
+  Folder,
+  Search,
+  AlertCircle
 } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
-import { useDocumentStore } from "@/store/useDocumentStore";
+import { useDocumentStore, Document } from "@/store/useDocumentStore";
 
 export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { sessions, activeSessionId, setActiveSession, createSession, deleteSession } =
     useChatStore();
-  const { documents, uploadDocument, fetchDocuments, isUploading, deleteDoc, renameDoc } =
-    useDocumentStore();
+  const {
+    documents,
+    uploadDocuments,
+    fetchDocuments,
+    isUploading,
+    uploadingIndex,
+    uploadTotal,
+    deleteDoc,
+    updateDocMeta,
+    downloadDoc
+  } = useDocumentStore();
 
+  // 드래그 앤 드롭 상태
+  const [isDragging, setIsDragging] = useState(false);
 
+  // 검색 쿼리
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // 인라인 파일명 수정 상태
+  // 아코디언 접기/펼치기 상태 (초기에는 펼쳐진 상태 true)
+  const [expandedManufacturers, setExpandedManufacturers] = useState<Record<string, boolean>>({});
+  const [expandedModels, setExpandedModels] = useState<Record<string, boolean>>({});
+
+  // 인라인 편집 상태
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [editingMfg, setEditingMfg] = useState("");
+  const [editingModel, setEditingModel] = useState("");
   const [editingName, setEditingName] = useState("");
 
-  // 업로드 진행률 상태
+  // 업로드 진행률 애니메이션용 상태
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadText, setUploadText] = useState("문서 업로드 중...");
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isUploading) {
-      setUploadProgress(0);
-      setUploadText("문서 업로드 중...");
+    if (isUploading && uploadTotal > 0) {
+      // 순차 업로드 시 현재 진행률 대략 계산
+      const baseProgress = (uploadingIndex / uploadTotal) * 100;
+      setUploadProgress(baseProgress);
       
-      const startTime = Date.now();
       interval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        
         setUploadProgress((prev) => {
-          if (prev >= 90) return 90;
+          const nextMax = ((uploadingIndex + 1) / uploadTotal) * 100 - 2;
+          if (prev >= nextMax) return prev;
           return prev + (Math.random() * 2 + 0.5);
         });
-
-        if (elapsed > 12000) {
-          setUploadText("마무리 작업 중...");
-        } else if (elapsed > 7000) {
-          setUploadText("목차(ToC) 데이터를 추출하는 중...");
-        } else if (elapsed > 3000) {
-          setUploadText("AI가 문서 구조를 분석하고 있습니다...");
-        }
-      }, 500);
+      }, 300);
     } else {
-      setUploadProgress(100);
-      const timer = setTimeout(() => {
-        setUploadProgress(0);
-        setUploadText("PDF 매뉴얼 업로드");
-      }, 500);
-      return () => {
-        clearInterval(interval);
-        clearTimeout(timer);
-      };
+      setUploadProgress(0);
     }
 
     return () => clearInterval(interval);
-  }, [isUploading]);
+  }, [isUploading, uploadingIndex, uploadTotal]);
 
   // 15초마다 문서 목록 자동 갱신 (기기 간 상태 동기화)
   useEffect(() => {
     const isDesktop = () => typeof window !== "undefined" && window.innerWidth >= 768;
-    
-    // 모바일이면서 사이드바가 닫혀있다면 폴링을 돌리지 않음
     if (!isDesktop() && !isOpen) return;
 
-    fetchDocuments(); // 마운트 또는 오픈 시 즉시 최신화
+    fetchDocuments();
 
     const interval = setInterval(() => {
       if (!isUploading) {
         fetchDocuments();
       }
-    }, 15000); // 15초 주기
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [isOpen, fetchDocuments, isUploading]);
 
+  // 다중 파일 업로드 처리
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const doc = await uploadDocument(file);
-      // 업로드 후 사이드바 유지 (onClose?.() 호출 제거)
-    } catch {
-      alert("파일 업로드에 실패했습니다.");
-    }
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length === 0) return;
+    
+    await processUploadFiles(files);
+    
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // 드래그 앤 드롭 파일 드롭 처리
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+    const pdfFiles = files.filter(f => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
+    
+    if (pdfFiles.length === 0) {
+      alert("PDF 파일만 업로드할 수 있습니다.");
+      return;
+    }
+    
+    await processUploadFiles(pdfFiles);
+  };
+
+  // 공통 파일 업로드 프로세스
+  const processUploadFiles = async (files: File[]) => {
+    try {
+      const results = await uploadDocuments(files);
+      
+      const successCount = results.filter(r => r.status === "success").length;
+      const dupCount = results.filter(r => r.status === "duplicate").length;
+      const errCount = results.filter(r => r.status === "error").length;
+      
+      let alertMsg = `🎉 업로드 완료! (성공: ${successCount}개`;
+      if (dupCount > 0) alertMsg += `, 중복: ${dupCount}개`;
+      if (errCount > 0) alertMsg += `, 실패: ${errCount}개`;
+      alertMsg += `)`;
+      
+      if (errCount > 0 || dupCount > 0) {
+        alertMsg += "\n\n──────────────────\n상세 내역:";
+        results.forEach(r => {
+          if (r.status === "duplicate") alertMsg += `\n⚠️ [중복 업로드 방지] ${r.filename}`;
+          if (r.status === "error") alertMsg += `\n❌ [업로드 실패] ${r.filename}: ${r.errorMsg}`;
+        });
+      }
+      alert(alertMsg);
+      fetchDocuments();
+    } catch (err: any) {
+      alert(err.message || "파일 업로드 과정에서 오류가 발생했습니다.");
+    }
+  };
 
   const handleNewChat = () => {
     const sessionId = createSession("새로운 대화");
@@ -110,32 +167,327 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
   const handleDeleteDoc = async (e: React.MouseEvent, docId: string) => {
     e.stopPropagation();
-    if (confirm("이 문서를 삭제하시겠습니까?")) {
+    if (confirm("이 문서를 삭제하시겠습니까? 관련 데이터가 모두 영구 제거됩니다.")) {
       await deleteDoc(docId);
     }
   };
 
-  const handleStartRename = (e: React.MouseEvent, docId: string, currentName: string) => {
+  const handleStartRename = (e: React.MouseEvent, doc: Document) => {
     e.stopPropagation();
-    setEditingDocId(docId);
-    setEditingName(currentName);
+    setEditingDocId(doc.document_id);
+    setEditingMfg(doc.manufacturer || "");
+    setEditingModel(doc.model_series || "");
+    setEditingName(doc.filename);
   };
 
-  const handleSaveRename = async (docId: string) => {
-    const trimmed = editingName.trim();
-    if (trimmed && trimmed !== documents.find(d => d.document_id === docId)?.filename) {
-      await renameDoc(docId, trimmed);
+  const handleSaveMeta = async (docId: string) => {
+    const trimmedName = editingName.trim();
+    if (!trimmedName) {
+      alert("문서 제목은 필수입니다.");
+      return;
     }
-    setEditingDocId(null);
+    
+    try {
+      await updateDocMeta(docId, {
+        filename: trimmedName,
+        manufacturer: editingMfg.trim() || undefined,
+        model_series: editingModel.trim() || undefined
+      });
+      setEditingDocId(null);
+    } catch (err: any) {
+      alert(err.message || "메타데이터 수정에 실패했습니다.");
+    }
+  };
+
+  // 실시간 필터링 검색
+  const filteredDocuments = documents.filter((doc) => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    
+    return (
+      doc.filename.toLowerCase().includes(query) ||
+      (doc.manufacturer || "").toLowerCase().includes(query) ||
+      (doc.model_series || "").toLowerCase().includes(query)
+    );
+  });
+
+  // 추천용 제조사 목록 추출
+  const existingManufacturers = Array.from(
+    new Set(documents.map(d => d.manufacturer).filter(Boolean))
+  ) as string[];
+
+  // 접기/펼치기 아코디언 토글
+  const toggleManufacturer = (mfg: string) => {
+    setExpandedManufacturers(prev => ({
+      ...prev,
+      [mfg]: prev[mfg] === false ? true : false // 기본 펼침(undefined -> true -> false)
+    }));
+  };
+
+  const toggleModel = (model: string) => {
+    setExpandedModels(prev => ({
+      ...prev,
+      [model]: prev[model] === false ? true : false
+    }));
+  };
+
+  // 2단 트리 그룹핑 헬퍼 함수
+  const getGroupedDocs = (docs: Document[]) => {
+    const grouped: Record<string, Record<string, Document[]>> = {};
+    docs.forEach((doc) => {
+      const mfg = doc.manufacturer || "미분류";
+      const model = doc.model_series || "미분류";
+      if (!grouped[mfg]) grouped[mfg] = {};
+      if (!grouped[mfg][model]) grouped[mfg][model] = [];
+      grouped[mfg][model].push(doc);
+    });
+    return grouped;
+  };
+
+  const groupedDocs = getGroupedDocs(filteredDocuments);
+
+  // 문서 렌더링 함수 (트리 뷰 or 플랫 리스트)
+  const renderDocumentList = () => {
+    if (filteredDocuments.length === 0) {
+      return (
+        <p className="text-[11px] text-muted-foreground/40 px-3 py-3 text-center">
+          {searchQuery ? "검색 결과가 없습니다" : "업로드된 문서가 없습니다"}
+        </p>
+      );
+    }
+
+    // 💡 전체 문서 개수가 3개 이하이거나 검색 결과가 3개 이하일 때는 트리 구조 대신 플랫 리스트로 표시
+    if (documents.length <= 3 || filteredDocuments.length <= 3) {
+      return (
+        <div className="space-y-1">
+          {filteredDocuments.map((doc) => renderSingleDocItem(doc))}
+        </div>
+      );
+    }
+
+    // 트리 2단 그룹 렌더링
+    return (
+      <div className="space-y-2.5">
+        {Object.entries(groupedDocs).map(([mfg, models]) => {
+          const isMfgExpanded = expandedManufacturers[mfg] !== false;
+          
+          return (
+            <div key={mfg} className="space-y-1">
+              {/* 제조사 1단 헤더 */}
+              <button
+                onClick={() => toggleManufacturer(mfg)}
+                className="w-full flex items-center justify-between text-xs font-semibold text-foreground/80 hover:text-foreground hover:bg-accent/30 py-1.5 px-2 rounded-lg transition-all"
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  {mfg === "미분류" ? (
+                    <Folder className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                  ) : (
+                    <Building className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                  )}
+                  <span className="truncate">{mfg}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground/50 font-normal">
+                    ({Object.values(models).flat().length})
+                  </span>
+                  {isMfgExpanded ? (
+                    <ChevronDown className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                  ) : (
+                    <ChevronRight className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                  )}
+                </div>
+              </button>
+
+              {/* 2단 모델 시리즈 영역 */}
+              {isMfgExpanded && (
+                <div className="pl-3.5 border-l border-border/40 ml-3.5 space-y-1 pt-0.5">
+                  {Object.entries(models).map(([model, docs]) => {
+                    const isModelExpanded = expandedModels[`${mfg}-${model}`] !== false;
+                    
+                    return (
+                      <div key={model} className="space-y-0.5">
+                        {/* 모델 2단 헤더 */}
+                        <button
+                          onClick={() => toggleModel(`${mfg}-${model}`)}
+                          className="w-full flex items-center justify-between text-[11px] font-medium text-foreground/70 hover:text-foreground hover:bg-accent/30 py-1 px-1.5 rounded transition-all"
+                        >
+                          <div className="flex items-center gap-1 truncate">
+                            <Cpu className="w-3 h-3 text-blue-500/60 shrink-0" />
+                            <span className="truncate">{model}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] text-muted-foreground/50 font-normal">
+                              ({docs.length})
+                            </span>
+                            {isModelExpanded ? (
+                              <ChevronDown className="w-2.5 h-2.5 text-muted-foreground/60 shrink-0" />
+                            ) : (
+                              <ChevronRight className="w-2.5 h-2.5 text-muted-foreground/60 shrink-0" />
+                            )}
+                          </div>
+                        </button>
+
+                        {/* 문서 아이템 */}
+                        {isModelExpanded && (
+                          <div className="pl-2 space-y-0.5 pt-0.5">
+                            {docs.map((doc) => renderSingleDocItem(doc))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // 개별 문서 아이템 렌더링 헬퍼
+  const renderSingleDocItem = (doc: Document) => {
+    const isEditing = editingDocId === doc.document_id;
+    
+    return (
+      <div
+        key={doc.document_id}
+        className="doc-item group flex flex-col gap-1.5 px-2.5 py-2 rounded-lg hover:bg-accent/40 transition-all border border-transparent hover:border-border/20 bg-accent/5"
+      >
+        {isEditing ? (
+          <div className="w-full space-y-2 p-1.5 bg-background/50 rounded-md" onClick={e => e.stopPropagation()}>
+            <div className="space-y-1">
+              <label className="text-[9px] font-semibold text-muted-foreground/80">제조사</label>
+              <input
+                type="text"
+                list="manufacturers-list"
+                placeholder="제조사 (예: 미쯔비시)"
+                value={editingMfg}
+                onChange={e => setEditingMfg(e.target.value)}
+                className="w-full text-xs bg-accent/20 text-foreground px-2 py-1 rounded border border-border/50 focus:outline-none focus:border-primary/50 text-[11px]"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[9px] font-semibold text-muted-foreground/80">모델 시리즈</label>
+              <input
+                type="text"
+                placeholder="모델 시리즈 (예: MR-J5)"
+                value={editingModel}
+                onChange={e => setEditingModel(e.target.value)}
+                className="w-full text-xs bg-accent/20 text-foreground px-2 py-1 rounded border border-border/50 focus:outline-none focus:border-primary/50 text-[11px]"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[9px] font-semibold text-muted-foreground/80">문서 제목</label>
+              <input
+                type="text"
+                placeholder="문서 제목"
+                value={editingName}
+                onChange={e => setEditingName(e.target.value)}
+                className="w-full text-xs bg-accent/20 text-foreground px-2 py-1 rounded border border-border/50 focus:outline-none focus:border-primary/50 text-[11px]"
+              />
+            </div>
+            <div className="flex justify-end gap-1 pt-1.5">
+              <button
+                onClick={() => setEditingDocId(null)}
+                className="px-2 py-0.5 text-[10px] font-medium rounded hover:bg-accent text-muted-foreground"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => handleSaveMeta(doc.document_id)}
+                className="px-2.5 py-0.5 text-[10px] font-medium bg-primary text-white rounded hover:bg-primary/90 flex items-center gap-0.5"
+              >
+                <Check className="w-2.5 h-2.5" /> 저장
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2">
+            <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <FileText className="w-3 h-3 text-primary/70" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-medium text-foreground/80 truncate group-hover:text-foreground line-clamp-2 leading-tight pr-1">
+                {doc.filename}
+              </p>
+              
+              {/* 메타 배지 */}
+              <div className="flex flex-wrap gap-1 mt-1 text-[9px] text-muted-foreground/50">
+                <span>{doc.total_pages}p</span>
+                {doc.manufacturer && (
+                  <span className="bg-primary/5 px-1 rounded text-primary/80 truncate max-w-[60px]">
+                    {doc.manufacturer}
+                  </span>
+                )}
+                {doc.model_series && (
+                  <span className="bg-blue-500/5 px-1 rounded text-blue-500/80 truncate max-w-[60px]">
+                    {doc.model_series}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 유틸 단추들 */}
+            <div className="flex items-center gap-0.5 shrink-0 self-start">
+              {/* 다운로드 버튼 */}
+              <button
+                onClick={(e) => { e.stopPropagation(); downloadDoc(doc.document_id); }}
+                title="다운로드"
+                className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"
+              >
+                <Download className="w-3 h-3" />
+              </button>
+              
+              {/* 편집 버튼 */}
+              <button
+                onClick={(e) => handleStartRename(e, doc)}
+                title="메타 수정"
+                className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+
+              {/* 삭제 버튼 */}
+              <button
+                onClick={(e) => handleDeleteDoc(e, doc.document_id)}
+                title="삭제"
+                className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full">
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`flex flex-col h-full relative transition-all duration-300 ${
+        isDragging
+          ? "border-2 border-dashed border-primary bg-primary/5 shadow-2xl scale-[0.99] rounded-xl"
+          : "bg-background"
+      }`}
+    >
+      {/* 드래그 오버 시 시각적 하이라이트 텍스트 */}
+      {isDragging && (
+        <div className="absolute inset-0 bg-primary/5 backdrop-blur-[1px] flex flex-col items-center justify-center pointer-events-none z-50">
+          <UploadCloud className="w-12 h-12 text-primary animate-bounce mb-2" />
+          <p className="text-sm font-bold text-primary">PDF 문서를 놓아 업로드하세요</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">다중 파일 순차 업로드 지원</p>
+        </div>
+      )}
+
       {/* 로고 + 버튼 */}
       <div className="p-4 space-y-3">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center shadow-lg">
               <span className="text-white text-xs font-bold">V</span>
             </div>
             <span className="text-sm font-semibold tracking-tight">Vision RAG</span>
@@ -150,18 +502,23 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
         <input
           type="file"
           accept="application/pdf"
+          multiple
           className="hidden"
           ref={fileInputRef}
           onChange={handleFileUpload}
         />
+        
+        {/* 다목적 업로드 버튼 */}
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
           className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium relative overflow-hidden transition-all ${
-            isUploading ? "bg-primary/5 border border-primary/20 text-primary cursor-not-allowed" : "btn-secondary"
+            isUploading
+              ? "bg-primary/5 border border-primary/20 text-primary cursor-not-allowed"
+              : "btn-secondary"
           }`}
         >
-          {/* 가짜 프로그레스 바 배경 */}
+          {/* 업로드 순차 진행률 바 */}
           {isUploading && (
             <div 
               className="absolute left-0 top-0 bottom-0 bg-primary/10 transition-all duration-300 ease-out"
@@ -175,15 +532,17 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
             ) : (
               <UploadCloud className="w-4 h-4 shrink-0" />
             )}
-            <span className={`truncate text-xs ${isUploading ? "font-semibold" : ""}`}>
-              {isUploading ? uploadText : "PDF 매뉴얼 업로드"}
+            <span className="truncate text-xs font-semibold">
+              {isUploading
+                ? `업로드 중... (${uploadingIndex + 1}/${uploadTotal})`
+                : "PDF 매뉴얼 업로드 (다중 선택)"}
             </span>
           </div>
         </button>
 
         <button
           onClick={handleNewChat}
-          className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium !text-white"
+          className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium !text-white shadow-md shadow-primary/20 hover:shadow-primary/30"
         >
           <PlusCircle className="w-4 h-4" />
           새 대화 시작
@@ -192,78 +551,51 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
       <div className="h-px bg-border/50 mx-4" />
 
-      {/* 업로드된 문서 */}
-      {documents.length > 0 && (
-        <div className="px-3 pt-3 pb-1">
-          <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground/70 px-2 py-1.5 uppercase tracking-widest">
-            <FileText className="w-3 h-3" />
-            업로드된 문서
-          </div>
-          <div className="space-y-0.5 max-h-44 overflow-y-auto scrollbar-thin">
-            {documents.map((doc) => (
-              <div
-                key={doc.document_id}
-                className="doc-item group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-accent/40 transition-all"
-              >
-                <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-3 h-3 text-primary/70" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  {editingDocId === doc.document_id ? (
-                    <input
-                      autoFocus
-                      type="text"
-                      value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveRename(doc.document_id);
-                        if (e.key === "Escape") setEditingDocId(null);
-                      }}
-                      onBlur={() => handleSaveRename(doc.document_id)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-full text-xs font-medium bg-accent/40 text-foreground px-1.5 py-0.5 rounded border border-primary/30 focus:outline-none focus:border-primary/60"
-                    />
-                  ) : (
-                    <p className="text-xs font-medium truncate text-foreground/80 group-hover:text-foreground">
-                      {doc.filename}
-                    </p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground/50">{doc.total_pages}페이지</p>
-                </div>
-                <div className="flex items-center gap-0.5">
-                  {editingDocId === doc.document_id ? (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleSaveRename(doc.document_id); }}
-                      className="p-1 rounded hover:bg-primary/20 text-primary/60 hover:text-primary transition-all"
-                    >
-                      <Check className="w-3 h-3" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={(e) => handleStartRename(e, doc.document_id, doc.filename)}
-                      className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent/50 text-muted-foreground/40 hover:text-foreground transition-all"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => handleDeleteDoc(e, doc.document_id)}
-                    className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* 📍 검색창 추가 */}
+      <div className="px-4 pt-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+          <input
+            type="text"
+            placeholder="문서 검색 (이름, 제조사, 모델)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-8 py-1.5 text-[11px] rounded-lg bg-accent/20 border border-transparent focus:border-primary/30 focus:bg-accent/10 focus:outline-none transition-all placeholder:text-muted-foreground/40 text-foreground"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-accent/70 text-muted-foreground/50"
+            >
+              <X className="w-2.5 h-2.5" />
+            </button>
+          )}
         </div>
-      )}
+      </div>
+
+      {/* 업로드된 문서 목록 영역 */}
+      <div className="px-3 pt-3 pb-1">
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground/70 px-2 py-1 uppercase tracking-widest">
+          <FileText className="w-3 h-3" />
+          업로드된 문서 {documents.length > 0 && `(${documents.length})`}
+        </div>
+        <div className="max-h-[340px] overflow-y-auto scrollbar-thin px-1 py-1">
+          {renderDocumentList()}
+        </div>
+      </div>
+
+      {/* 제조사 자동완성 데이터리스트 */}
+      <datalist id="manufacturers-list">
+        {existingManufacturers.map(m => (
+          <option key={m} value={m} />
+        ))}
+      </datalist>
 
       <div className="h-px bg-border/50 mx-4 mt-1" />
 
       {/* 최근 대화 */}
       <div className="flex-1 overflow-y-auto px-3 pt-3 space-y-0.5 scrollbar-thin">
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground/70 px-2 py-1.5 uppercase tracking-widest">
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground/70 px-2 py-1 uppercase tracking-widest">
           <MessageSquare className="w-3 h-3" />
           최근 대화
         </div>
@@ -277,7 +609,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
         {sessions.map((session) => (
           <div
             key={session.id}
-            className={`group flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-all ${
+            className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer transition-all ${
               activeSessionId === session.id
                 ? "bg-primary/10 text-foreground font-medium border border-primary/20"
                 : "hover:bg-accent/40 text-muted-foreground hover:text-foreground"
@@ -287,7 +619,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
             <ChevronRight className={`w-3.5 h-3.5 shrink-0 transition-transform ${
               activeSessionId === session.id ? "text-primary rotate-90" : ""
             }`} />
-            <span className="truncate flex-1 text-[13px]">{session.title}</span>
+            <span className="truncate flex-1 text-[12px]">{session.title}</span>
             <button
               onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
               className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
@@ -301,7 +633,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       {/* 하단 정보 */}
       <div className="p-4 border-t border-border/30">
         <p className="text-[10px] text-muted-foreground/40 text-center">
-          Vectorless Agentic Vision RAG v1.0
+          Vectorless Agentic Vision RAG v1.5
         </p>
       </div>
     </div>

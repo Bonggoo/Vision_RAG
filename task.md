@@ -1,44 +1,20 @@
 # 📋 To Do List (Vision RAG)
 
 ## 향후 작업 (Next Tasks)
-- [x] 프리미엄 라이트/다크 테마 및 스위처 UI/UX 리디자인
-  - [x] globals.css 리디자인 (라이트: 프로스트 화이트 & 다크: 스페이스 블랙 OKLCH 변수 분리 및 테마 전환 트랜지션 추가)
-  - [x] Header.tsx 및 layout.tsx 수정 (Sun/Moon 테마 토글 버튼 추가 및 초기 테마 플리커링 방지 스크립트 적용)
-  - [x] page.tsx 리디자인 (테마별 오로라 그래디언트 차별화, 기능 카드 테마별 마이크로 인터랙션)
-  - [x] ChatMessage.tsx 리디자인 (테마별 유저/AI 글래스 버블 분기 처리, 참조 이미지 호버 고도화)
-- [x] Git 원격 브랜치 푸시 및 GitHub Pull Request 생성 완료 (#2)
-- [ ] PDF 업로드 흐름 UX 개선 (모바일)
-- [x] 프론트엔드 UI/UX 모바일 대응 및 버그 수정
-  - [x] iOS PWA/웹앱 상단 헤더 safe-area-inset-top 겹침 현상 대응 (`Header.tsx` & `globals.css` 수정)
-  - [x] 모바일 채팅창 입력 줌인 방지 (`ChatInput.tsx` 글자 크기 16px 대응)
-  - [x] 라이트 모드 유저 메시지 버블 글자 색상 수정 (`ChatMessage.tsx` text-slate-900 적용)
-- [x] 백엔드 PDF 문서 제목 추출 알고리즘 개선
-  - [x] `agent_service.py`에 Gemini Vision 기반 비동기 제목 추출 함수 추가
-  - [x] `pdf_service.py` 제목 추출 로직 비동기화 및 Gemini Vision 우선 적용 (실패 시 기존 로직 fallback)
-- [x] 검증 및 빌드 확인
-  - [x] 로컬 제목 추출 기능 수동 테스트 진행 및 결과 검증 (페스토 그리퍼 PDF 테스트 통과)
-  - [x] 프론트엔드 빌드 검증 (`npm run build` 통과)
-  - [x] Git 원격 브랜치 커밋 및 PR 생성 (수정 후 재생성 완료)
-- [x] 헤더 safe-area 마운트 및 콘텐츠 잘림 현상 보완 (`Header.tsx` 재수정)
-- [x] 2차 UX 피드백 반영 및 에이전트 라우팅 고도화
-  - [x] 업로드 완료 시 사이드바가 닫히지 않도록 수정 (`Sidebar.tsx` handleFileUpload 수정)
-  - [x] 라이트 모드일 때 새 대화 시작 버튼 글자 색상 수정 (`Sidebar.tsx` btn-primary 텍스트 오버라이드)
-  - [x] 모바일에서 문서 수정/삭제 아이콘 항시 노출 (`Sidebar.tsx` opacity 반응형 클래스 변경)
-  - [x] 모바일에서는 사이드바가 열렸을 때만 15초 주기 조건부 폴링 기능 구현 (`Sidebar.tsx` useEffect 최적화)
-  - [x] 백엔드 단순 일상 대화("안녕" 등) 분류 및 가이드 대화 라우팅 추가 (`agentic_graph.py` 수정)
-- [x] 3차 UX 피드백 반영 및 검증
-  - [x] 메시지 전송 버튼 비활성화 시 금지 커서 제거 (`ChatInput.tsx` 수정)
-  - [x] 프론트엔드 빌드 검증 (`npm run build` 통과)
-- [x] 4차 UX 피드백 반영 및 검증
-  - [x] 메인 화면에서 질문 전송 시 자동으로 새 대화 세션 개설 및 화면 전환 처리 (`page.tsx` 수정)
-  - [x] 라이트 모드 새 대화 시작 버튼 글자 색상 흰색으로 롤백 (`Sidebar.tsx` 수정)
-  - [x] 프론트엔드 빌드 검증 (`npm run build` 통과)
-- [x] 검증 및 빌드 확인
-  - [x] 로컬 제목 추출 및 안녕 라우팅 테스트 진행 (안녕 일반대화 라우팅 테스트 완료)
-  - [x] 프론트엔드 빌드 검증 (`npm run build` 통과)
-  - [x] Git 원격 브랜치 커밋 및 PR 생성 (PR #4 생성 및 머지 완료)
-- [ ] 답변 품질 개선 (알람코드, 표, 도면 인식률)
-- [ ] 여러 PDF 문서 관리 (삭제, 정렬 등)
+- [/] 문서 관리 고도화 및 기존 문서 마이그레이션 (총 10개 기능 + 마이그레이션)
+  - [x] 1. 백엔드: 커스텀 예외 정의 (`app/exceptions.py`)
+  - [x] 2. 백엔드: AI 기반 제조사/모델 시리즈 자동 분류 기능 (`app/services/agent_service.py` 수정)
+  - [x] 3. 백엔드: 중복 방지(SHA-256) 및 빈 파일(0바이트) 검증 기능 추가 (`app/services/pdf_service.py` 수정)
+  - [x] 4. 백엔드: 메타데이터 관리 서비스 확장 및 업로드 응답 스키마 수정 (`app/services/metadata_service.py`, `app/schemas/response.py`)
+  - [x] 5. 백엔드: 업로드 라우터 예외 처리 및 문서 다운로드/메타데이터 수정 API 구현 (`app/routers/upload.py`, `app/routers/documents.py` 수정)
+  - [x] 6. 백엔드: 기존 업로드 문서에 대한 제조사/모델 시리즈 일괄 마이그레이션 스크립트 작성 및 실행
+  - [x] 7. 프론트엔드: API 클라이언트(다운로드, 메타 수정, 중복 처리) 및 Zustand 스토어 확장 (`src/lib/api.ts`, `src/store/useDocumentStore.ts` 수정)
+  - [x] 8. 프론트엔드: 드래그 앤 드롭 업로드 및 다중 파일 순차 업로드 UI/진행률 구현 (`src/components/layout/Sidebar.tsx` 수정)
+  - [x] 9. 프론트엔드: 사이드바 검색 필터 및 제조사 > 모델 시리즈 2단 트리 그룹핑 UI 구현 (`src/components/layout/Sidebar.tsx` 수정)
+  - [x] 10. 프론트엔드: 문서 개별 다운로드 및 인라인 메타데이터 편집 팝오버 UI 구현 (`src/components/layout/Sidebar.tsx` 수정)
+  - [x] 11. 프론트엔드: 대화 기록 마크다운 내보내기 기능 구현 (`src/components/chat/ExportButton.tsx` 신설, `page.tsx` 연동)
+  - [x] 12. 전체 빌드 검증, 로컬 테스트 및 Cloud Run/Vercel 배포
+  - [ ] 13. 변경사항 Git 커밋 및 PR 생성 (Conventional Commits 준수)
 
 ## 완료된 작업 (Completed Tasks)
 - [x] PWA 지원 추가 (앱 설치, 전체화면, 오프라인 캐싱)

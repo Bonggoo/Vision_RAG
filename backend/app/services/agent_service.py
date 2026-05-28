@@ -391,23 +391,41 @@ async def analyze_pages_with_vision(
             yield _extract_text_content(chunk.content)
 
 
-async def extract_document_title_with_gemini(pdf_bytes: bytes) -> str | None:
+async def extract_document_metadata_with_gemini(pdf_bytes: bytes) -> dict | None:
     """
-    첫 페이지 PDF 바이트를 Gemini Vision에 전달하여 문서의 공식 제목을 분석/추출합니다. (비동기)
+    첫 페이지 PDF 바이트를 Gemini Vision에 전달하여 문서의 공식 제목, 제조사, 모델 시리즈, 문서 유형을 구조화 추출합니다.
+    
+    Returns:
+        dict: {
+            "title": str or None,
+            "manufacturer": str or None,
+            "model_series": str or None,
+            "doc_type": str or None
+        }
     """
     llm = _create_flash_llm()
     pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
     
     prompt = """당신은 산업용 매뉴얼 분석 전문가입니다.
-첨부된 PDF 페이지(문서의 첫 페이지/표지)를 분석하여 이 문서의 **공식 제목**을 한국어로 추출해 주세요.
+첨부된 PDF 페이지(문서의 첫 페이지/표지)를 분석하여 다음 필드를 추출하고 반드시 정확한 JSON 형식으로만 응답해 주세요.
 
-규칙:
-1. 표지에서 가장 크고 중심이 되는 텍스트를 찾아 제조사(브랜드), 모델명(시리즈), 문서 유형(매뉴얼, 사용 설명서 등)을 조합하여 하나의 대표 제목으로 만드세요.
+필드 설명:
+1. "title": 표지에서 가장 크고 중심이 되는 텍스트를 찾아 제조사(브랜드), 모델명(시리즈), 문서 유형(매뉴얼, 사용 설명서 등)을 조합하여 하나의 대표 제목으로 만드세요.
    - 예: "로보스타 N1 시리즈 알람코드 설명서"
    - 예: "페스토 사용 설명서"
-2. 표지 하단이나 구석에 작게 적힌 주소, 연락처, 웹사이트 URL, 문서 번호, 날짜, 개정번호(Rev) 및 저작권 문구는 제목에 포함하지 마세요.
-3. 표지에 있는 선택지나 체크박스 목록(예: "취급 및 유지보수 설명서", "GAIN 설정", "알람코드 설명서") 중 특정 항목에 체크 표시(V 등)가 되어 있다면, 전체 제목 혹은 해당 체크된 항목을 적극적으로 반영하여 정확한 제목을 만드세요. 다른 체크되지 않은 항목(예: "GAIN 설정")을 단순 텍스트로 인식해 제목으로 오해하면 안 됩니다.
-4. 어떤 추가 설명이나 마크다운 서식(예: ```json 등)도 없이, 오직 추출한 제목 문자열 딱 한 줄만 반환하세요.
+   - 표지 하단이나 구석에 작게 적힌 주소, 연락처, 웹사이트 URL, 문서 번호, 날짜, 개정번호(Rev) 및 저작권 문구는 제목에 포함하지 마세요.
+   - 표지에 있는 선택지나 체크박스 목록(예: "취급 및 유지보수 설명서", "GAIN 설정", "알람코드 설명서") 중 특정 항목에 체크 표시(V 등)가 되어 있다면, 전체 제목 혹은 해당 체크된 항목을 적극적으로 반영하여 정확한 제목을 만드세요. 다른 체크되지 않은 항목(예: "GAIN 설정")을 단순 텍스트로 인식해 제목으로 오해하면 안 됩니다.
+2. "manufacturer": 문서의 제조사를 나타내는 대표 이름 (예: "미쯔비시", "페스토", "로보스타", "야스카와" 등)을 한국어로 추출하세요. 찾을 수 없는 경우 null을 지정합니다.
+3. "model_series": 모델명 또는 시리즈명을 나타내는 이름 (예: "MR-J5", "N1", "MELSEC-Q" 등)을 영어 또는 한글로 추출하세요. 찾을 수 없는 경우 null을 지정합니다.
+4. "doc_type": 문서의 유형을 나타내는 이름 (예: "알람코드 설명서", "사용 설명서", "유지보수 매뉴얼", "카탈로그" 등)을 한국어로 추출하세요. 찾을 수 없는 경우 null을 지정합니다.
+
+응답 예시 (반드시 JSON만 반환하세요, 설명이나 백틱 ```json 마크다운은 금지합니다):
+{
+  "title": "로보스타 N1 시리즈 알람코드 설명서",
+  "manufacturer": "로보스타",
+  "model_series": "N1",
+  "doc_type": "알람코드 설명서"
+}
 """
     
     message = HumanMessage(
@@ -424,11 +442,29 @@ async def extract_document_title_with_gemini(pdf_bytes: bytes) -> str | None:
     
     try:
         response = await llm.ainvoke([message])
-        title = _extract_text_content(response.content).strip()
-        title = title.replace('"', '').replace("'", "").replace("`", "").strip()
-        if title and len(title) > 2 and "error" not in title.lower():
-            return title
+        content = _clean_json_response(response.content)
+        result = json.loads(content)
+        
+        # 기본 필드 검증 및 정리
+        for key in ["title", "manufacturer", "model_series", "doc_type"]:
+            if key not in result:
+                result[key] = None
+            elif isinstance(result[key], str):
+                result[key] = result[key].replace('"', '').replace("'", "").replace("`", "").strip()
+                if not result[key] or "error" in result[key].lower() or result[key].lower() == "null":
+                    result[key] = None
+        
+        return result
     except Exception as e:
-        print(f"Gemini Title Extraction Error: {e}")
-    
+        print(f"Gemini Metadata Extraction Error: {e}")
+        return None
+
+
+async def extract_document_title_with_gemini(pdf_bytes: bytes) -> str | None:
+    """
+    첫 페이지 PDF 바이트를 Gemini Vision에 전달하여 문서의 공식 제목을 분석/추출합니다. (비동기, 하위 호환)
+    """
+    metadata = await extract_document_metadata_with_gemini(pdf_bytes)
+    if metadata and metadata.get("title"):
+        return metadata["title"]
     return None

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Menu, FileText, Sparkles, Sun, Moon } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
+import ExportButton from "@/components/chat/ExportButton";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -63,7 +64,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         <div className="flex items-center gap-3">
           {activeSession && (
             <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-accent/30 px-3 py-1.5 rounded-full">
-              <Sparkles className="w-3 h-3 text-primary/70" />
+              <Sparkles className="w-3.5 h-3.5 text-primary/70" />
               <span className="max-w-[150px] truncate">{activeSession.title}</span>
             </div>
           )}
@@ -72,6 +73,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Sparkles className="w-3.5 h-3.5 text-primary/50" />
             <span className="hidden sm:inline">Gemini 3.1 Flash-Lite</span>
           </div>
+
+          {/* 대화 내보내기 버튼 */}
+          {activeSession && <ExportButton />}
 
           {/* 테마 토글 버튼 (마이크로 모션 제공) */}
           <button

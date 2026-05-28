@@ -14,12 +14,20 @@ class UploadResponse(BaseModel):
     total_pages: int
     toc: List[TocItem]
     status: str  # "indexed" | "toc_required"
+    file_hash: Optional[str] = None
+    manufacturer: Optional[str] = None
+    model_series: Optional[str] = None
+    doc_type: Optional[str] = None
 
 class DocumentInfo(BaseModel):
     document_id: UUID
     filename: str
     total_pages: int
     uploaded_at: datetime
+    file_hash: Optional[str] = None
+    manufacturer: Optional[str] = None
+    model_series: Optional[str] = None
+    doc_type: Optional[str] = None
 
 class DocumentListResponse(BaseModel):
     documents: List[DocumentInfo]
