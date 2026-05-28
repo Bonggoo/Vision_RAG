@@ -246,12 +246,13 @@ button,
 
 /* ─────────────────────── 버튼 디자인 ─────────────────────── */
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary), oklch(from var(--primary) l c h + 15));
+  background: var(--primary);
   color: white;
   box-shadow: 0 4px 14px var(--glow-primary);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .btn-primary:hover:not(:disabled) {
+  background: oklch(from var(--primary) calc(l + 0.05) c h);
   box-shadow: 0 6px 20px var(--glow-primary);
   transform: translateY(-1.5px);
 }
