@@ -58,7 +58,7 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
           <button
             onClick={handleSubmit}
             disabled={!text.trim() || disabled}
-            className="btn-primary p-3 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex-shrink-0"
+            className="btn-primary p-3 rounded-xl disabled:opacity-30 disabled:cursor-default disabled:transform-none disabled:shadow-none flex-shrink-0"
           >
             <SendHorizontal className="w-4.5 h-4.5" />
           </button>
