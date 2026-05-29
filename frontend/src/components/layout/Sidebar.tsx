@@ -18,7 +18,8 @@ import {
   Cpu,
   Folder,
   Search,
-  AlertCircle
+  AlertCircle,
+  RotateCw
 } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
 import { useDocumentStore, Document } from "@/store/useDocumentStore";
@@ -34,6 +35,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     isUploading,
     uploadingIndex,
     uploadTotal,
+    uploadProgress: storeUploadProgress, // 💡 실제 업로드 진행률 추가
     deleteDoc,
     updateDocMeta,
     downloadDoc
@@ -59,25 +61,13 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
     if (isUploading && uploadTotal > 0) {
-      // 순차 업로드 시 현재 진행률 대략 계산
-      const baseProgress = (uploadingIndex / uploadTotal) * 100;
-      setUploadProgress(baseProgress);
-      
-      interval = setInterval(() => {
-        setUploadProgress((prev) => {
-          const nextMax = ((uploadingIndex + 1) / uploadTotal) * 100 - 2;
-          if (prev >= nextMax) return prev;
-          return prev + (Math.random() * 2 + 0.5);
-        });
-      }, 300);
+      // Zustand 스토어에 업로드 중인 실제 진행률(0~100)을 직접 반영
+      setUploadProgress(storeUploadProgress);
     } else {
       setUploadProgress(0);
     }
-
-    return () => clearInterval(interval);
-  }, [isUploading, uploadingIndex, uploadTotal]);
+  }, [isUploading, storeUploadProgress, uploadTotal]);
 
   // 15초마다 문서 목록 자동 갱신 (기기 간 상태 동기화)
   useEffect(() => {
@@ -180,6 +170,35 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       fetchDocuments();
     } catch (err: any) {
       alert(err.message || "파일 업로드 과정에서 오류가 발생했습니다.");
+    }
+  };
+
+  // 분석 실패 문서 비동기 재분석 트리거
+  const handleRetryAnalysis = async (e: React.MouseEvent, doc: Document) => {
+    e.stopPropagation();
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const res = await fetch(`${API_BASE_URL}/upload/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          document_id: doc.document_id,
+          filename: doc.filename,
+          file_hash: doc.file_hash || ""
+        })
+      });
+      if (!res.ok) {
+        let errorMsg = "재분석 요청 실패";
+        try {
+          const errData = await res.json();
+          if (errData && errData.detail) errorMsg = errData.detail;
+        } catch (err) {}
+        throw new Error(errorMsg);
+      }
+      alert("🔄 AI 분석을 다시 시작했습니다!");
+      fetchDocuments();
+    } catch (err: any) {
+      alert(`재분석 시작 실패: ${err.message}`);
     }
   };
 
@@ -379,100 +398,144 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
         className="doc-item group flex flex-col gap-1.5 px-2.5 py-2 rounded-lg hover:bg-accent/40 transition-all border border-transparent hover:border-border/20 bg-accent/5"
       >
         {isEditing ? (
-          <div className="w-full space-y-2 p-1.5 bg-background/50 rounded-md" onClick={e => e.stopPropagation()}>
+          <div className="w-full space-y-2.5 p-2.5 bg-background/60 rounded-lg border border-border/30 shadow-inner" onClick={e => e.stopPropagation()}>
             <div className="space-y-1">
-              <label className="text-[9px] font-semibold text-muted-foreground/80">제조사</label>
+              <label className="text-[10px] md:text-[9px] font-semibold text-muted-foreground/80">제조사</label>
               <input
                 type="text"
                 list="manufacturers-list"
                 placeholder="제조사 (예: 미쯔비시)"
                 value={editingMfg}
                 onChange={e => setEditingMfg(e.target.value)}
-                className="w-full text-xs bg-accent/20 text-foreground px-2 py-1 rounded border border-border/50 focus:outline-none focus:border-primary/50 text-[11px]"
+                className="w-full bg-accent/20 text-foreground px-2.5 py-1.5 md:px-2 md:py-1 rounded border border-border/50 focus:outline-none focus:border-primary/50 text-base md:text-xs"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[9px] font-semibold text-muted-foreground/80">모델 시리즈</label>
+              <label className="text-[10px] md:text-[9px] font-semibold text-muted-foreground/80">모델 시리즈</label>
               <input
                 type="text"
                 placeholder="모델 시리즈 (예: MR-J5)"
                 value={editingModel}
                 onChange={e => setEditingModel(e.target.value)}
-                className="w-full text-xs bg-accent/20 text-foreground px-2 py-1 rounded border border-border/50 focus:outline-none focus:border-primary/50 text-[11px]"
+                className="w-full bg-accent/20 text-foreground px-2.5 py-1.5 md:px-2 md:py-1 rounded border border-border/50 focus:outline-none focus:border-primary/50 text-base md:text-xs"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[9px] font-semibold text-muted-foreground/80">문서 제목</label>
+              <label className="text-[10px] md:text-[9px] font-semibold text-muted-foreground/80">문서 제목</label>
               <input
                 type="text"
                 placeholder="문서 제목"
                 value={editingName}
                 onChange={e => setEditingName(e.target.value)}
-                className="w-full text-xs bg-accent/20 text-foreground px-2 py-1 rounded border border-border/50 focus:outline-none focus:border-primary/50 text-[11px]"
+                className="w-full bg-accent/20 text-foreground px-2.5 py-1.5 md:px-2 md:py-1 rounded border border-border/50 focus:outline-none focus:border-primary/50 text-base md:text-xs"
               />
             </div>
-            <div className="flex justify-end gap-1 pt-1.5">
+            <div className="flex justify-end gap-1.5 pt-1">
               <button
                 onClick={() => setEditingDocId(null)}
-                className="px-2 py-0.5 text-[10px] font-medium rounded hover:bg-accent text-muted-foreground"
+                className="px-3 py-1.5 md:px-2 md:py-0.5 text-[11px] md:text-[10px] font-medium rounded hover:bg-accent text-muted-foreground transition-colors"
               >
                 취소
               </button>
               <button
                 onClick={() => handleSaveMeta(doc.document_id)}
-                className="px-2.5 py-0.5 text-[10px] font-medium bg-primary text-white rounded hover:bg-primary/90 flex items-center gap-0.5"
+                className="px-3.5 py-1.5 md:px-2.5 md:py-0.5 text-[11px] md:text-[10px] font-medium bg-primary text-white rounded hover:bg-primary/90 flex items-center gap-1 transition-colors shadow-sm"
               >
-                <Check className="w-2.5 h-2.5" /> 저장
+                <Check className="w-3 h-3 md:w-2.5 md:h-2.5" /> 저장
               </button>
             </div>
           </div>
         ) : (
           <div className="flex items-start gap-2">
-            <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <FileText className="w-3 h-3 text-primary/70" />
+            {/* 썸네일 아이콘 분기 */}
+            <div className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 ${
+              doc.status === "analyzing"
+                ? "bg-amber-500/10 text-amber-500"
+                : doc.status === "error"
+                ? "bg-destructive/10 text-destructive"
+                : "bg-primary/10 text-primary/70"
+            }`}>
+              {doc.status === "analyzing" ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : doc.status === "error" ? (
+                <AlertCircle className="w-3 h-3" />
+              ) : (
+                <FileText className="w-3 h-3" />
+              )}
             </div>
+            
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-medium text-foreground/80 truncate group-hover:text-foreground line-clamp-2 leading-tight pr-1">
+              <p className="text-xs md:text-[11px] font-medium text-foreground/80 group-hover:text-foreground line-clamp-3 break-all leading-tight pr-1">
                 {doc.filename}
               </p>
               
-              {/* 메타 배지 */}
+              {/* 메타 배지 및 상태 배지 분기 */}
               <div className="flex flex-wrap gap-1 mt-1 text-[9px] text-muted-foreground/50">
-                <span>{doc.total_pages}p</span>
-                {doc.manufacturer && (
-                  <span className="bg-primary/5 px-1 rounded text-primary/80 truncate max-w-[60px]">
-                    {doc.manufacturer}
+                {doc.status === "analyzing" ? (
+                  <span className="text-amber-500 font-semibold animate-pulse flex items-center gap-0.5">
+                    🤖 AI 분석 중...
                   </span>
-                )}
-                {doc.model_series && (
-                  <span className="bg-blue-500/5 px-1 rounded text-blue-500/80 truncate max-w-[60px]">
-                    {doc.model_series}
+                ) : doc.status === "error" ? (
+                  <span 
+                    title={(doc as any).error_message || "분석 중 에러가 발생했습니다."} 
+                    className="text-destructive font-semibold cursor-help"
+                  >
+                    ❌ 분석 실패 (마우스 오버로 사유 확인)
                   </span>
+                ) : (
+                  <>
+                    <span>{doc.total_pages}p</span>
+                    {doc.manufacturer && (
+                      <span className="bg-primary/5 px-1 rounded text-primary/80 truncate max-w-[60px]">
+                        {doc.manufacturer}
+                      </span>
+                    )}
+                    {doc.model_series && (
+                      <span className="bg-blue-500/5 px-1 rounded text-blue-500/80 truncate max-w-[60px]">
+                        {doc.model_series}
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
             </div>
 
             {/* 유틸 단추들 */}
             <div className="flex items-center gap-0.5 shrink-0 self-start">
-              {/* 다운로드 버튼 */}
-              <button
-                onClick={(e) => handleDownloadDoc(e, doc)}
-                title="다운로드"
-                className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"
-              >
-                <Download className="w-3 h-3" />
-              </button>
-              
-              {/* 편집 버튼 */}
-              <button
-                onClick={(e) => handleStartRename(e, doc)}
-                title="메타 수정"
-                className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"
-              >
-                <Pencil className="w-3 h-3" />
-              </button>
+              {/* 재분석 버튼 (에러 상태일 때 노출) */}
+              {doc.status === "error" && (
+                <button
+                  onClick={(e) => handleRetryAnalysis(e, doc)}
+                  title="AI 재분석 요청"
+                  className="opacity-100 p-1 rounded hover:bg-amber-500/20 text-amber-500 transition-all animate-pulse"
+                >
+                  <RotateCw className="w-3 h-3" />
+                </button>
+              )}
 
-              {/* 삭제 버튼 */}
+              {/* 다운로드 버튼 (성공 시에만 노출) */}
+              {doc.status !== "analyzing" && doc.status !== "error" && (
+                <button
+                  onClick={(e) => handleDownloadDoc(e, doc)}
+                  title="다운로드"
+                  className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"
+                >
+                  <Download className="w-3 h-3" />
+                </button>
+              )}
+              
+              {/* 편집 버튼 (성공 시에만 노출) */}
+              {doc.status !== "analyzing" && doc.status !== "error" && (
+                <button
+                  onClick={(e) => handleStartRename(e, doc)}
+                  title="메타 수정"
+                  className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+              )}
+
+              {/* 삭제 버튼 (공통 노출) */}
               <button
                 onClick={(e) => handleDeleteDoc(e, doc.document_id)}
                 title="삭제"
@@ -646,7 +709,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
             <span className="truncate flex-1 text-[12px]">{session.title}</span>
             <button
               onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
+              className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
             >
               <Trash2 className="w-3 h-3" />
             </button>
@@ -680,7 +743,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
       {/* 모바일 슬라이드인 */}
       <aside className={`
-        sidebar fixed top-0 left-0 w-72 h-full flex flex-col z-50
+        sidebar fixed top-0 left-0 w-[88vw] max-w-[360px] h-full flex flex-col z-50
         md:hidden
         transition-transform duration-300 ease-out
         ${isOpen ? "translate-x-0" : "-translate-x-full"}

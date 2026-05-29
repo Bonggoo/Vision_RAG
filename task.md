@@ -1,13 +1,13 @@
 # 📋 To Do List (Vision RAG)
 
 ## 향후 작업 (Next Tasks)
-- [x] GCS Signed URL 고도화 작업
-  - [x] GCS 버킷 CORS 설정 (`gcs_cors.json` 작성 및 적용)
-  - [x] 백엔드: GCS Signed URL 생성 유틸 및 로컬 스토리지 분기 구현 (`backend/app/services/metadata_service.py` 수정)
-  - [x] 백엔드: Signed URL 발급 API 추가 (`backend/app/routers/documents.py` 수정)
-  - [x] 프론트엔드: API 클라이언트 `downloadDocument`를 Signed URL 방식으로 변경 및 Safari 팝업 차단 우회 (`frontend/src/lib/api.ts` 수정)
-  - [x] 프론트엔드: 사이드바 Confirm 대기 경고 문구 최신화 및 예외 핸들링 (`frontend/src/components/layout/Sidebar.tsx` 수정)
-  - [x] 검증 및 배포 (`gh` 커밋 & 배포 확인)
+- [x] 모바일 PWA 및 사용성 개선 작업
+  - [x] 초기 화면 모바일 상단 잘림 방지 레이아웃 개선 (`src/app/page.tsx` 수정)
+  - [x] 모바일 사이드바 폭 확장 (`src/components/layout/Sidebar.tsx` 수정)
+  - [x] 메타데이터 인라인 수정 폼 폰트 16px 확보 및 터치 영역 최적화 (`src/components/layout/Sidebar.tsx` 수정)
+  - [x] 파일명 2~3줄 자동 줄바꿈으로 가독성 확보 (`src/components/layout/Sidebar.tsx` 수정)
+  - [x] 모바일 환경에서 최근 대화 삭제 아이콘 상시 노출 (`src/components/layout/Sidebar.tsx` 수정)
+  - [x] 전체 빌드 검증 및 모바일 에뮬레이터 검증
 - [ ] 답변 품질 개선 (알람코드, 표, 도면 인식률)
 - [ ] 챗 서비스 활용 가이드라인 배포
 

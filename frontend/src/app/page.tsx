@@ -145,39 +145,39 @@ export default function Home() {
         <main ref={scrollRef} className="flex-1 overflow-y-auto flex flex-col relative">
           {!activeSession ? (
             /* ── 프리미엄 웰컴 화면 ── */
-            <div className="flex-1 flex flex-col justify-center items-center px-6 relative overflow-hidden">
+            <div className="flex-1 flex flex-col justify-start md:justify-center items-center px-6 py-8 md:py-0 relative overflow-y-auto scrollbar-thin">
               <div className="hero-gradient absolute inset-0 pointer-events-none" />
-              <div className="relative z-10 text-center space-y-6 max-w-lg animate-slide-up">
+              <div className="relative z-10 text-center space-y-5 md:space-y-6 max-w-lg animate-slide-up my-auto">
                 {/* 3D 플로팅 로고 및 야광 링 */}
-                <div className="relative w-20 h-20 md:w-24 md:h-24 mx-auto mb-2 animate-float">
+                <div className="relative w-16 h-16 md:w-24 md:h-24 mx-auto mb-2 animate-float">
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 blur-xl opacity-80" />
-                  <div className="hero-icon w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border border-primary/20 bg-card/40 backdrop-blur-md shadow-2xl relative z-10">
-                    <span className="text-4xl md:text-5xl drop-shadow-md">📑</span>
+                  <div className="hero-icon w-16 h-16 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border border-primary/20 bg-card/40 backdrop-blur-md shadow-2xl relative z-10">
+                    <span className="text-3xl md:text-5xl drop-shadow-md">📑</span>
                   </div>
                 </div>
 
                 <div>
-                  <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2.5 bg-gradient-to-r from-foreground via-foreground to-primary/80 bg-clip-text text-transparent">
+                  <h2 className="text-xl md:text-3xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-foreground via-foreground to-primary/80 bg-clip-text text-transparent">
                     Vision RAG
                   </h2>
-                  <p className="text-xs md:text-sm text-muted-foreground/80 leading-relaxed max-w-md mx-auto">
+                  <p className="text-[11px] md:text-sm text-muted-foreground/80 leading-relaxed max-w-md mx-auto px-2">
                     산업용 매뉴얼(PDF)을 AI가 인간처럼 목차를 읽고 원본 레이아웃 그대로 분석하여, 현장에서 활용 가능한 조치법을 제공합니다.
                   </p>
                 </div>
 
                 {/* 기능 카드 그리드 - 세련된 마이크로 호버 추가 */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6 md:mt-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-4 md:mt-8 w-full">
                   {features.map((f, i) => (
                     <div
                       key={i}
-                      className="glass-subtle rounded-xl p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/40 group cursor-pointer"
+                      className="glass-subtle rounded-xl p-3 md:p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/40 group cursor-pointer"
                       style={{ animationDelay: `${i * 100}ms` }}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
-                        <f.icon className="w-4.5 h-4.5 text-primary/70 group-hover:text-primary transition-colors" />
+                      <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2 md:mb-3 group-hover:bg-primary/20 transition-colors">
+                        <f.icon className="w-4 h-4 md:w-4.5 md:h-4.5 text-primary/70 group-hover:text-primary transition-colors" />
                       </div>
-                      <p className="text-xs font-bold text-foreground/90 mb-0.5">{f.title}</p>
-                      <p className="text-[11px] text-muted-foreground/70 leading-relaxed">{f.desc}</p>
+                      <p className="text-[11px] md:text-xs font-bold text-foreground/90 mb-0.5">{f.title}</p>
+                      <p className="text-[10px] md:text-[11px] text-muted-foreground/70 leading-relaxed">{f.desc}</p>
                     </div>
                   ))}
                 </div>
