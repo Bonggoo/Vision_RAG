@@ -96,7 +96,9 @@ npm run dev
 
 | 메서드 | 엔드포인트 | 기능 |
 |--------|-----------|------|
-| `POST` | `/upload` | PDF 업로드 + ToC 자동 추출 + SHA256 중복 체크 + AI 분류 |
+| `POST` | `/upload` | [동기식] PDF 업로드 + ToC 추출 (20MB 미만 소형 파일용) |
+| `POST` | `/upload/preflight` | [비동기식] 업로드 사전 검증 (SHA-256 중복 체크 및 GCS Signed URL 발급) |
+| `POST` | `/upload/analyze` | [비동기식] 업로드 완료 후 백그라운드 AI 분석(ToC + Vision 분류) 트리거 |
 | `POST` | `/upload/toc` | 스캔 PDF 목차 범위 지정 재추출 |
 | `GET` | `/documents` | 문서 목록 조회 |
 | `GET` | `/documents/{id}` | 문서 상세 정보 |
@@ -106,6 +108,10 @@ npm run dev
 | `GET` | `/documents/{id}/toc` | ToC 전체 조회 |
 | `POST` | `/documents/{id}/reindex` | Vision 기반 ToC 재추출 |
 | `POST` | `/chat/stream` | 질의·응답 (SSE 스트리밍) |
+
+> 💡 **대용량 파일 지원 아키텍처 (하이브리드 분기)**
+> - **20MB 미만**: 기존 동기식 업로드 (`/upload`)를 사용하여 빠르고 안정적으로 처리합니다.
+> - **20MB 이상**: 브라우저에서 직접 GCS 버킷으로 PUT 전송하여 서버 메모리(OOM)를 원천 보호하고, 백그라운드 워커가 FastAPI `BackgroundTasks`로 비동기 추출/분석을 수행합니다. (진행 상태는 사이드바에 실시간으로 표시됩니다)
 
 > 상세 API 스펙은 [doc/API_Contract.md](doc/API_Contract.md) 참조
 

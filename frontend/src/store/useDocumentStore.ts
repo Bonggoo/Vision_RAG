@@ -24,6 +24,7 @@ interface DocumentStore {
   isUploading: boolean;
   uploadingIndex: number;
   uploadTotal: number;
+  uploadProgress: number; // 💡 실제 업로드 진행률 상태 추가
   uploadResults: UploadResult[];
   
   fetchDocuments: () => Promise<void>;
@@ -43,6 +44,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   isUploading: false,
   uploadingIndex: -1,
   uploadTotal: 0,
+  uploadProgress: 0, // 💡 기본값 설정
   uploadResults: [],
 
   fetchDocuments: async () => {
@@ -56,26 +58,29 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
 
   // 단일 업로드 (하위 호환)
   uploadDocument: async (file: File) => {
-    set({ isUploading: true, uploadingIndex: 0, uploadTotal: 1, uploadResults: [] });
+    set({ isUploading: true, uploadingIndex: 0, uploadTotal: 1, uploadProgress: 0, uploadResults: [] });
     try {
       if (file.size === 0) {
         throw new Error("파일이 로컬에 저장되어 있지 않거나 손상되었습니다. 파일을 확인한 후 다시 시도해 주세요.");
       }
-      // 💡 32MB 파일 크기 필터링 추가
-      const MAX_SIZE = 32 * 1024 * 1024;
+      
+      // 💡 대용량 지원을 위해 파일 제한 크기를 200MB로 완화
+      const MAX_SIZE = 200 * 1024 * 1024;
       if (file.size > MAX_SIZE) {
-        throw new Error("파일 크기가 32MB를 초과하여 업로드할 수 없습니다. PDF를 분할하거나 용량을 줄인 후 다시 시도해 주세요.");
+        throw new Error("파일 크기가 200MB를 초과하여 업로드할 수 없습니다. PDF를 분할하거나 용량을 줄인 후 다시 시도해 주세요.");
       }
-      const data = await api.uploadDocument(file);
+      
+      const data = await api.uploadDocument(file, (p) => set({ uploadProgress: p }));
       set((state) => ({
         documents: [data, ...state.documents],
         isUploading: false,
         uploadingIndex: -1,
         uploadTotal: 0,
+        uploadProgress: 0
       }));
       return data;
     } catch (error: any) {
-      set({ isUploading: false, uploadingIndex: -1, uploadTotal: 0 });
+      set({ isUploading: false, uploadingIndex: -1, uploadTotal: 0, uploadProgress: 0 });
       throw error;
     }
   },
@@ -89,6 +94,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       isUploading: true,
       uploadTotal: total,
       uploadingIndex: 0,
+      uploadProgress: 0,
       uploadResults: []
     });
 
@@ -96,7 +102,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
 
     for (let i = 0; i < total; i++) {
       const file = files[i];
-      set({ uploadingIndex: i });
+      set({ uploadingIndex: i, uploadProgress: 0 });
 
       // 빈 파일 감지 (0바이트)
       if (file.size === 0) {
@@ -110,10 +116,10 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
         continue;
       }
 
-      // 💡 32MB 파일 크기 필터링 추가
-      const MAX_SIZE = 32 * 1024 * 1024;
+      // 💡 대용량 지원을 위해 파일 제한 크기를 200MB로 완화
+      const MAX_SIZE = 200 * 1024 * 1024;
       if (file.size > MAX_SIZE) {
-        const errorMsg = "파일 크기가 32MB를 초과하여 업로드할 수 없습니다. PDF를 분할하거나 용량을 줄인 후 다시 시도해 주세요.";
+        const errorMsg = "파일 크기가 200MB를 초과하여 업로드할 수 없습니다. PDF를 분할하거나 용량을 줄인 후 다시 시도해 주세요.";
         results.push({
           filename: file.name,
           status: "error",
@@ -124,7 +130,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       }
 
       try {
-        const uploadedDoc = await api.uploadDocument(file);
+        const uploadedDoc = await api.uploadDocument(file, (p) => set({ uploadProgress: p }));
         set((state) => ({
           documents: [uploadedDoc, ...state.documents]
         }));
@@ -152,7 +158,8 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     set({
       isUploading: false,
       uploadingIndex: -1,
-      uploadTotal: 0
+      uploadTotal: 0,
+      uploadProgress: 0
     });
 
     return results;

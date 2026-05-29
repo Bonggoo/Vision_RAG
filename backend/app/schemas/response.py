@@ -37,3 +37,18 @@ class StreamEvent(BaseModel):
     content: Optional[str] = None
     page_number: Optional[int] = None
     image_base64: Optional[str] = None
+
+
+class PreflightResponse(BaseModel):
+    """업로드 사전 검증 응답 스키마."""
+    status: str
+    document_id: UUID
+    upload_url: Optional[str] = None
+
+
+class AnalyzeResponse(BaseModel):
+    """비동기 분석 요청 응답 스키마."""
+    status: str
+    document_id: UUID
+    message: str
+

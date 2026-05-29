@@ -24,3 +24,18 @@ class TocRangeRequest(BaseModel):
     toc_start_page: int
     toc_end_page: int
 
+
+class PreflightRequest(BaseModel):
+    """업로드 사전 검증 요청 스키마."""
+    file_hash: str
+    file_size: int
+    filename: str
+
+
+class AnalyzeRequest(BaseModel):
+    """비동기 분석 요청 스키마."""
+    document_id: UUID
+    filename: str
+    file_hash: str
+
+
