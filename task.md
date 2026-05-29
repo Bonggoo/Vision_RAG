@@ -1,13 +1,13 @@
 # 📋 To Do List (Vision RAG)
 
 ## 향후 작업 (Next Tasks)
-- [/] GCS Signed URL 고도화 작업
+- [x] GCS Signed URL 고도화 작업
   - [x] GCS 버킷 CORS 설정 (`gcs_cors.json` 작성 및 적용)
   - [x] 백엔드: GCS Signed URL 생성 유틸 및 로컬 스토리지 분기 구현 (`backend/app/services/metadata_service.py` 수정)
   - [x] 백엔드: Signed URL 발급 API 추가 (`backend/app/routers/documents.py` 수정)
   - [x] 프론트엔드: API 클라이언트 `downloadDocument`를 Signed URL 방식으로 변경 및 Safari 팝업 차단 우회 (`frontend/src/lib/api.ts` 수정)
   - [x] 프론트엔드: 사이드바 Confirm 대기 경고 문구 최신화 및 예외 핸들링 (`frontend/src/components/layout/Sidebar.tsx` 수정)
-  - [ ] 검증 및 배포 (`gh` 커밋 & 배포 확인)
+  - [x] 검증 및 배포 (`gh` 커밋 & 배포 확인)
 - [ ] 답변 품질 개선 (알람코드, 표, 도면 인식률)
 - [ ] 챗 서비스 활용 가이드라인 배포
 
