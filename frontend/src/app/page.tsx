@@ -71,9 +71,9 @@ export default function Home() {
         : [];
 
       let apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      if (typeof window !== "undefined") {
+      if (apiUrl === "http://localhost:8000" && typeof window !== "undefined") {
         const hostname = window.location.hostname;
-        if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
+        if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1" && !hostname.includes("vercel.app")) {
           apiUrl = `http://${hostname}:8000`;
         }
       }
