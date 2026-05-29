@@ -22,29 +22,65 @@ def normalize_manufacturer(name: Optional[str]) -> Optional[str]:
         
     cleaned = name.strip().lower()
     
-    # 1. 미쯔비시 / 미쓰비시 매핑
+    # 1. 미쯔비시 / 미쓰비시
     if "미쯔비시" in cleaned or "미쓰비시" in cleaned or "mitsubishi" in cleaned:
         return "MITSUBISHI"
         
-    # 2. 화낙 매핑
+    # 2. 화낙 / 파낙
     if "화낙" in cleaned or "fanuc" in cleaned or "파낙" in cleaned:
         return "FANUC"
         
-    # 3. 야스카와 매핑
+    # 3. 키엔스
+    if "키엔스" in cleaned or "keyence" in cleaned:
+        return "KEYENCE"
+        
+    # 4. 야스카와
     if "야스카와" in cleaned or "yaskawa" in cleaned:
         return "YASKAWA"
         
-    # 4. 페스토 매핑
+    # 5. 페스토
     if "페스토" in cleaned or "festo" in cleaned:
         return "FESTO"
         
-    # 5. 지멘스 매핑
+    # 6. 오므론
+    if "오므론" in cleaned or "omron" in cleaned:
+        return "OMRON"
+        
+    # 7. 코스모
+    if "코스모" in cleaned or "cosmo" in cleaned:
+        return "COSMO"
+        
+    # 8. 오토닉스
+    if "오토닉스" in cleaned or "autonics" in cleaned:
+        return "AUTONICS"
+        
+    # 9. 로보스타
+    if "로보스타" in cleaned or "robostar" in cleaned:
+        return "ROBOSTAR"
+        
+    # 10. 유니펄스
+    if "유니펄스" in cleaned or "unipulse" in cleaned:
+        return "UNIPULSE"
+        
+    # 11. 세텍
+    if "세텍" in cleaned or "setech" in cleaned:
+        return "SETECH"
+        
+    # 12. 레디언큐바이오
+    if "레디언큐바이오" in cleaned or "radionqubio" in cleaned:
+        return "RADIONQUBIO"
+        
+    # 13. LS
+    if "ls" in cleaned or "엘에스" in cleaned:
+        return "LS"
+        
+    # 14. 지멘스
     if "지멘스" in cleaned or "siemens" in cleaned:
         return "SIEMENS"
         
-    # 6. LS 매핑
-    if "ls" in cleaned or "엘에스" in cleaned:
-        return "LS"
+    # 15. LG
+    if "lg" in cleaned or "엘지" in cleaned:
+        return "LG"
         
     return name.strip().upper()
 
