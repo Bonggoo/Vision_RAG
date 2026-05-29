@@ -279,6 +279,7 @@ async def run_agentic_pipeline(
     document_id: str | None,
     question: str,
     chat_history: list[dict] | None = None,
+    image: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Agentic Search 파이프라인을 실행합니다.
@@ -290,6 +291,92 @@ async def run_agentic_pipeline(
     """
     logger.info(f"🚀 [Pipeline] Agentic Search 파이프라인 작동 시작 (질문: '{question}')")
     
+    # ─── Step -1: 이미지 분석 및 질문/문서 매칭 보강 ───
+    analyzed_meta = None
+    if image:
+        yield _sse_event("reasoning", content="📸 업로드하신 장비 이미지를 분석하고 있습니다...")
+        try:
+            from app.services.agent_service import analyze_device_image_with_gemini
+            analyzed_meta = await analyze_device_image_with_gemini(image)
+            
+            if analyzed_meta and analyzed_meta.get("confidence", 0.0) >= 0.5:
+                manuf = analyzed_meta.get("manufacturer")
+                model = analyzed_meta.get("model_series")
+                err_code = analyzed_meta.get("error_code")
+                symptom = analyzed_meta.get("symptom")
+                
+                info_parts = []
+                if manuf: info_parts.append(f"제조사: {manuf}")
+                if model: info_parts.append(f"모델: {model}")
+                if err_code: info_parts.append(f"인식된 알람: {err_code}")
+                if symptom: info_parts.append(f"증상: {symptom}")
+                
+                yield _sse_event(
+                    "reasoning",
+                    content="🔍 이미지 인식 성공!\n- " + "\n- ".join(info_parts)
+                )
+                
+                # 문서 매칭: document_id가 지정되지 않은 경우, 분석된 제조사/모델과 일치하는 문서 검색
+                if document_id is None:
+                    all_docs = get_all_documents()
+                    matched_doc = None
+                    
+                    # 1순위: 제조사와 모델 모두 매칭되는 문서
+                    if manuf and model:
+                        for d in all_docs:
+                            d_manuf = str(d.get("manufacturer", "")).upper()
+                            d_model = str(d.get("model_series", "")).upper()
+                            if manuf.upper() in d_manuf and model.upper() in d_model:
+                                matched_doc = d
+                                break
+                                
+                    # 2순위: 모델명 매칭
+                    if not matched_doc and model:
+                        for d in all_docs:
+                            d_model = str(d.get("model_series", "")).upper()
+                            if model.upper() in d_model:
+                                matched_doc = d
+                                break
+                                
+                    # 3순위: 제조사명 매칭
+                    if not matched_doc and manuf:
+                        for d in all_docs:
+                            d_manuf = str(d.get("manufacturer", "")).upper()
+                            if manuf.upper() in d_manuf:
+                                matched_doc = d
+                                break
+                                
+                    if matched_doc:
+                        document_id = matched_doc["document_id"]
+                        yield _sse_event(
+                            "reasoning",
+                            content=f"📂 분석 정보를 기반으로 매칭된 매뉴얼을 자동으로 선택했습니다:\n- 파일명: {matched_doc.get('filename')}"
+                        )
+                
+                # 질문 보강 (리라이팅)
+                rewritten_parts = []
+                if manuf: rewritten_parts.append(manuf)
+                if model: rewritten_parts.append(model)
+                if err_code: rewritten_parts.append(f"알람코드 {err_code}")
+                if symptom: rewritten_parts.append(symptom)
+                
+                if rewritten_parts:
+                    # 사용자 질문이 비어있거나 너무 짧으면 알람 분석 질문으로 대체
+                    if len(question.strip()) < 5:
+                        question = f"{' '.join(rewritten_parts)} 원인과 조치 대처법"
+                    else:
+                        question = f"{' '.join(rewritten_parts)} 에러 상황: {question}"
+                    
+                    yield _sse_event(
+                        "reasoning",
+                        content=f"⚙️ 질문 보강 완료: '{question}'"
+                    )
+            else:
+                yield _sse_event("reasoning", content="⚠️ 이미지에서 명확한 장비 브랜드나 알람코드를 파악하지 못해 일반 RAG 모드로 계속합니다.")
+        except Exception as e:
+            logger.error(f"Error in image preprocessing: {e}")
+            yield _sse_event("reasoning", content=f"⚠️ 이미지 분석 중 오류 발생, 일반 RAG 모드로 진행합니다. (오류: {e})")
+
     # ─── Step 0: 일상 대화 / 인사말 판별 (Early Exit) ───
     if _is_general_conversation(question):
         yield _sse_event("reasoning", content="일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다...")

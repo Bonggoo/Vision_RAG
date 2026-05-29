@@ -128,11 +128,22 @@ export default function ChatMessage({ message }: ChatMessageProps) {
     return (
       <div className="flex justify-end animate-slide-up">
         <div className="flex items-end gap-2.5 max-w-[88%] sm:max-w-[80%]">
-          {/* 유저 말풍선 */}
-          <div className="chat-bubble-user rounded-2xl rounded-tr-sm px-4 py-3 shadow-md hover:shadow-lg transition-shadow duration-350">
-            <p className="whitespace-pre-wrap leading-relaxed text-[13.5px] text-slate-900 dark:text-white font-medium">
-              {message.content}
-            </p>
+          {/* 유저 말풍선 및 이미지 */}
+          <div className="flex flex-col items-end gap-2">
+            {message.image && (
+              <div className="relative rounded-xl overflow-hidden border border-primary/15 bg-card/40 backdrop-blur-md shadow-md max-w-xs transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
+                <img
+                  src={message.image}
+                  alt="업로드된 장비 이미지"
+                  className="w-44 sm:w-52 h-auto object-contain max-h-36 rounded-xl"
+                />
+              </div>
+            )}
+            <div className="chat-bubble-user rounded-2xl rounded-tr-sm px-4 py-3 shadow-md hover:shadow-lg transition-shadow duration-350">
+              <p className="whitespace-pre-wrap leading-relaxed text-[13.5px] text-slate-900 dark:text-white font-medium">
+                {message.content}
+              </p>
+            </div>
           </div>
           {/* 유저 아바타 */}
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/20 to-indigo-500/20 flex items-center justify-center flex-shrink-0 border border-primary/20 shadow-sm">

@@ -17,6 +17,7 @@ def _create_llm(temperature: float = 0, model: str | None = None) -> ChatGoogleG
         model=model or settings.GEMINI_MODEL_NAME,
         temperature=temperature,
         api_key=settings.GEMINI_API_KEY,
+        timeout=settings.GEMINI_TIMEOUT,
     )
 
 
@@ -503,3 +504,73 @@ def normalize_manufacturer_with_llm(name: str) -> str:
     except Exception as e:
         print(f"Gemini Manufacturer Normalization Error: {e}")
         return name.strip().upper()
+
+
+async def analyze_device_image_with_gemini(image_data_url: str) -> dict | None:
+    """
+    사용자가 업로드한 앰프/PLC 등 자동화 장비의 사진을 Gemini Vision으로 분석하여
+    제조사, 모델, 에러코드, 증상을 추출합니다.
+    """
+    if not image_data_url:
+        return None
+
+    # Base64 데이터 파싱 (data:image/png;base64, ... 등)
+    try:
+        if "," in image_data_url:
+            header, base64_data = image_data_url.split(",", 1)
+            mime_type = header.split(";")[0].split(":")[1]
+        else:
+            base64_data = image_data_url
+            mime_type = "image/jpeg"
+    except Exception as e:
+        print(f"Image parsing error: {e}")
+        return None
+
+    llm = _create_flash_llm()
+    
+    prompt = """당신은 산업용 자동화 장비 및 모터 드라이브/서보 앰프/PLC 등 현장 장비의 고장 진단 전문가입니다.
+사용자가 현장에서 촬영한 에러/알람 상태의 장치 사진이 제공됩니다. 이 이미지를 정밀 분석하여 다음 정보를 JSON 형식으로 추출하세요.
+
+필드 설명:
+1. "manufacturer": 장치 제조사명 (예: MITSUBISHI, OMRON, YASKAWA, PANASONIC, KEYENCE, LS, FESTO, ROBOSTAR 등). 파악하기 어려우면 null. 반드시 영어 대문자로 표준화하십시오.
+2. "model_series": 장치 모델명 또는 시리즈명 (예: MR-J4, MR-J5, SGD7S, A5, N1, MELSEC-Q 등). 파악하기 어려우면 null.
+3. "error_code": 장치 디스플레이(7세그먼트, LCD)나 LED 패턴에 표시된 에러/알람 코드 (예: AL.37, E7, AL.E6, 37 등). 파악하기 어려우면 null.
+4. "symptom": 이미지 상의 경고등, 상태 LED, 에러 메시지 등을 통해 유추되는 증상 간략한 설명. 파악하기 어려우면 null.
+5. "confidence": 이 진단의 신뢰도 (0.0 ~ 1.0 실수)
+
+응답 예시 (설명이나 마크다운 코드블록 ```json 없이 오직 JSON만 반환):
+{
+  "manufacturer": "MITSUBISHI",
+  "model_series": "MR-J4",
+  "error_code": "AL.37",
+  "symptom": "매개변수 에러 (Parameter Error)",
+  "confidence": 0.95
+}
+"""
+    
+    message = HumanMessage(
+        content=[
+            {"type": "text", "text": prompt},
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:{mime_type};base64,{base64_data}"
+                }
+            }
+        ]
+    )
+    
+    try:
+        response = await llm.ainvoke([message])
+        content = _clean_json_response(response.content)
+        result = json.loads(content)
+        
+        # 신뢰도 수치 및 필드 보장
+        if "confidence" not in result:
+            result["confidence"] = 0.5
+            
+        return result
+    except Exception as e:
+        print(f"Gemini Device Image Analysis Error: {e}")
+        return None
+

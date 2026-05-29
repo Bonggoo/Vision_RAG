@@ -14,6 +14,7 @@ class ChatRequest(BaseModel):
     document_id: Optional[UUID] = None
     question: str = Field(..., alias="message")
     chat_history: Optional[List[ChatHistoryItem]] = None
+    image: Optional[str] = None  # Base64 이미지 데이터 URL (선택 사항)
     
     model_config = {"populate_by_name": True}
 

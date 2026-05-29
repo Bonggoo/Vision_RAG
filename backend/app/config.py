@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     LOG_DIR: str = "logs"
     LOG_LEVEL: str = "INFO"
     USE_LOCAL_STORAGE: bool = False
+    GEMINI_TIMEOUT: float = 90.0
 
     @property
     def cors_origins(self) -> List[str]:

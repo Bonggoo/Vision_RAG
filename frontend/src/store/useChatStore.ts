@@ -14,6 +14,8 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   isStreaming?: boolean;
+  /** 사용자가 업로드한 장비 알람 이미지 (Base64) */
+  image?: string;
   /** AI 추론 과정 로그 (reasoning 이벤트) */
   reasoningSteps?: string[];
   /** 참조 페이지 썸네일 (reference 이벤트) */

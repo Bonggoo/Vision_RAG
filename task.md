@@ -1,15 +1,16 @@
 # 📋 To Do List (Vision RAG)
 
 ## 향후 작업 (Next Tasks)
-- [x] 모바일 PWA 및 사용성 개선 작업
-  - [x] 초기 화면 모바일 상단 잘림 방지 레이아웃 개선 (`src/app/page.tsx` 수정)
-  - [x] 모바일 사이드바 폭 확장 (`src/components/layout/Sidebar.tsx` 수정)
-  - [x] 메타데이터 인라인 수정 폼 폰트 16px 확보 및 터치 영역 최적화 (`src/components/layout/Sidebar.tsx` 수정)
-  - [x] 파일명 2~3줄 자동 줄바꿈으로 가독성 확보 (`src/components/layout/Sidebar.tsx` 수정)
-  - [x] 모바일 환경에서 최근 대화 삭제 아이콘 상시 노출 (`src/components/layout/Sidebar.tsx` 수정)
-  - [x] 전체 빌드 검증 및 모바일 에뮬레이터 검증
 - [ ] 답변 품질 개선 (알람코드, 표, 도면 인식률)
 - [ ] 챗 서비스 활용 가이드라인 배포
+
+## 완료된 작업 (Completed Tasks)
+- [x] 장비 알람 이미지 분석 RAG 기능 구현 완료 🚀
+  - [x] 백엔드: ChatRequest 스펙 확장 및 이미지 분석(Gemini Vision) 비동기 함수 구현
+  - [x] 백엔드: agentic_graph.py 이미지 기반 자동 문서 매칭 및 질문 리라이팅 전처리 연동
+  - [x] 프론트엔드: useChatStore 및 ChatMessage 이미지 보존 및 렌더링 추가
+  - [x] 프론트엔드: ChatInput 모바일 카메라/갤러리 사진 첨부 및 썸네일 미리보기 UI 구현
+  - [x] 프론트엔드: page.tsx 이미지 Base64 취합 및 SSE API 전송 연동
 
 ## 완료된 작업 (Completed Tasks)
 - [x] 문서 관리 고도화 및 기존 문서 마이그레이션 (총 10개 기능 + 마이그레이션)

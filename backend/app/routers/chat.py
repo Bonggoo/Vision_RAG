@@ -41,7 +41,7 @@ async def chat_stream(request: ChatRequest):
         history = [{"role": h.role, "content": h.content} for h in request.chat_history]
     
     return StreamingResponse(
-        run_agentic_pipeline(doc_id, request.question, chat_history=history),
+        run_agentic_pipeline(doc_id, request.question, chat_history=history, image=request.image),
         media_type="text/event-stream",
     )
 

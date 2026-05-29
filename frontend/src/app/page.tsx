@@ -32,24 +32,27 @@ export default function Home() {
     }
   }, [activeSession?.messages]);
 
-  const handleChatSubmit = async (text: string) => {
+  const handleChatSubmit = async (text: string, image?: string) => {
     let targetSessionId = activeSessionId;
+
+    const defaultTitle = text.trim() 
+      ? (text.length > 25 ? text.slice(0, 25) + "..." : text) 
+      : "📸 알람 사진 질문";
 
     // 활성 세션이 없으면 자동으로 새 세션 생성
     if (!targetSessionId) {
-      targetSessionId = createSession(text.length > 25 ? text.slice(0, 25) + "..." : text);
+      targetSessionId = createSession(defaultTitle);
     } else {
       // 기존 세션이 있고 첫 메시지인 경우 제목 변경
       const currentSession = sessions.find((s) => s.id === targetSessionId);
       if (currentSession && currentSession.messages.length === 0) {
-        const title = text.length > 25 ? text.slice(0, 25) + "..." : text;
-        renameSession(targetSessionId, title);
+        renameSession(targetSessionId, defaultTitle);
       }
     }
 
     if (!targetSessionId) return;
 
-    addMessage(targetSessionId, { role: "user", content: text });
+    addMessage(targetSessionId, { role: "user", content: text, image });
     addMessage(targetSessionId, {
       role: "assistant",
       content: "",
@@ -67,13 +70,20 @@ export default function Home() {
             .map((m) => ({ role: m.role, content: m.content.slice(0, 300) }))
         : [];
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      let apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      if (typeof window !== "undefined") {
+        const hostname = window.location.hostname;
+        if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
+          apiUrl = `http://${hostname}:8000`;
+        }
+      }
       const response = await fetch(`${apiUrl}/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
           chat_history: prevMessages.length > 0 ? prevMessages : undefined,
+          image: image || undefined,
         }),
       });
 
