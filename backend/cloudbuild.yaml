@@ -21,3 +21,6 @@ steps:
       - 'asia-northeast3'
       - '--allow-unauthenticated'
       - '--set-env-vars=^##^GEMINI_API_KEY=$_GEMINI_API_KEY##ALLOWED_ORIGINS=https://vision-rag-two.vercel.app,http://localhost:8374'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
