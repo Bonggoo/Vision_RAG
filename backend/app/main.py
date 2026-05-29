@@ -7,6 +7,8 @@ import os
 import time
 import traceback
 
+# 💡 [버그 패치] 비연속(Sparse) PDF 생성 및 텍스트 탐색 오버헤드 패치 적용 완료
+
 # 디렉토리 확인 및 생성
 if not os.path.exists(settings.PDF_UPLOAD_DIR):
     os.makedirs(settings.PDF_UPLOAD_DIR)
