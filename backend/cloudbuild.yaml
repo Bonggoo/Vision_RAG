@@ -20,4 +20,4 @@ steps:
       - '--region'
       - 'asia-northeast3'
       - '--allow-unauthenticated'
-      - '--set-env-vars=^##^GEMINI_API_KEY=AIzaSyByQCIZzwvBH2FYaQXUhPCdrWl1gida9QQ##ALLOWED_ORIGINS=https://vision-rag-two.vercel.app,http://localhost:8374'
+      - '--set-env-vars=^##^GEMINI_API_KEY=$_GEMINI_API_KEY##ALLOWED_ORIGINS=https://vision-rag-two.vercel.app,http://localhost:8374'
