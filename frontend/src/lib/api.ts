@@ -64,35 +64,18 @@ export const api = {
 
   /** 문서 다운로드 */
   downloadDocument: async (docId: string) => {
-    const res = await fetch(`${API_BASE_URL}/documents/${docId}/download`);
+    const res = await fetch(`${API_BASE_URL}/documents/${docId}/download-url`);
     if (!res.ok) throw new Error("문서 다운로드에 실패했습니다.");
-    const blob = await res.blob();
+    const data = await res.json();
     
-    // Content-Disposition 헤더에서 파일명 추출 (UTF-8 인코딩 고려)
-    const contentDisposition = res.headers.get("content-disposition");
-    let filename = "document.pdf";
+    const downloadUrl = data.mode === "gcs" ? data.url : `${API_BASE_URL}${data.url}`;
     
-    if (contentDisposition) {
-      // RFC 5987 filename*=UTF-8''... 패턴 매칭
-      const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
-      if (utf8Match && utf8Match[1]) {
-        filename = decodeURIComponent(utf8Match[1]);
-      } else {
-        // 일반 filename="..." 패턴 매칭
-        const normalMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
-        if (normalMatch && normalMatch[1]) {
-          filename = normalMatch[1];
-        }
-      }
-    }
-    
-    const url = URL.createObjectURL(blob);
+    // a 태그를 생성하여 직접 다운로드 트리거 (Safari 팝업 차단 예방 및 cross-origin 대응)
     const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
+    a.href = downloadUrl;
+    a.download = data.filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   },
 };
