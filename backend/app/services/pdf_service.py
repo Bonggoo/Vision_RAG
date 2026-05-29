@@ -82,6 +82,18 @@ def normalize_manufacturer(name: Optional[str]) -> Optional[str]:
     if "lg" in cleaned or "엘지" in cleaned:
         return "LG"
         
+    # 💡 1차 하드코딩 맵에 걸리지 않고 한글이 포함된 단어일 경우 Gemini LLM 동적 영문화 폴백 적용!
+    import re
+    if re.search(r"[ㄱ-ㅎㅏ-ㅣ가-힣]", name):
+        try:
+            from app.services.agent_service import normalize_manufacturer_with_llm
+            logger.info(f"🔮 사전에 없는 제조사 '{name}' ➔ Gemini 동적 영문화 판별 실행...")
+            llm_result = normalize_manufacturer_with_llm(name)
+            logger.info(f"  ➔ Gemini 판별 결과: '{name}' ➔ '{llm_result}'")
+            return llm_result
+        except Exception as e:
+            logger.error(f"❌ Gemini 동적 정규화 실패: {e}")
+            
     return name.strip().upper()
 
 

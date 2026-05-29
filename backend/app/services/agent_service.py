@@ -468,3 +468,38 @@ async def extract_document_title_with_gemini(pdf_bytes: bytes) -> str | None:
     if metadata and metadata.get("title"):
         return metadata["title"]
     return None
+
+
+def normalize_manufacturer_with_llm(name: str) -> str:
+    """
+    Gemini LLM을 이용하여, 비표준/한글 제조사명을 동적으로 영어 대문자 표준형으로 변환합니다.
+    글로벌 제조사가 아니거나 일반 국내 업체인 경우 한글 이름을 그대로 보존합니다.
+    """
+    if not name:
+        return name
+        
+    llm = _create_flash_llm()
+    prompt = f"""
+    당신은 글로벌 산업용 하드웨어 및 자동화 장비 제조사 브랜드 전문가입니다.
+    제시된 제조사명 '{name}'이 세계적으로 널리 알려진 외산/글로벌 브랜드이거나 대기업(예: Keyence, Omron, Mitsubishi, Festo, Siemens, Yaskawa, LG 등)인 경우, 
+    공식 표준 영문 대문자(예: KEYENCE, OMRON, MITSUBISHI, FESTO, SIEMENS, YASKAWA, LG 등)로 변환해 주세요.
+    
+    만약 국내 특수 솔루션 업체나 널리 알려지지 않은 일반 중소기업(예: 네오정보시스템, 라디언큐바이오 등)이라면,
+    영어로 억지로 바꾸지 말고 원래 제공된 한글 이름 그대로 반환하십시오.
+    
+    오직 변환된 단어 하나만 반환하십시오. 마크다운 기호나 추가적인 설명은 절대 금지합니다.
+    """
+    
+    message = HumanMessage(content=prompt)
+    try:
+        response = llm.invoke([message])
+        content = _extract_text_content(response.content).strip()
+        # 공백이나 따옴표 제거
+        cleaned = content.replace('"', '').replace("'", "").replace("`", "").strip()
+        # 간혹 마크다운이 들어가면 제거
+        if " " in cleaned and "\n" in cleaned:
+            cleaned = cleaned.split("\n")[0].strip()
+        return cleaned
+    except Exception as e:
+        print(f"Gemini Manufacturer Normalization Error: {e}")
+        return name.strip().upper()
