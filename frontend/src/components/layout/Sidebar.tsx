@@ -266,14 +266,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const toggleManufacturer = (mfg: string) => {
     setExpandedManufacturers(prev => ({
       ...prev,
-      [mfg]: prev[mfg] === false ? true : false // 기본 펼침(undefined -> true -> false)
+      [mfg]: !prev[mfg]
     }));
   };
 
   const toggleModel = (model: string) => {
     setExpandedModels(prev => ({
       ...prev,
-      [model]: prev[model] === false ? true : false
+      [model]: !prev[model]
     }));
   };
 
@@ -321,7 +321,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     return (
       <div className="space-y-2.5">
         {Object.entries(groupedDocs).map(([mfg, models]) => {
-          const isMfgExpanded = expandedManufacturers[mfg] !== false;
+          const isMfgExpanded = !!expandedManufacturers[mfg];
           
           return (
             <div key={mfg} className="space-y-1">
@@ -354,7 +354,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
               {isMfgExpanded && (
                 <div className="pl-3.5 border-l border-border/40 ml-3.5 space-y-1 pt-0.5">
                   {Object.entries(models).map(([model, docs]) => {
-                    const isModelExpanded = expandedModels[`${mfg}-${model}`] !== false;
+                    const isModelExpanded = !!expandedModels[`${mfg}-${model}`];
                     
                     return (
                       <div key={model} className="space-y-0.5">
