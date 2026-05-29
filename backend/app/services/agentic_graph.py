@@ -55,14 +55,12 @@ def _find_section_page_range(toc: list[dict], target_pages: list[int], total_pag
     Phase 2 텍스트 검색 범위를 결정합니다.
     
     - start: target_pages 이전의 가장 가까운 ToC 항목 (섹션 시작점)
-    - end: start + 199 (최대 200페이지 범위로 넉넉하게 탐색)
+    - end: start + 49 (최대 50페이지 범위로 텍스트 탐색 오버헤드 최소화)
     
     ToC 하위 항목 경계에서 끊지 않습니다.
-    알람코드처럼 하나의 큰 섹션 안에 수십 페이지에 걸친 상세 목록이 있는 경우,
-    다음 ToC 항목에서 자르면 뒤쪽 내용을 놓치기 때문입니다.
     """
     if not target_pages:
-        return 1, min(200, total_pages)
+        return 1, min(50, total_pages)
         
     pages = sorted(set(_normalize_page(entry.get("page", 1)) for entry in toc))
     min_target = min(target_pages)
@@ -74,8 +72,8 @@ def _find_section_page_range(toc: list[dict], target_pages: list[int], total_pag
             start = p
             break
     
-    # 섹션 끝: start로부터 최대 200페이지 (넉넉하게 탐색)
-    end = min(start + 199, total_pages)
+    # 섹션 끝: start로부터 최대 50페이지 (텍스트 탐색 오버헤드 차단)
+    end = min(start + 49, total_pages)
     return start, end
 
 
@@ -508,10 +506,14 @@ async def run_agentic_pipeline(
         if not valid_pages:
             valid_pages = [0]
         
-        start_page = min(valid_pages)
-        end_page = max(valid_pages)
-        
-        mini_pdf_bytes = extract_pages_as_pdf(doc, start_page, end_page)
+        # 💡 [버그 패치] 비연속적으로 멀리 떨어진 페이지(예: p.12, p.115)가 잡힐 경우, 
+        # min~max 범위의 모든 중간 페이지가 다 삽입되어 PDF가 비정상적으로 비대해지는 현상을 해결합니다.
+        # 필요한 페이지만 콕 집어서(sparse) 미니 PDF를 빌드합니다.
+        mini_doc = fitz.open()
+        for page_idx in sorted(set(valid_pages)):
+            mini_doc.insert_pdf(doc, from_page=page_idx, to_page=page_idx)
+        mini_pdf_bytes = mini_doc.tobytes()
+        mini_doc.close()
         
         for page_idx in valid_pages:
             try:
