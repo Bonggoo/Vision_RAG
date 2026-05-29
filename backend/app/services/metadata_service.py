@@ -128,6 +128,39 @@ def get_document_path(document_id: str) -> Optional[str]:
         logger.error(f"GCS download error: {e}")
         return None
 
+def get_document_signed_url(document_id: str, download_name: str) -> Optional[str]:
+    """
+    GCS에 저장된 원본 PDF 파일의 5분 만료 임시 다운로드 서명 링크(Signed URL)를 생성합니다.
+    로컬 모드인 경우 None을 반환합니다.
+    """
+    if settings.USE_LOCAL_STORAGE:
+        return None
+
+    try:
+        import datetime
+        from urllib.parse import quote
+        
+        client = storage.Client()
+        bucket = client.bucket(settings.GCS_BUCKET_NAME)
+        blob = bucket.blob(f"{document_id}/original.pdf")
+        
+        # RFC 5987 표준 한글 파일명 헤더 세팅 주입
+        encoded_filename = quote(download_name)
+        content_disposition = f"attachment; filename=\"document.pdf\"; filename*=UTF-8''{encoded_filename}"
+        
+        # 5분 동안만 유효한 보안 임시 주소 서명 생성
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=datetime.timedelta(minutes=5),
+            method="GET",
+            response_content_disposition=content_disposition,
+            response_content_type="application/pdf"
+        )
+        return url
+    except Exception as e:
+        logger.error(f"❌ GCS Signed URL 생성 실패: {e}")
+        return None
+
 def update_document_metadata(document_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
     특정 문서의 메타데이터를 업데이트합니다.

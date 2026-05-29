@@ -177,3 +177,45 @@ async def download_document(document_id: UUID):
     
     return FileResponse(pdf_path, media_type="application/pdf", headers=headers)
 
+
+@router.get("/{document_id}/download-url")
+async def download_document_url(document_id: UUID):
+    """
+    문서 다운로드를 위한 URL을 발급합니다.
+    로컬 모드인 경우 로컬 다운로드 API 경로를, GCS 모드인 경우 GCS Signed URL을 반환합니다.
+    """
+    doc_id = str(document_id)
+    meta = metadata_service.get_document(doc_id)
+    if meta is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
+    
+    # 다운로드 파일명 조합
+    parts = filter(None, [
+        meta.get("manufacturer"),
+        meta.get("model_series"),
+        meta.get("doc_type") or meta.get("filename")
+    ])
+    download_name = "_".join(parts) + ".pdf"
+    
+    # 특수문자 제거하여 안전한 파일명 생성
+    import re
+    download_name = re.sub(r'[\\/*?:"<>|]', "", download_name)
+    
+    # Signed URL 생성 시도
+    signed_url = metadata_service.get_document_signed_url(doc_id, download_name)
+    
+    if signed_url:
+        return {
+            "mode": "gcs",
+            "url": signed_url,
+            "filename": download_name
+        }
+    else:
+        # 로컬 스토리지 모드이거나 Signed URL 생성에 실패한 경우 로컬 다운로드 엔드포인트 반환
+        return {
+            "mode": "local",
+            "url": f"/documents/{doc_id}/download",
+            "filename": download_name
+        }
+
+

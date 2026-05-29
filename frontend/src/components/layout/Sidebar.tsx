@@ -112,7 +112,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       downloadName += ".pdf";
     }
     
-    const confirmMessage = `📥 "${downloadName}" 문서를 다운로드하시겠습니까?\n\n💡 안내: 클라우드 스토리지에서 원본 파일을 가져와 전송하는 방식으로, 최초 다운로드 시 혹은 서버 환경에 따라 수 초간의 대기 시간이 발생할 수 있습니다.`;
+    const confirmMessage = `📥 "${downloadName}" 문서를 다운로드하시겠습니까?\n\n💡 안내: 보안 임시 서명 링크(Signed URL)를 생성하여 클라우드 스토리지(GCS)로부터 즉시 안전하게 초고속 다운로드합니다.`;
     
     if (window.confirm(confirmMessage)) {
       downloadDoc(doc.document_id);
