@@ -1,0 +1,23 @@
+steps:
+  # 1단계: backend/Dockerfile을 사용하여 모노레포 내 backend 컨텍스트로 이미지 빌드
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/vision-rag-backend:$COMMIT_SHA', '.']
+    dir: 'backend'
+
+  # 2단계: 빌드된 컨테이너 이미지를 구글 컨테이너 레지스트리에 푸시
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/vision-rag-backend:$COMMIT_SHA']
+
+  # 3단계: Cloud Run에 새 revision으로 자동 배포 (CORS 및 API Key 환경변수 포함)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'vision-rag-backend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/vision-rag-backend:$COMMIT_SHA'
+      - '--region'
+      - 'asia-northeast3'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=^##^GEMINI_API_KEY=AIzaSyByQCIZzwvBH2FYaQXUhPCdrWl1gida9QQ##ALLOWED_ORIGINS=https://vision-rag-two.vercel.app,http://localhost:8374'
