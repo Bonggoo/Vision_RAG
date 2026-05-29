@@ -128,6 +128,54 @@ def get_document_path(document_id: str) -> Optional[str]:
         logger.error(f"GCS download error: {e}")
         return None
 
+def generate_gcs_signed_url(bucket_name: str, blob_name: str, method: str, expiration_minutes: int, content_type: str = None, response_content_disposition: str = None) -> Optional[str]:
+    """
+    Cloud Run(Compute Engine) 환경 및 로컬 개발 환경 모두에서 안전하게 동작하는 GCS Signed URL 생성 헬퍼.
+    로컬 환경이 아닐 경우, IAM Service Account Credentials API를 통해 서명을 원격 생성합니다.
+    """
+    try:
+        import datetime
+        import google.auth
+        from google.auth.transport import requests
+        from google.cloud import storage
+        
+        credentials, project_id = google.auth.default()
+        
+        # Compute Engine / Cloud Run 자격증명일 경우 refresh를 호출해 token을 획득
+        if hasattr(credentials, "refresh"):
+            try:
+                auth_request = requests.Request()
+                credentials.refresh(auth_request)
+            except Exception as refresh_err:
+                logger.warning(f"구글 자격증명 갱신 실패 (로컬 환경인 경우 무시 가능): {refresh_err}")
+                
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(blob_name)
+        
+        kwargs = {
+            "version": "v4",
+            "expiration": datetime.timedelta(minutes=expiration_minutes),
+            "method": method,
+        }
+        if content_type:
+            kwargs["content_type"] = content_type
+        if response_content_disposition:
+            kwargs["response_content_disposition"] = response_content_disposition
+            
+        # 자격증명에 이메일과 토큰이 존재하는 경우 (Cloud Run 환경), 원격 sign API 바인딩
+        if (hasattr(credentials, "service_account_email") and credentials.service_account_email and 
+            hasattr(credentials, "token") and credentials.token):
+            kwargs["service_account_email"] = credentials.service_account_email
+            kwargs["access_token"] = credentials.token
+            logger.info(f"🔑 IAM Credentials을 통한 원격 Signed URL 생성 시작 ({credentials.service_account_email})")
+            
+        url = blob.generate_signed_url(**kwargs)
+        return url
+    except Exception as e:
+        logger.error(f"❌ generate_gcs_signed_url 실패: {e}")
+        return None
+
 def get_document_signed_url(document_id: str, download_name: str) -> Optional[str]:
     """
     GCS에 저장된 원본 PDF 파일의 5분 만료 임시 다운로드 서명 링크(Signed URL)를 생성합니다.
@@ -137,28 +185,23 @@ def get_document_signed_url(document_id: str, download_name: str) -> Optional[st
         return None
 
     try:
-        import datetime
         from urllib.parse import quote
-        
-        client = storage.Client()
-        bucket = client.bucket(settings.GCS_BUCKET_NAME)
-        blob = bucket.blob(f"{document_id}/original.pdf")
         
         # RFC 5987 표준 한글 파일명 헤더 세팅 주입
         encoded_filename = quote(download_name)
         content_disposition = f"attachment; filename=\"document.pdf\"; filename*=UTF-8''{encoded_filename}"
         
-        # 5분 동안만 유효한 보안 임시 주소 서명 생성
-        url = blob.generate_signed_url(
-            version="v4",
-            expiration=datetime.timedelta(minutes=5),
+        url = generate_gcs_signed_url(
+            bucket_name=settings.GCS_BUCKET_NAME,
+            blob_name=f"{document_id}/original.pdf",
             method="GET",
-            response_content_disposition=content_disposition,
-            response_content_type="application/pdf"
+            expiration_minutes=5,
+            content_type="application/pdf",
+            response_content_disposition=content_disposition
         )
         return url
     except Exception as e:
-        logger.error(f"❌ GCS Signed URL 생성 실패: {e}")
+        logger.error(f"❌ GCS 다운로드용 Signed URL 생성 실패: {e}")
         return None
 
 def update_document_metadata(document_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:

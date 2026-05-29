@@ -66,20 +66,17 @@ async def upload_preflight(request: PreflightRequest):
     # 4. GCS Signed Upload URL 생성 (로컬 모드가 아닐 때만)
     if not settings.USE_LOCAL_STORAGE:
         try:
-            from google.cloud import storage
-            client = storage.Client()
-            bucket = client.bucket(settings.GCS_BUCKET_NAME)
-            blob = bucket.blob(f"{doc_id}/original.pdf")
-
-            # 15분 동안 유효한 PUT Signed URL 발급
-            import datetime as dt
-            upload_url = blob.generate_signed_url(
-                version="v4",
-                expiration=dt.timedelta(minutes=15),
+            upload_url = metadata_service.generate_gcs_signed_url(
+                bucket_name=settings.GCS_BUCKET_NAME,
+                blob_name=f"{doc_id}/original.pdf",
                 method="PUT",
-                content_type="application/pdf",
+                expiration_minutes=15,
+                content_type="application/pdf"
             )
-            logger.info(f"🔑 GCS Signed Upload URL 발급 성공: {doc_id}")
+            if upload_url:
+                logger.info(f"🔑 GCS Signed Upload URL 발급 성공: {doc_id}")
+            else:
+                raise ValueError("Signed URL 생성 결과가 None입니다.")
         except Exception as e:
             logger.error(f"❌ GCS Signed URL 발급 중 오류 발생 (동기 Fallback 유도): {e}")
             # Signed URL 생성이 실패하더라도 프론트엔드가 동기식으로 업로드하도록 upload_url = None으로 진행합니다.
