@@ -37,18 +37,10 @@ function uploadToGCS(file: File, signedUrl: string, onProgress?: (percent: numbe
 }
 
 export const api = {
-  /** PDF 문서 업로드 (하이브리드: 20MB 기준 동기/비동기 자동 분기 및 Fallback) */
+  /** PDF 문서 업로드 (비동기 GCS Direct 업로드 및 분석 트리거) */
   uploadDocument: async (file: File, onProgress?: (progress: number) => void): Promise<any> => {
-    // 20MB 기준선 설정
-    const HYBRID_THRESHOLD = 20 * 1024 * 1024;
-    
-    if (file.size < HYBRID_THRESHOLD) {
-      console.log(`[Upload] 소형 파일 업로드 모드 (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
-      return await api._uploadDocumentSync(file, onProgress);
-    }
-    
     try {
-      console.log(`[Upload] 대용량 비동기 GCS Direct 업로드 모드 시작 (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+      console.log(`[Upload] 비동기 GCS Direct 업로드 모드 시작 (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
       
       // 1. 사전 해시 계산
       const fileHash = await calculateFileHash(file);

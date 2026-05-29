@@ -41,6 +41,9 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     downloadDoc
   } = useDocumentStore();
 
+  // 💡 실시간 AI 분석 중인 문서 목록 필터링
+  const analyzingDocuments = documents.filter((doc) => doc.status === "analyzing");
+
   // 드래그 앤 드롭 상태
   const [isDragging, setIsDragging] = useState(false);
 
@@ -274,10 +277,12 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     }));
   };
 
-  // 2단 트리 그룹핑 헬퍼 함수
+  // 2단 트리 그룹핑 헬퍼 함수 (분석 중인 문서는 아코디언 트리에서 제외)
   const getGroupedDocs = (docs: Document[]) => {
     const grouped: Record<string, Record<string, Document[]>> = {};
     docs.forEach((doc) => {
+      if (doc.status === "analyzing") return; // 💡 분석 중인 파일 제외!
+      
       const mfg = doc.manufacturer || "미분류";
       const model = doc.model_series || "미분류";
       if (!grouped[mfg]) grouped[mfg] = {};
@@ -291,7 +296,11 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
   // 문서 렌더링 함수 (트리 뷰 or 플랫 리스트)
   const renderDocumentList = () => {
-    if (filteredDocuments.length === 0) {
+    // 💡 분석 완료된 문서들만 필터링하여 목록 렌더링
+    const completedFilteredDocs = filteredDocuments.filter(d => d.status !== "analyzing");
+    const completedDocs = documents.filter(d => d.status !== "analyzing");
+
+    if (completedFilteredDocs.length === 0) {
       return (
         <p className="text-[11px] text-muted-foreground/40 px-3 py-3 text-center">
           {searchQuery ? "검색 결과가 없습니다" : "업로드된 문서가 없습니다"}
@@ -300,10 +309,10 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     }
 
     // 💡 전체 문서 개수가 3개 이하이거나 검색 결과가 3개 이하일 때는 트리 구조 대신 플랫 리스트로 표시
-    if (documents.length <= 3 || filteredDocuments.length <= 3) {
+    if (completedDocs.length <= 3 || completedFilteredDocs.length <= 3) {
       return (
         <div className="space-y-1">
-          {filteredDocuments.map((doc) => renderSingleDocItem(doc))}
+          {completedFilteredDocs.map((doc) => renderSingleDocItem(doc))}
         </div>
       );
     }
@@ -664,8 +673,31 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       <div className="px-3 pt-3 pb-1">
         <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground/70 px-2 py-1 uppercase tracking-widest">
           <FileText className="w-3 h-3" />
-          업로드된 문서 {documents.length > 0 && `(${documents.length})`}
+          업로드된 문서 {documents.length > 0 && `(${documents.length - analyzingDocuments.length})`}
         </div>
+        
+        {/* 🤖 AI 분석 중인 문서 전용 격리 섹션 */}
+        {analyzingDocuments.length > 0 && (
+          <div className="mx-1 mt-1 mb-2.5 space-y-1.5 p-2 bg-amber-500/5 border border-amber-500/10 rounded-lg animate-pulse">
+            <div className="flex items-center gap-1.5 px-1 py-0.5 text-[9px] font-bold text-amber-500 uppercase tracking-wider">
+              <Loader2 className="w-2.5 h-2.5 animate-spin" />
+              <span>AI 분석 중인 문서 ({analyzingDocuments.length})</span>
+            </div>
+            <div className="space-y-1 max-h-[120px] overflow-y-auto scrollbar-thin">
+              {analyzingDocuments.map((doc) => (
+                <div 
+                  key={doc.document_id}
+                  className="flex items-center gap-1.8 px-2 py-1 rounded-md bg-background/40 border border-amber-500/5 text-[10px] text-foreground/70"
+                >
+                  <Loader2 className="w-2.5 h-2.5 text-amber-500 animate-spin shrink-0" />
+                  <span className="truncate flex-1 font-medium leading-tight">{doc.filename}</span>
+                  <span className="text-[8px] text-amber-500 shrink-0 font-semibold bg-amber-500/10 px-1 py-0.2 rounded">분석 중...</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="max-h-[340px] overflow-y-auto scrollbar-thin px-1 py-1">
           {renderDocumentList()}
         </div>

@@ -214,6 +214,11 @@ def update_document_metadata(document_id: str, updates: Dict[str, Any]) -> Optio
 
     meta.update(updates)
     
+    # 제조사명이 있을 경우 자동 표준 영문 대문자 정규화 강제 적용
+    if "manufacturer" in meta:
+        from app.services.pdf_service import normalize_manufacturer
+        meta["manufacturer"] = normalize_manufacturer(meta["manufacturer"])
+    
     if settings.USE_LOCAL_STORAGE:
         doc_dir = os.path.join(settings.PDF_UPLOAD_DIR, document_id)
         os.makedirs(doc_dir, exist_ok=True)
@@ -263,4 +268,31 @@ def delete_document(document_id: str) -> bool:
             return False
         
     return True
+
+
+def migrate_legacy_manufacturers() -> int:
+    """
+    기존에 등록되어 있던 모든 문서들을 전수 조사하여,
+    비표준(한글, 소문자 등) 제조사명을 표준 영문 대문자("MITSUBISHI", "FANUC" 등)로
+    일괄 정규화 마이그레이션합니다.
+    """
+    from app.services.pdf_service import normalize_manufacturer
+    logger.info("🔄 기존 문서 제조사명 정규화 마이그레이션 시작...")
+    
+    docs = get_all_documents()
+    migrated_count = 0
+    
+    for doc in docs:
+        doc_id = doc.get("document_id")
+        orig_mfg = doc.get("manufacturer")
+        
+        if doc_id and orig_mfg:
+            norm_mfg = normalize_manufacturer(orig_mfg)
+            if norm_mfg != orig_mfg:
+                logger.info(f"  [Migration] {doc.get('filename')}: '{orig_mfg}' ➔ '{norm_mfg}'")
+                update_document_metadata(doc_id, {"manufacturer": norm_mfg})
+                migrated_count += 1
+                
+    logger.info(f"✅ 제조사명 정규화 마이그레이션 완료 (총 {migrated_count}건 변환됨)")
+    return migrated_count
 

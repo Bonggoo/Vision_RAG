@@ -1,5 +1,5 @@
 import fitz  # PyMuPDF
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import uuid
 from fastapi import UploadFile
 
@@ -11,6 +11,42 @@ from app.config import settings
 from app.utils.logger import logger
 from app.exceptions import EmptyFileError, DuplicateDocumentError
 from app.services import metadata_service
+
+
+def normalize_manufacturer(name: Optional[str]) -> Optional[str]:
+    """
+    제조사명을 영어 대문자 표준형으로 정규화합니다.
+    """
+    if not name:
+        return None
+        
+    cleaned = name.strip().lower()
+    
+    # 1. 미쯔비시 / 미쓰비시 매핑
+    if "미쯔비시" in cleaned or "미쓰비시" in cleaned or "mitsubishi" in cleaned:
+        return "MITSUBISHI"
+        
+    # 2. 화낙 매핑
+    if "화낙" in cleaned or "fanuc" in cleaned or "파낙" in cleaned:
+        return "FANUC"
+        
+    # 3. 야스카와 매핑
+    if "야스카와" in cleaned or "yaskawa" in cleaned:
+        return "YASKAWA"
+        
+    # 4. 페스토 매핑
+    if "페스토" in cleaned or "festo" in cleaned:
+        return "FESTO"
+        
+    # 5. 지멘스 매핑
+    if "지멘스" in cleaned or "siemens" in cleaned:
+        return "SIEMENS"
+        
+    # 6. LS 매핑
+    if "ls" in cleaned or "엘에스" in cleaned:
+        return "LS"
+        
+    return name.strip().upper()
 
 
 def is_toc_meaningful(toc: List[Dict[str, Any]], total_pages: int) -> bool:
@@ -255,9 +291,9 @@ async def _extract_document_classification(pdf_path: str, fallback: str) -> dict
             name = name[:-4]
         result["title"] = name
 
-    # 정규화: null/미분류 값 통일
-    if result["manufacturer"] == "null" or result["manufacturer"] == "":
-        result["manufacturer"] = None
+    # 정규화: null/미분류 값 통일 및 제조사 표준 영문화 적용
+    result["manufacturer"] = normalize_manufacturer(result["manufacturer"])
+    
     if result["model_series"] == "null" or result["model_series"] == "":
         result["model_series"] = None
     if result["doc_type"] == "null" or result["doc_type"] == "":

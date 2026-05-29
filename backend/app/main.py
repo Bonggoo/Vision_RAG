@@ -59,6 +59,16 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
 )
 
+@app.on_event("startup")
+async def startup_event():
+    # 서버 기동 시 기존 레거시 제조사 정규화 마이그레이션 자동 수행
+    try:
+        from app.services.metadata_service import migrate_legacy_manufacturers
+        migrate_legacy_manufacturers()
+    except Exception as e:
+        logger.error(f"❌ 시작 마이그레이션 실패: {e}")
+
+
 @app.get("/")
 async def root():
     return {"message": "Vision RAG API Server is running"}
