@@ -2,8 +2,8 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from app.schemas.response import UploadResponse, PreflightResponse, AnalyzeResponse
 from app.schemas.request import TocRangeRequest, PreflightRequest, AnalyzeRequest
-from app.services.pdf_service import process_document_upload, extract_pages_as_pdf, extract_toc, is_toc_meaningful, _extract_document_classification
-from app.services.agent_service import extract_toc_with_gemini, find_and_extract_toc, is_scanned_pdf
+from app.services.pdf_service import process_document_upload, extract_pages_as_pdf, extract_toc, is_toc_meaningful, _extract_document_classification, is_scanned_pdf
+from app.services.agent_service import extract_toc_with_gemini, find_and_extract_toc
 from app.services import metadata_service
 from app.exceptions import DuplicateDocumentError, EmptyFileError
 from app.config import settings
