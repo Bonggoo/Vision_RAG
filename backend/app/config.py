@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     USE_LOCAL_STORAGE: bool = False
     GEMINI_TIMEOUT: float = 90.0
+    GOOGLE_CLIENT_ID: str = ""
+    ALLOWED_USERS: str = ""
+    JWT_SECRET: str = "vision-rag-jwt-secret-key-change-in-production-12345"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
 
     @property
     def cors_origins(self) -> List[str]:

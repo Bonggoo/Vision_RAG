@@ -6,14 +6,15 @@ SSE(Server-Sent Events)로 결과를 스트리밍합니다.
 """
 import asyncio
 import json
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse
 from app.schemas.request import ChatRequest
 from app.services.agentic_graph import run_agentic_pipeline
 from app.services import metadata_service
+from app.services.auth_service import get_current_user
 from app.utils.logger import logger
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 async def _stream_with_disconnect_check(

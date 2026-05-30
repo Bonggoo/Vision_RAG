@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Menu, FileText, Sparkles, Sun, Moon } from "lucide-react";
+import { Menu, FileText, Sparkles, Sun, Moon, LogOut } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import ExportButton from "@/components/chat/ExportButton";
 
 interface HeaderProps {
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const { sessions, activeSessionId } = useChatStore();
+  const { user, logout } = useAuthStore();
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
@@ -89,6 +91,31 @@ export default function Header({ onMenuClick }: HeaderProps) {
               <Moon className="w-4 h-4 text-violet-600 -rotate-12 transition-transform duration-500" />
             )}
           </button>
+
+          {/* 💡 구글 프로필 & 위트있는 로그아웃 버튼 */}
+          {user && (
+            <div className="flex items-center gap-2 border-l border-border/20 pl-2">
+              {user.picture ? (
+                <img
+                  src={user.picture}
+                  alt={user.name}
+                  className="w-6 h-6 rounded-full border border-border/40 object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center text-[10px] font-bold">
+                  {user.name.slice(0, 1)}
+                </div>
+              )}
+              <button
+                onClick={logout}
+                title="로그아웃 (알아서 잘 쓴 사람들의 퇴장 🫡)"
+                className="p-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg border border-border/20 transition-all duration-300 hover:scale-105 active:scale-95"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

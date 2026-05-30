@@ -1,14 +1,15 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse
 from uuid import UUID
 from typing import Optional
 from pydantic import BaseModel
 from app.schemas.response import DocumentListResponse
 from app.services import metadata_service
+from app.services.auth_service import get_current_user
 import fitz
 import os
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 class DocumentUpdateRequest(BaseModel):

@@ -1,4 +1,18 @@
+import { useAuthStore } from "@/store/useAuthStore";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+/** API 요청에 JWT 토큰 헤더 추가하는 헬퍼 */
+function getAuthHeaders(headers: Record<string, string> = {}): Record<string, string> {
+  const token = useAuthStore.getState().token;
+  if (token) {
+    return {
+      ...headers,
+      "Authorization": `Bearer ${token}`
+    };
+  }
+  return headers;
+}
 
 /** 파일의 SHA-256 해시 계산 (Web Crypto API 사용) */
 async function calculateFileHash(file: File): Promise<string> {
@@ -8,7 +22,7 @@ async function calculateFileHash(file: File): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** GCS Signed URL로 파일 직접 업로드 (진행률 추적) */
+/** GCS Signed URL로 파일 직접 업로드 (진행률 추적) - OAuth 대상 아님 */
 function uploadToGCS(file: File, signedUrl: string, onProgress?: (percent: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -48,7 +62,7 @@ export const api = {
       // 2. Pre-flight 검증 API 호출
       const preflightRes = await fetch(`${API_BASE_URL}/upload/preflight`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           file_hash: fileHash,
           file_size: file.size,
@@ -82,7 +96,7 @@ export const api = {
       // 5. 비동기 AI 분석 파이프라인 트리거 (Phase C)
       const analyzeRes = await fetch(`${API_BASE_URL}/upload/analyze`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           document_id,
           filename: file.name,
@@ -126,6 +140,12 @@ export const api = {
       
       xhr.open("POST", `${API_BASE_URL}/upload`);
       
+      // JWT 토큰 주입
+      const token = useAuthStore.getState().token;
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
+      
       if (onProgress) {
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
@@ -160,7 +180,9 @@ export const api = {
 
   /** 전체 문서 목록 조회 */
   getDocuments: async () => {
-    const res = await fetch(`${API_BASE_URL}/documents`);
+    const res = await fetch(`${API_BASE_URL}/documents`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch documents");
     return res.json();
   },
@@ -173,7 +195,7 @@ export const api = {
   }) => {
     const res = await fetch(`${API_BASE_URL}/documents/${docId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     if (!res.ok) {
@@ -191,6 +213,7 @@ export const api = {
   deleteDocument: async (docId: string) => {
     const res = await fetch(`${API_BASE_URL}/documents/${docId}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to delete document");
     return res.json();
@@ -198,7 +221,9 @@ export const api = {
 
   /** 문서 다운로드 */
   downloadDocument: async (docId: string) => {
-    const res = await fetch(`${API_BASE_URL}/documents/${docId}/download-url`);
+    const res = await fetch(`${API_BASE_URL}/documents/${docId}/download-url`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error("문서 다운로드에 실패했습니다.");
     const data = await res.json();
     

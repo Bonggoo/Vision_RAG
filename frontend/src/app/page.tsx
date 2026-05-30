@@ -5,10 +5,13 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import ChatInput from "@/components/layout/ChatInput";
 import ChatMessage from "@/components/chat/ChatMessage";
+import LoginView from "@/components/layout/LoginView";
 import { useChatStore } from "@/store/useChatStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { Search, BookOpen, Cpu, Zap } from "lucide-react";
 
 export default function Home() {
+  const { isAuthenticated } = useAuthStore();
   const {
     sessions,
     activeSessionId,
@@ -25,6 +28,11 @@ export default function Home() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // 💡 비로그인 유저는 로그인 화면을 반환
+  if (!isAuthenticated) {
+    return <LoginView />;
+  }
 
   // 자동 스크롤
   useEffect(() => {
@@ -85,9 +93,15 @@ export default function Home() {
           apiUrl = `http://${hostname}:8000`;
         }
       }
+      const token = useAuthStore.getState().token;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${apiUrl}/chat/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           message: text,
           chat_history: prevMessages.length > 0 ? prevMessages : undefined,
