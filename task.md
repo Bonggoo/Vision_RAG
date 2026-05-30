@@ -1,15 +1,15 @@
 # 📋 To Do List (Vision RAG)
 
 ## 향후 작업 (Next Tasks)
-- [ ] 🔐 구글 OAuth & 화이트리스트 보안 인증 체계 구축
-  - [ ] 백엔드: JWT 토큰 생성 및 검증 모듈 추가 (`pyjwt` 설치 및 `auth_service.py`)
-  - [ ] 백엔드: 구글 ID Token 검증 및 화이트리스트 이메일 확인 API (`/api/auth/google`) 구현
-  - [ ] 백엔드: 기존 중요 API (/chat, /upload, /documents)에 인증 의존성(`Depends`) 주입 및 보호
-  - [ ] 프론트엔드: `useAuthStore` Zustand 스토어 신설 (JWT 토큰 및 사용자 정보 저장)
-  - [ ] 프론트엔드: API 요청 시 `Authorization: Bearer <JWT>` 헤더 전송 래퍼 추가
-  - [ ] 프론트엔드: 고급 글래스모피즘 로그인 화면 UI 및 Google API 연동 (`/login` 페이지)
-  - [ ] 프론트엔드: 비로그인 상태일 때 `/login` 페이지로 강제 리다이렉트하는 가드 구현
-  - [ ] 전체 빌드 및 다중 브라우저 활용 교차 로그인(인가/비인가 계정) 검증 테스트
+- [x] 🔐 구글 OAuth & 화이트리스트 보안 인증 체계 구축
+  - [x] 백엔드: JWT 토큰 생성 및 검증 모듈 추가 (`pyjwt` 설치 및 `auth_service.py`)
+  - [x] 백엔드: 구글 ID Token 검증 및 화이트리스트 이메일 확인 API (`/api/auth/google`) 구현
+  - [x] 백엔드: 기존 중요 API (/chat, /upload, /documents)에 인증 의존성(`Depends`) 주입 및 보호
+  - [x] 프론트엔드: `useAuthStore` Zustand 스토어 신설 (JWT 토큰 및 사용자 정보 저장)
+  - [x] 프론트엔드: API 요청 시 `Authorization: Bearer <JWT>` 헤더 전송 래퍼 추가
+  - [x] 프론트엔드: 고급 글래스모피즘 로그인 화면 UI 및 Google API 연동 (`/login` 페이지)
+  - [x] 프론트엔드: 비로그인 상태일 때 `/login` 페이지로 강제 리다이렉트하는 가드 구현
+  - [x] 전체 빌드 및 다중 브라우저 활용 교차 로그인(인가/비인가 계정) 검증 테스트
 
 ## 완료된 작업 (Completed Tasks)
 - [x] 답변 품질 테스트 프로그램 개발 및 실행 🧪

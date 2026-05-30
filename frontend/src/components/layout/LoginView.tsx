@@ -82,16 +82,16 @@ export default function LoginView() {
           Vectorless Agentic PDF Search
         </p>
 
-        {/* 💡 Bonggoo 스타일의 위트있는 안내 카드 */}
+        {/* 💡 시스템 안내 카드 */}
         <div className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 mb-6 text-left">
-          <div className="flex items-start gap-2.5 text-yellow-400/90 text-sm font-semibold mb-1">
-            <ShieldCheck className="w-5 h-5 flex-shrink-0 text-violet-400" />
-            <span>비공개 요원 비밀 포털 🤫</span>
+          <div className="flex items-start gap-2.5 text-violet-400 text-sm font-semibold mb-1">
+            <ShieldCheck className="w-5 h-5 flex-shrink-0" />
+            <span>보안 인증 기반 시스템</span>
           </div>
           <p className="text-white/70 text-xs leading-relaxed">
-            여기는 Bonggoo RAG 기지입니다. 
-            <strong> Bonggoo가 미리 이메일을 등록해 둔 정예 멤버들만</strong> 입장할 수 있습니다. 
-            등록 안 되신 사내 동료분들은 미안하지만 알아서 <strong>조용히 뒤로 가기</strong>를 눌러주세요~ 🫡
+            본 시스템은 기밀 유지 및 사내 자산 보안을 위해 
+            <strong> 사전에 승인된 사용자 계정</strong>으로만 접근이 가능합니다. 
+            권한을 획득하신 본인의 구글 계정으로 로그인해 주시기 바랍니다.
           </p>
         </div>
 
@@ -99,21 +99,21 @@ export default function LoginView() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-4">
             <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-2" />
-            <span className="text-xs text-white/50">백엔드 보안 초소 통과 요청 중...</span>
+            <span className="text-xs text-white/50">사용자 권한 검증 요청 중...</span>
           </div>
         ) : (
           /* 구글 로그인 버튼 컨테이너 */
           <div className="my-4 transition-all duration-300 hover:scale-105" ref={googleBtnRef} id="google-login-btn" />
         )}
 
-        {/* ❌ 쿨하고 위트있는 에러 표시 영역 */}
+        {/* ❌ 정중한 에러 표시 영역 */}
         {errorMsg && (
           <div className="mt-6 w-full p-4 rounded-xl border border-red-500/20 bg-red-950/20 text-center animate-shake">
             <p className="text-xs font-semibold text-red-400 mb-1.5">
-              👮‍♂️ 신원 조회 탈락!
+              ⚠️ 접근 권한 승인 실패
             </p>
             <p className="text-[11px] text-white/60 leading-relaxed">
-              등록 안 된 계정입니다. 계속 쓰고 싶다면 <strong>Bonggoo님에게 슬쩍 다가가 커피 한 잔 사주면서</strong> 본인 구글 메일 등록해 달라고 속닥여 보세요. 알아서 잘 씁시다!
+              본 시스템에 등록되지 않은 구글 계정입니다. 서비스 이용 및 접근 권한 활성화가 필요하신 경우, <strong>시스템 관리자</strong>에게 계정 정보 등록을 요청해 주시기 바랍니다.
             </p>
           </div>
         )}
@@ -121,7 +121,7 @@ export default function LoginView() {
         {/* 카피라이트 */}
         <span className="text-[10px] text-white/20 mt-8 flex items-center gap-1">
           <HelpCircle className="w-3.5 h-3.5" />
-          개인 보안 계정 및 사내 문서 보호 연동 중
+          보안 계정 및 사내 문서 보호 정책 연동
         </span>
       </div>
     </div>

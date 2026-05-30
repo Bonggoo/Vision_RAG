@@ -92,7 +92,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             )}
           </button>
 
-          {/* 💡 구글 프로필 & 위트있는 로그아웃 버튼 */}
+          {/* 💡 구글 프로필 & 로그아웃 버튼 */}
           {user && (
             <div className="flex items-center gap-2 border-l border-border/20 pl-2">
               {user.picture ? (
@@ -109,7 +109,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
               )}
               <button
                 onClick={logout}
-                title="로그아웃 (알아서 잘 쓴 사람들의 퇴장 🫡)"
+                title="로그아웃"
                 className="p-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg border border-border/20 transition-all duration-300 hover:scale-105 active:scale-95"
               >
                 <LogOut className="w-4 h-4" />
