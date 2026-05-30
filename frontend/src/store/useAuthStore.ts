@@ -92,13 +92,16 @@ export const useAuthStore = create<AuthStore>()(
       name: "vision-rag-auth-storage",
       storage: {
         getItem: (name: string) => {
+          if (typeof window === "undefined") return null;
           const value = sessionStorage.getItem(name);
           return value ? JSON.parse(value) : null;
         },
         setItem: (name: string, value: unknown) => {
+          if (typeof window === "undefined") return;
           sessionStorage.setItem(name, JSON.stringify(value));
         },
         removeItem: (name: string) => {
+          if (typeof window === "undefined") return;
           sessionStorage.removeItem(name);
         },
       },
