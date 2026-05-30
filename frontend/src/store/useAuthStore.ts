@@ -89,7 +89,19 @@ export const useAuthStore = create<AuthStore>()(
       },
     }),
     {
-      name: "vision-rag-auth-storage", // localStorage의 키 이름
+      name: "vision-rag-auth-storage",
+      storage: {
+        getItem: (name: string) => {
+          const value = sessionStorage.getItem(name);
+          return value ? JSON.parse(value) : null;
+        },
+        setItem: (name: string, value: unknown) => {
+          sessionStorage.setItem(name, JSON.stringify(value));
+        },
+        removeItem: (name: string) => {
+          sessionStorage.removeItem(name);
+        },
+      },
     }
   )
 );
