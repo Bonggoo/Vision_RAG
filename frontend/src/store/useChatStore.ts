@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
+import { useAuthStore } from '@/store/useAuthStore';
 
 /** 참조 페이지 이미지 */
 export interface ReferenceImage {
@@ -27,6 +28,8 @@ export interface ChatSession {
   title: string;
   messages: Message[];
   createdAt: number;
+  /** 세션 소유자 이메일 (멀티테넌시 격리용, 미설정 시 공용 레거시 세션) */
+  ownerEmail?: string;
 }
 
 interface ChatStore {
@@ -46,6 +49,8 @@ interface ChatStore {
   finishStreaming: (sessionId: string) => void;
   /** 세션 제목 변경 */
   renameSession: (sessionId: string, title: string) => void;
+  /** 활성 세션 초기화 (로그아웃 시 사용) */
+  resetActiveSession: () => void;
 }
 
 /** 마지막 assistant 메시지를 업데이트하는 헬퍼 */
@@ -72,11 +77,14 @@ export const useChatStore = create<ChatStore>()(
       activeSessionId: null,
 
       createSession: (title = '새로운 대화') => {
+        // 현재 로그인 사용자의 이메일을 세션 소유자로 바인딩
+        const email = useAuthStore.getState().user?.email;
         const newSession: ChatSession = {
           id: uuidv4(),
           title,
           messages: [],
           createdAt: Date.now(),
+          ownerEmail: email || undefined,
         };
 
         set((state) => {
@@ -152,6 +160,8 @@ export const useChatStore = create<ChatStore>()(
             session.id === sessionId ? { ...session, title } : session
           ),
         })),
+
+      resetActiveSession: () => set({ activeSessionId: null }),
     }),
     {
       name: 'vision-rag-chat-storage',

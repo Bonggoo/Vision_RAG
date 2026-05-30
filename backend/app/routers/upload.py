@@ -18,13 +18,13 @@ router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 @router.post("", response_model=UploadResponse)
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     """PDF 파일을 업로드하고 목차(ToC)를 추출합니다."""
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="PDF 파일만 지원합니다.")
     
     try:
-        result = await process_document_upload(file)
+        result = await process_document_upload(file, owner_email=current_user["email"])
         return result
     except DuplicateDocumentError as e:
         raise HTTPException(
@@ -41,7 +41,7 @@ async def upload_document(file: UploadFile = File(...)):
 
 
 @router.post("/preflight", response_model=PreflightResponse)
-async def upload_preflight(request: PreflightRequest):
+async def upload_preflight(request: PreflightRequest, current_user: dict = Depends(get_current_user)):
     """
     업로드 사전 검증: 중복 확인 및 GCS Signed URL 발급.
     로컬 모드(USE_LOCAL_STORAGE=True)일 경우 upload_url은 None을 반환하여
@@ -51,8 +51,8 @@ async def upload_preflight(request: PreflightRequest):
     if request.file_size == 0:
         raise HTTPException(status_code=400, detail="빈 파일은 업로드할 수 없습니다.")
 
-    # 2. SHA-256 해시 중복 체크
-    existing_docs = metadata_service.get_all_documents()
+    # 2. SHA-256 해시 중복 체크 (사용자 소유 문서 범위 내에서만)
+    existing_docs = metadata_service.get_all_documents(owner_email=current_user["email"])
     for doc_meta in existing_docs:
         if doc_meta.get("file_hash") == request.file_hash:
             raise HTTPException(
@@ -90,7 +90,7 @@ async def upload_preflight(request: PreflightRequest):
     )
 
 
-async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str):
+async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str, owner_email: str = ""):
     """
     백그라운드에서 비동기로 실행되는 AI 분석 파이프라인.
     PyMuPDF의 PDF 파싱과 Gemini API 분석을 순차적으로 수행합니다.
@@ -148,6 +148,7 @@ async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str
             "manufacturer": classification.get("manufacturer"),
             "model_series": classification.get("model_series"),
             "doc_type": classification.get("doc_type"),
+            "owner_email": owner_email,
         }
 
         # 5. 메타데이터 업데이트 (로컬 & GCS)
@@ -166,7 +167,7 @@ async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
-async def trigger_analysis(request: AnalyzeRequest, background_tasks: BackgroundTasks):
+async def trigger_analysis(request: AnalyzeRequest, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     """
     GCS 또는 로컬 스토리지에 업로드된 원본 PDF의 AI 분석을 비동기로 호출합니다.
     즉시 202 Accepted 응답을 보냅니다.
@@ -204,7 +205,8 @@ async def trigger_analysis(request: AnalyzeRequest, background_tasks: Background
         "file_hash": request.file_hash,
         "manufacturer": None,
         "model_series": None,
-        "doc_type": None
+        "doc_type": None,
+        "owner_email": current_user["email"],
     }
 
     # metadata_service에는 신규 생성용이 따로 없으므로 update_document_metadata를 사용하되, 
@@ -237,7 +239,8 @@ async def trigger_analysis(request: AnalyzeRequest, background_tasks: Background
         _run_analysis_pipeline,
         doc_id,
         request.filename,
-        request.file_hash
+        request.file_hash,
+        current_user["email"]
     )
 
     return AnalyzeResponse(

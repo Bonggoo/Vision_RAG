@@ -115,7 +115,7 @@ def is_toc_meaningful(toc: List[Dict[str, Any]], total_pages: int) -> bool:
     return True
 
 
-async def process_document_upload(file: UploadFile) -> Dict[str, Any]:
+async def process_document_upload(file: UploadFile, owner_email: str = "") -> Dict[str, Any]:
     """
     업로드된 PDF 파일을 저장하고, 3단계 ToC 추출 전략(A,B,C)을 수행한 후 메타데이터를 반환합니다.
     ToC가 부실한 경우 자동으로 Vision 기반 세부 목차 보강을 실행합니다.
@@ -128,7 +128,7 @@ async def process_document_upload(file: UploadFile) -> Dict[str, Any]:
         
     # 2. SHA-256 해시 계산 및 중복 검증
     file_hash = hashlib.sha256(content).hexdigest()
-    existing_docs = metadata_service.get_all_documents()
+    existing_docs = metadata_service.get_all_documents(owner_email=owner_email if owner_email else None)
     for doc_meta in existing_docs:
         if doc_meta.get("file_hash") == file_hash:
             raise DuplicateDocumentError(doc_meta["filename"])
@@ -199,6 +199,7 @@ async def process_document_upload(file: UploadFile) -> Dict[str, Any]:
         "manufacturer": classification.get("manufacturer"),
         "model_series": classification.get("model_series"),
         "doc_type": classification.get("doc_type"),
+        "owner_email": owner_email,
     }
     
     with open(os.path.join(doc_dir, "metadata.json"), "w", encoding="utf-8") as f:

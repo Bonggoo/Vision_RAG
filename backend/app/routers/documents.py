@@ -20,16 +20,18 @@ class DocumentUpdateRequest(BaseModel):
 
 
 @router.get("", response_model=DocumentListResponse)
-async def list_documents():
+async def list_documents(current_user: dict = Depends(get_current_user)):
     """업로드된 모든 문서 목록을 반환합니다."""
-    docs = metadata_service.get_all_documents()
+    docs = metadata_service.get_all_documents(owner_email=current_user["email"])
     return {"documents": docs}
 
 
 @router.get("/{document_id}")
-async def get_document_detail(document_id: UUID):
+async def get_document_detail(document_id: UUID, current_user: dict = Depends(get_current_user)):
     """문서 상세 정보를 반환합니다."""
     doc_id = str(document_id)
+    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+        raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
     meta = metadata_service.get_document(doc_id)
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
@@ -47,9 +49,11 @@ async def get_document_detail(document_id: UUID):
 
 
 @router.patch("/{document_id}")
-async def update_document(document_id: UUID, request: DocumentUpdateRequest):
+async def update_document(document_id: UUID, request: DocumentUpdateRequest, current_user: dict = Depends(get_current_user)):
     """문서 메타데이터(파일명, 제조사, 모델 등)를 수정합니다."""
     doc_id = str(document_id)
+    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+        raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
     meta = metadata_service.get_document(doc_id)
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
@@ -83,18 +87,23 @@ async def update_document(document_id: UUID, request: DocumentUpdateRequest):
 
 
 @router.delete("/{document_id}")
-async def remove_document(document_id: UUID):
+async def remove_document(document_id: UUID, current_user: dict = Depends(get_current_user)):
     """문서를 삭제합니다 (PDF + 메타데이터)."""
-    success = metadata_service.delete_document(str(document_id))
+    doc_id = str(document_id)
+    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+        raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
+    success = metadata_service.delete_document(doc_id)
     if not success:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
     return {"status": "deleted", "document_id": document_id}
 
 
 @router.get("/{document_id}/toc")
-async def get_document_toc(document_id: UUID):
+async def get_document_toc(document_id: UUID, current_user: dict = Depends(get_current_user)):
     """문서의 ToC(목차)를 반환합니다."""
     doc_id = str(document_id)
+    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+        raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
     toc = metadata_service.get_document_toc(doc_id)
     if toc is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
@@ -102,9 +111,11 @@ async def get_document_toc(document_id: UUID):
 
 
 @router.post("/{document_id}/reindex")
-async def reindex_document(document_id: UUID):
+async def reindex_document(document_id: UUID, current_user: dict = Depends(get_current_user)):
     """기존 문서의 ToC를 Vision 기반으로 재보강합니다."""
     doc_id = str(document_id)
+    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+        raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
     meta = metadata_service.get_document(doc_id)
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
@@ -143,12 +154,14 @@ async def reindex_document(document_id: UUID):
 
 
 @router.get("/{document_id}/download")
-async def download_document(document_id: UUID):
+async def download_document(document_id: UUID, current_user: dict = Depends(get_current_user)):
     """
     문서 PDF를 다운로드합니다.
     파일명 형식: 제조사_모델시리즈_문서유형.pdf
     """
     doc_id = str(document_id)
+    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+        raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
     meta = metadata_service.get_document(doc_id)
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
@@ -180,12 +193,14 @@ async def download_document(document_id: UUID):
 
 
 @router.get("/{document_id}/download-url")
-async def download_document_url(document_id: UUID):
+async def download_document_url(document_id: UUID, current_user: dict = Depends(get_current_user)):
     """
     문서 다운로드를 위한 URL을 발급합니다.
     로컬 모드인 경우 로컬 다운로드 API 경로를, GCS 모드인 경우 GCS Signed URL을 반환합니다.
     """
     doc_id = str(document_id)
+    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+        raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
     meta = metadata_service.get_document(doc_id)
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")

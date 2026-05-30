@@ -23,11 +23,18 @@ import {
 } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
 import { useDocumentStore, Document } from "@/store/useDocumentStore";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { sessions, activeSessionId, setActiveSession, createSession, deleteSession } =
     useChatStore();
+  const { user } = useAuthStore();
+
+  // 현재 로그인 사용자의 세션만 필터링 (ownerEmail 미설정 레거시 세션은 공용으로 포함)
+  const mySessions = sessions.filter(
+    (s) => s.ownerEmail === user?.email || !s.ownerEmail
+  );
   const {
     documents,
     uploadDocuments,
@@ -719,13 +726,13 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
           최근 대화
         </div>
 
-        {sessions.length === 0 && (
+        {mySessions.length === 0 && (
           <p className="text-[11px] text-muted-foreground/40 px-3 py-3 text-center">
             대화 기록이 없습니다
           </p>
         )}
 
-        {sessions.map((session) => (
+        {mySessions.map((session) => (
           <div
             key={session.id}
             className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer transition-all ${

@@ -51,7 +51,7 @@ async def _stream_with_disconnect_check(
 
 
 @router.post("/stream")
-async def chat_stream(request: ChatRequest, http_request: Request):
+async def chat_stream(request: ChatRequest, http_request: Request, current_user: dict = Depends(get_current_user)):
     """
     Agentic Search → Vision LLM 분석 후 SSE 스트리밍으로 응답합니다.
     
@@ -66,11 +66,13 @@ async def chat_stream(request: ChatRequest, http_request: Request):
     """
     doc_id = str(request.document_id) if request.document_id else None
     
-    # document_id가 지정된 경우 사전 검증
+    # document_id가 지정된 경우 사전 검증 + 소유권 확인
     if doc_id:
         meta = metadata_service.get_document(doc_id)
         if meta is None:
             raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
+        if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+            raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
     
     # 대화 이력을 딕셔너리 리스트로 변환
     history = []
@@ -78,8 +80,10 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         history = [{"role": h.role, "content": h.content} for h in request.chat_history]
     
     pipeline = run_agentic_pipeline(
-        doc_id, request.question, chat_history=history, image=request.image
+        doc_id, request.question, chat_history=history, image=request.image,
+        user_email=current_user["email"]
     )
+
     
     return StreamingResponse(
         _stream_with_disconnect_check(http_request, pipeline),

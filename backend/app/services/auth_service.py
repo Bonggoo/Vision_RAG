@@ -67,7 +67,7 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
     # 환경변수에 ALLOWED_USERS가 설정되지 않았거나 비어 있다면 인증 필터를 무시하고 개발 모드로 둡니다.
     # (개발 편의성 및 로컬 테스트 호환성 유지)
     if not settings.ALLOWED_USERS:
-        return {"email": "local-dev-user@gmail.com", "name": "Dev User", "picture": ""}
+        return {"email": "local-dev@visionrag.app", "name": "Dev User", "picture": ""}
 
     if not credentials:
         raise HTTPException(

@@ -16,10 +16,11 @@ def _get_bucket():
     client = storage.Client()
     return client.bucket(settings.GCS_BUCKET_NAME)
 
-def get_all_documents() -> List[Dict[str, Any]]:
+def get_all_documents(owner_email: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     모든 문서 메타데이터를 조회합니다.
     USE_LOCAL_STORAGE=True인 경우 로컬 파일 시스템에서, 그렇지 않은 경우 GCS에서 조회합니다.
+    owner_email이 주어지면 해당 사용자 소유 문서 + 레거시(공용) 문서만 반환합니다.
     """
     documents = []
     
@@ -59,9 +60,28 @@ def get_all_documents() -> List[Dict[str, Any]]:
         except Exception as e:
             logger.error(f"GCS list error: {e}")
 
+    # 사용자별 필터링: owner_email이 주어지면 해당 사용자 소유 + 레거시(owner_email 없음) 문서만 반환
+    if owner_email:
+        email_lower = owner_email.lower()
+        documents = [
+            d for d in documents
+            if d.get("owner_email") is None or d.get("owner_email", "").lower() == email_lower
+        ]
+
     # 업로드 시간 역순 정렬
     documents.sort(key=lambda d: d.get("uploaded_at", ""), reverse=True)
     return documents
+
+
+def verify_document_owner(document_id: str, owner_email: str) -> bool:
+    """문서 소유권을 검증합니다. 레거시 문서(owner_email 없음)는 True 반환."""
+    meta = get_document(document_id)
+    if meta is None:
+        return False
+    doc_owner = meta.get("owner_email")
+    if doc_owner is None:
+        return True  # 레거시 문서는 모든 사용자에게 허용
+    return doc_owner.lower() == owner_email.lower()
 
 def get_document(document_id: str) -> Optional[Dict[str, Any]]:
     """

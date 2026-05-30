@@ -10,7 +10,7 @@ import base64
 import json
 import fitz  # PyMuPDF
 from typing import AsyncGenerator
-from app.services.metadata_service import get_document, get_document_path, get_all_documents
+from app.services.metadata_service import get_document, get_document_path, get_all_documents, verify_document_owner
 from app.services.agent_service import analyze_pages_with_vision, _create_flash_llm, _clean_json_response
 from app.services.pdf_service import extract_pages_as_pdf, render_page_thumbnail
 from app.utils.logger import logger
@@ -278,6 +278,7 @@ async def run_agentic_pipeline(
     question: str,
     chat_history: list[dict] | None = None,
     image: str | None = None,
+    user_email: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Agentic Search 파이프라인을 실행합니다.
@@ -317,7 +318,7 @@ async def run_agentic_pipeline(
                     
                     # 문서 매칭: document_id가 지정되지 않은 경우, 분석된 제조사/모델과 일치하는 문서 검색
                     if document_id is None:
-                        all_docs = get_all_documents()
+                        all_docs = get_all_documents(owner_email=user_email)
                         matched_doc = None
                         
                         # 1순위: 제조사와 모델 모두 매칭되는 문서
@@ -404,7 +405,7 @@ async def run_agentic_pipeline(
         # ─── Step 0+1: 문서 선택 + 페이지 추론 (통합) ───
 
         if document_id is None:
-            all_docs = get_all_documents()
+            all_docs = get_all_documents(owner_email=user_email)
             
             if not all_docs:
                 yield _sse_event("error", content="업로드된 문서가 없습니다. 먼저 PDF 매뉴얼을 업로드해 주세요.")

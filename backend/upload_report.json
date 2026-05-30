@@ -1,0 +1,409 @@
+{
+  "success": [
+    {
+      "name": "CV-X300F_Datasheet.pdf",
+      "doc_id": "5a474b57-cd11-4b92-a963-6f422d43a493",
+      "title": "키엔스 CV-X300F 데이터 시트",
+      "toc_count": 2,
+      "status": "indexed",
+      "time": 4.9
+    },
+    {
+      "name": "LCD시리즈.pdf",
+      "doc_id": "1ddc9fd1-51b6-4ee9-bf4b-4a0e2dcfbf19",
+      "title": "LCD 시리즈 로드셀 제품 사양서",
+      "toc_count": 3,
+      "status": "indexed",
+      "time": 4.9
+    },
+    {
+      "name": "Lay_cosmoEU_Prospekt_LS-R900.pdf",
+      "doc_id": "f541ed54-d297-486f-b277-078c0d875174",
+      "title": "Cosmo LS-R900 기밀시험기 카탈로그",
+      "toc_count": 9,
+      "status": "indexed",
+      "time": 7.0
+    },
+    {
+      "name": "근접센서 기술해설_오토닉스.pdf",
+      "doc_id": "1fa1dd56-d1c4-442e-a785-ddcc139067c5",
+      "title": "오토닉스 근접센서 기술해설",
+      "toc_count": 7,
+      "status": "indexed",
+      "time": 2.4
+    },
+    {
+      "name": "NTS-4800.pdf",
+      "doc_id": "c61e466b-89a0-4968-b6b8-5bdd1d92e193",
+      "title": "NTS-4800 모델 사양서",
+      "toc_count": 8,
+      "status": "indexed",
+      "time": 7.7
+    },
+    {
+      "name": "MR-J4트러블슈팅(Ver.B)_KOR[1].pdf",
+      "doc_id": "8611cbe9-86e4-458c-8448-0057bcefa628",
+      "title": "미쓰비시 MELSERVO-J4 서보앰프 기술자료집 (트러블 슈팅 편)",
+      "toc_count": 3,
+      "status": "indexed",
+      "time": 6.8
+    },
+    {
+      "name": "BW_KO_TCD210006AC_20231005_INST_W.pdf",
+      "doc_id": "ce41cbc4-16a8-42b7-b361-58fba792ea28",
+      "title": "오토닉스 BW 시리즈 취급설명서",
+      "toc_count": 13,
+      "status": "indexed",
+      "time": 5.3
+    },
+    {
+      "name": "AS_104151_TG_635898_KK_KR_1059_2.pdf",
+      "doc_id": "baed66ed-5704-42ee-95e3-ed97b01f50ab",
+      "title": "키엔스 2D 코드의 기본 Vol.1 2D 코드의 종류",
+      "toc_count": 12,
+      "status": "indexed",
+      "time": 8.1
+    },
+    {
+      "name": "Safety manual for FANUC Educational Cell.pdf",
+      "doc_id": "c31f0313-4436-4103-93b9-fa07ceb6db06",
+      "title": "FANUC 로봇 안전 핸드북",
+      "toc_count": 57,
+      "status": "indexed",
+      "time": 2.2
+    },
+    {
+      "name": "AS_70751_CZ-V20_SG_472KO_KK_KR_1056_2.pdf",
+      "doc_id": "0d26910f-0e2f-42d4-b4ca-b6261644014f",
+      "title": "키엔스 CZ-V20 시리즈 설정 가이드",
+      "toc_count": 12,
+      "status": "indexed",
+      "time": 3.0
+    },
+    {
+      "name": "RI SERIES_VER_214A_KOR.pdf",
+      "doc_id": "4af53916-2130-42bb-ab0d-e45bbb297b67",
+      "title": "래디언큐바이오 디지털 인디케이터 RI 시리즈 사용 설명서",
+      "toc_count": 39,
+      "status": "indexed",
+      "time": 14.0
+    },
+    {
+      "name": "AS_80581_LR-T_UM_607KO_KK_KR_1046_1.pdf",
+      "doc_id": "f10974e5-d2e2-4295-b63a-8e12d71f0e52",
+      "title": "키엔스 MU-N 시리즈 사용 설명서 (LR-T 시리즈편)",
+      "toc_count": 45,
+      "status": "indexed",
+      "time": 3.1
+    },
+    {
+      "name": "AS_118908_CZ-V20_C_635C10_KK_KR.pdf",
+      "doc_id": "15caf6a4-e2eb-472b-b679-acc7243180c8",
+      "title": "키엔스 CZ-V20 시리즈 디지털 컬러 센서 카탈로그",
+      "toc_count": 20,
+      "status": "indexed",
+      "time": 11.1
+    },
+    {
+      "name": "LT20_30_JED.pdf",
+      "doc_id": "9b6e7f2d-13ed-459c-91af-c34d6b6c11cc",
+      "title": "Magnescale LT20A / LT30 시리즈 사용 설명서",
+      "toc_count": 182,
+      "status": "indexed",
+      "time": 5.5
+    },
+    {
+      "name": "N1시리즈 알람코드 매뉴얼.pdf",
+      "doc_id": "30d9ba86-7132-4658-9e28-03561e683dda",
+      "title": "로보스타 N1 시리즈 알람코드 설명서",
+      "toc_count": 15,
+      "status": "indexed",
+      "time": 4.6
+    },
+    {
+      "name": "1348128429.pdf",
+      "doc_id": "9243ad4a-8455-4111-9cdc-0f5aec382901",
+      "title": "미쯔비시 QD74MH 시리즈 위치결정 모듈 사용 설명서",
+      "toc_count": 205,
+      "status": "indexed",
+      "time": 3.1
+    },
+    {
+      "name": "AS_161959_LR-Z_C_635480_KK_KR_2045_5.pdf",
+      "doc_id": "5a615e90-f5ea-4aa1-b643-2395f8243ceb",
+      "title": "키엔스 LR-Z 시리즈 앰프 내장형 CMOS 레이저 센서 카탈로그",
+      "toc_count": 14,
+      "status": "indexed",
+      "time": 13.1
+    },
+    {
+      "name": "F388A.pdf",
+      "doc_id": "dddcb894-a3d2-450e-9ec5-fdc3aa23e4d2",
+      "title": "유니펄스 F388A 웨이브 폼 체커 사용 설명서",
+      "toc_count": 104,
+      "status": "indexed",
+      "time": 4.2
+    },
+    {
+      "name": "1281925218_01.pdf",
+      "doc_id": "a58f403e-1317-4704-b559-faa7d36a2364",
+      "title": "유니펄스 F381 취급설명서",
+      "toc_count": 101,
+      "status": "indexed",
+      "time": 3.5
+    },
+    {
+      "name": "통신장비 카다로그.pdf",
+      "doc_id": "63a2bcd4-4107-4af1-9968-bd6e04643234",
+      "title": "네오정보시스템 NEO NETWORK 제품군 통합 사용 설명서",
+      "toc_count": 12,
+      "status": "indexed",
+      "time": 13.0
+    },
+    {
+      "name": "압력스위치세팅메뉴얼(신형).pdf",
+      "doc_id": "a46fda8d-507b-4f1b-88dd-1d58ba763e8f",
+      "title": "SMC 디지털 압력 스위치 설정 매뉴얼",
+      "toc_count": 6,
+      "status": "indexed",
+      "time": 22.5
+    },
+    {
+      "name": "AS_121613_CV-X_IM_16605KO_KK_KR_2071_3.pdf",
+      "doc_id": "a4a89746-f097-49a5-9491-739e3d7b5c0d",
+      "title": "키엔스 CV-X400/X300 시리즈 취급 설명서",
+      "toc_count": 46,
+      "status": "indexed",
+      "time": 3.2
+    },
+    {
+      "name": "AS_118723_CA-L_C_635C02_KK_KR.pdf",
+      "doc_id": "52405ef8-e26b-47a6-8225-bfb22a3bff6b",
+      "title": "키엔스 CA-L 시리즈 렌즈 카탈로그",
+      "toc_count": 18,
+      "status": "indexed",
+      "time": 12.7
+    },
+    {
+      "name": "NUTRUNNER_MANUAL_KOR_R3.0.4.pdf",
+      "doc_id": "e348792d-289f-4d78-92c8-ef9ef77306dd",
+      "title": "SETech AC SERVO NUTRUNNER LOCAL CONTROL SYSTEM 사용 설명서",
+      "toc_count": 27,
+      "status": "indexed",
+      "time": 7.6
+    },
+    {
+      "name": "rci4.pdf",
+      "doc_id": "fc20d1a2-fc8c-4c1a-80dd-403c75ff9c3d",
+      "title": "로보스타 RCA(I)4 시리즈 사용 설명서",
+      "toc_count": 20,
+      "status": "indexed",
+      "time": 2.7
+    },
+    {
+      "name": "ZSE20B_PSxx-OMU0005KR-H.pdf",
+      "doc_id": "ca0ceb27-6c05-401f-834b-ccc7d6b461ad",
+      "title": "SMC ZSE20B(F)/ISE20B 시리즈 디지털 압력스위치 취급설명서",
+      "toc_count": 39,
+      "status": "indexed",
+      "time": 12.9
+    },
+    {
+      "name": "AS_110220_FD-X_C_635A18_KK_KR_2012_3.pdf",
+      "doc_id": "3bd1e1e1-6bc7-4911-a36b-da93af5e344f",
+      "title": "키엔스 FD-X 시리즈 클램프온식 유량 센서",
+      "toc_count": 15,
+      "status": "indexed",
+      "time": 8.4
+    },
+    {
+      "name": "9937D1495A38D35210.pdf",
+      "doc_id": "934709d2-3c34-4aa6-9179-755a41652543",
+      "title": "오므론 H5F 시리즈 디지털 데일리 타임 스위치 카탈로그",
+      "toc_count": 23,
+      "status": "indexed",
+      "time": 12.0
+    },
+    {
+      "name": "LS-R900-941F1-J-KM-170830.pdf",
+      "doc_id": "62b16aa5-1a46-4135-a78d-21ddf3188852",
+      "title": "코스모 LS-R900 에어 리크 테스터 취급설명서",
+      "toc_count": 252,
+      "status": "indexed",
+      "time": 2.5
+    },
+    {
+      "name": "MWO_KOR_MFL67233153_05_231226_00_OM_WEB.pdf",
+      "doc_id": "27492c1d-7a9c-4050-82f0-e3e44f075d14",
+      "title": "LG 광파오븐 사용설명서",
+      "toc_count": 124,
+      "status": "indexed",
+      "time": 2.8
+    },
+    {
+      "name": "DEVICENET[1].pdf",
+      "doc_id": "d1aa4fc3-c158-4c82-aa26-8da3ee9f14c2",
+      "title": "미쓰비시 Q 시리즈 디바이스넷 마스터·슬레이브 모듈 사용자 매뉴얼 (상세편)",
+      "toc_count": 152,
+      "status": "indexed",
+      "time": 3.2
+    },
+    {
+      "name": "295802869.pdf",
+      "doc_id": "6764b444-9907-4d49-b90c-864ad5d7a68b",
+      "title": "미쯔비시 MELSEC-Q 시리즈 Q 대응 Ethernet 인터페이스 모듈 사용자 매뉴얼 (응용편)",
+      "toc_count": 74,
+      "status": "indexed",
+      "time": 5.0
+    },
+    {
+      "name": "AS_78882_LR-W_C_635368_KK_KR_2052_4.pdf",
+      "doc_id": "2551a746-7861-4be1-9f13-d36ce1881985",
+      "title": "키엔스 LR-W 시리즈 화이트 스폿 광 센서 카탈로그",
+      "toc_count": 15,
+      "status": "indexed",
+      "time": 9.9
+    },
+    {
+      "name": "AS_160460_VS_C_635I20_KK_KR_2046_4.pdf",
+      "doc_id": "b11a3431-8f93-4edb-8d61-3586b7a23a7c",
+      "title": "키엔스 VS 시리즈 비전 시스템 카탈로그",
+      "toc_count": 18,
+      "status": "indexed",
+      "time": 15.4
+    },
+    {
+      "name": "1328745923.pdf",
+      "doc_id": "4c93d930-5c2e-443f-a95f-1fd8e442135a",
+      "title": "미쯔비시 MELSEC-Q 시리즈 Q 대응 시리얼 통신 모듈 사용 설명서",
+      "toc_count": 227,
+      "status": "indexed",
+      "time": 2.6
+    },
+    {
+      "name": "RCS80-UM-K02-20220121.pdf",
+      "doc_id": "017e3723-fdd5-4476-9186-944fa361fb27",
+      "title": "로보스타 RCS-8000 시리즈 RCS8000 설명서",
+      "toc_count": 246,
+      "status": "indexed",
+      "time": 3.8
+    },
+    {
+      "name": "MR-J4-B(-RJ)매뉴얼(Ver.M)_(1).pdf",
+      "doc_id": "cee8bf13-91c8-4209-a837-a1730b2e5cd6",
+      "title": "미쓰비시전기 MELSERVO-J4 시리즈 서보앰프 기술자료집",
+      "toc_count": 130,
+      "status": "indexed",
+      "time": 4.5
+    },
+    {
+      "name": "R-30iB_Plus_iRVision_2D_application_operator_manual_B-83914EN-2_01_Robo_Challenge.pdf",
+      "doc_id": "e79ecfd4-b06b-4cfe-b667-3ab973cdbe57",
+      "title": "화낙 R-30iB Plus 컨트롤러 iRVision 2D 카메라 애플리케이션 사용 설명서",
+      "toc_count": 188,
+      "status": "indexed",
+      "time": 3.6
+    },
+    {
+      "name": "N1-OM-K04-20180326.pdf",
+      "doc_id": "18f66ea0-7ef5-4722-8b46-f43541c1388e",
+      "title": "로보스타 N1 시리즈 조작 및 운용 설명서",
+      "toc_count": 167,
+      "status": "indexed",
+      "time": 3.0
+    },
+    {
+      "name": "1708880979.pdf",
+      "doc_id": "660735b0-5b6a-4f13-bf2b-608397fe7561",
+      "title": "미쯔비시 Q 시리즈 Ethernet 인터페이스 모듈 사용자 매뉴얼 (기본편)",
+      "toc_count": 170,
+      "status": "indexed",
+      "time": 2.7
+    },
+    {
+      "name": "Q대응시리얼커뮤니케이션모듈_사용자매뉴얼_응용편.pdf",
+      "doc_id": "65a99d9b-84af-48d0-acfc-99d48bbaf252",
+      "title": "미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (응용편)",
+      "toc_count": 171,
+      "status": "indexed",
+      "time": 3.9
+    },
+    {
+      "name": "CC_LINK 시스템 QJ61BT11 상세편_K.pdf",
+      "doc_id": "f2825467-1fbf-4981-91dc-ff56cf343288",
+      "title": "미쓰비시 MELSEC-Q 시리즈 CC-Link 시스템 마스터·로컬 모듈 사용자 매뉴얼 (상세편)",
+      "toc_count": 164,
+      "status": "indexed",
+      "time": 3.3
+    },
+    {
+      "name": "AS_160893_CV-X_C_635I43_KK_KR_2016_2.pdf",
+      "doc_id": "24683ec7-13e1-48bb-af96-3eec5ec06463",
+      "title": "키엔스 CV-X 시리즈 비전 시스템 사용 설명서",
+      "toc_count": 15,
+      "status": "indexed",
+      "time": 18.0
+    },
+    {
+      "name": "Q대응시리얼커뮤니케이션모듈_사용자매뉴얼_기본편.pdf",
+      "doc_id": "cf17e697-0668-4d1a-9bd7-cc7b69032631",
+      "title": "미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (기본편)",
+      "toc_count": 229,
+      "status": "indexed",
+      "time": 2.7
+    },
+    {
+      "name": "_LSMecapion_ L7NH_KOR_Ver1.3_210412.pdf",
+      "doc_id": "a71b11b1-82bc-431b-9d52-70184a2bfb11",
+      "title": "LS AC 서보 드라이브 L7NH 시리즈 사용 설명서",
+      "toc_count": 281,
+      "status": "indexed",
+      "time": 3.0
+    },
+    {
+      "name": "Fanuc Robot Series R-30iB Mate + Mate Plus Maintenance Manual.pdf",
+      "doc_id": "108e9c21-16c8-45f6-be2b-12b34c425b26",
+      "title": "FANUC Robot series R-30iB Mate/R-30iB Mate Plus 컨트롤러 유지보수 매뉴얼",
+      "toc_count": 180,
+      "status": "indexed",
+      "time": 3.1
+    },
+    {
+      "name": "화낙_R-30iB PlusR-30iB Mate PlusR-30iB Mini Plus_사용 설명서.pdf",
+      "doc_id": "c5770c0a-b8bf-41ee-b868-86978fa1c82b",
+      "title": "FANUC Robot series R-30iB Plus/R-30iB Mate Plus/R-30iB Mini Plus CONTROLLER TABLET UI 사용 설명서",
+      "toc_count": 257,
+      "status": "indexed",
+      "time": 2.9
+    },
+    {
+      "name": "sh080917engh.pdf",
+      "doc_id": "0129cf13-37ff-4394-be5d-5f754f75b15d",
+      "title": "미쯔비시 MELSEC-Q 시리즈 CC-Link IE Field Network Master/Local 모듈 사용 설명서",
+      "toc_count": 177,
+      "status": "indexed",
+      "time": 2.8
+    },
+    {
+      "name": "AS_162284_CV-X_UM_N36KO_KK_KR_2105_1.pdf",
+      "doc_id": "2c4e8835-9cc5-4503-9159-54b70e504200",
+      "title": "키엔스 CV-X 시리즈 사용자 매뉴얼",
+      "toc_count": 1085,
+      "status": "indexed",
+      "time": 3.0
+    }
+  ],
+  "duplicate": [
+    "NTS-4800 (1).pdf",
+    "HPPF_operating-instr_2022-09_8165752k1.pdf",
+    "로보스타_RCA(I)4_사용 설명서.pdf",
+    "로보스타_N1_조작 및 운용 설명서.pdf",
+    "QD77MS_위치결정_매뉴얼.pdf",
+    "Tablet_TP_operator_manual_B-84274EN_04.pdf"
+  ],
+  "skipped": [
+    "AS_152509_CV-X_UM_C81KO_KK_KR_2045_5.pdf",
+    "AS_132469_CV-X_UM_C81KO_KK_KR_2033_3.pdf"
+  ],
+  "error": []
+}

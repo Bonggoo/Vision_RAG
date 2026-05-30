@@ -1,6 +1,15 @@
 # 📋 To Do List (Vision RAG)
 
 ## 향후 작업 (Next Tasks)
+- [ ] 👥 사용자별 RAG 개인화(멀티테넌시) 시스템 구축
+  - [ ] 백엔드: `metadata_service.py`에 `owner_email` 필터링 및 소유권 검증 로직 구현
+  - [ ] 백엔드: `/upload`, `/documents` 등의 라우터에 현재 유저 이메일 연동 및 격리 필터 적용
+  - [ ] 백엔드: `/chat/stream` RAG 실행 시 본인 소유의 매뉴얼 문서 풀 내에서만 자동 매칭되도록 제한
+  - [ ] 프론트엔드: `useChatStore.ts` 세션 구조에 `ownerEmail` 추가 및 생성 시 이메일 바인딩
+  - [ ] 프론트엔드: `Sidebar.tsx` 및 대화방 렌더링 시 현재 로그인 유저의 대화방만 격리 필터 적용
+  - [ ] 전체 빌드 검증 및 교차 로그인 시나리오 기반 개인화(대화 및 파일 완전 격리) 테스트
+
+## 완료된 작업 (Completed Tasks)
 - [x] 🔐 구글 OAuth & 화이트리스트 보안 인증 체계 구축
   - [x] 백엔드: JWT 토큰 생성 및 검증 모듈 추가 (`pyjwt` 설치 및 `auth_service.py`)
   - [x] 백엔드: 구글 ID Token 검증 및 화이트리스트 이메일 확인 API (`/api/auth/google`) 구현

@@ -108,7 +108,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 </div>
               )}
               <button
-                onClick={logout}
+                onClick={() => {
+                  // 활성 세션 초기화 후 로그아웃 (순환 참조 방지를 위해 여기서 순차 호출)
+                  useChatStore.getState().resetActiveSession();
+                  logout();
+                }}
                 title="로그아웃"
                 className="p-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg border border-border/20 transition-all duration-300 hover:scale-105 active:scale-95"
               >
