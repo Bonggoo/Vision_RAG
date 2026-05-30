@@ -9,7 +9,7 @@ declare global {
 }
 
 // 백엔드 API로부터 불러올 설정값
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "33698740268-lkv5e229v3j51g3b2r2b9rbb9rr2b9rr.apps.googleusercontent.com"; // 기본 혹은 env 파일 값
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "1023361734160-rfo5n5kufp15b0h5efknm46kki58j77t.apps.googleusercontent.com";
 
 export default function LoginView() {
   const { loginWithGoogleCredential, isLoading, errorMsg, clearError } = useAuthStore();
