@@ -289,98 +289,99 @@ async def run_agentic_pipeline(
     """
     logger.info(f"🚀 [Pipeline] Agentic Search 파이프라인 작동 시작 (질문: '{question}')")
     
-    # ─── Step -1: 이미지 분석 및 질문/문서 매칭 보강 ───
-    analyzed_meta = None
-    if image:
-        yield _sse_event("reasoning", content="📸 업로드하신 장비 이미지를 분석하고 있습니다...")
-        try:
-            from app.services.agent_service import analyze_device_image_with_gemini
-            analyzed_meta = await analyze_device_image_with_gemini(image)
-            
-            if analyzed_meta and analyzed_meta.get("confidence", 0.0) >= 0.5:
-                manuf = analyzed_meta.get("manufacturer")
-                model = analyzed_meta.get("model_series")
-                err_code = analyzed_meta.get("error_code")
-                symptom = analyzed_meta.get("symptom")
+    try:
+        # ─── Step -1: 이미지 분석 및 질문/문서 매칭 보강 ───
+        analyzed_meta = None
+        if image:
+            yield _sse_event("reasoning", content="📸 업로드하신 장비 이미지를 분석하고 있습니다...")
+            try:
+                from app.services.agent_service import analyze_device_image_with_gemini
+                analyzed_meta = await analyze_device_image_with_gemini(image)
                 
-                info_parts = []
-                if manuf: info_parts.append(f"제조사: {manuf}")
-                if model: info_parts.append(f"모델: {model}")
-                if err_code: info_parts.append(f"인식된 알람: {err_code}")
-                if symptom: info_parts.append(f"증상: {symptom}")
-                
-                yield _sse_event(
-                    "reasoning",
-                    content="🔍 이미지 인식 성공!\n- " + "\n- ".join(info_parts)
-                )
-                
-                # 문서 매칭: document_id가 지정되지 않은 경우, 분석된 제조사/모델과 일치하는 문서 검색
-                if document_id is None:
-                    all_docs = get_all_documents()
-                    matched_doc = None
+                if analyzed_meta and analyzed_meta.get("confidence", 0.0) >= 0.5:
+                    manuf = analyzed_meta.get("manufacturer")
+                    model = analyzed_meta.get("model_series")
+                    err_code = analyzed_meta.get("error_code")
+                    symptom = analyzed_meta.get("symptom")
                     
-                    # 1순위: 제조사와 모델 모두 매칭되는 문서
-                    if manuf and model:
-                        for d in all_docs:
-                            d_manuf = str(d.get("manufacturer", "")).upper()
-                            d_model = str(d.get("model_series", "")).upper()
-                            if manuf.upper() in d_manuf and model.upper() in d_model:
-                                matched_doc = d
-                                break
-                                
-                    # 2순위: 모델명 매칭
-                    if not matched_doc and model:
-                        for d in all_docs:
-                            d_model = str(d.get("model_series", "")).upper()
-                            if model.upper() in d_model:
-                                matched_doc = d
-                                break
-                                
-                    # 3순위: 제조사명 매칭
-                    if not matched_doc and manuf:
-                        for d in all_docs:
-                            d_manuf = str(d.get("manufacturer", "")).upper()
-                            if manuf.upper() in d_manuf:
-                                matched_doc = d
-                                break
-                                
-                    if matched_doc:
-                        document_id = matched_doc["document_id"]
-                        yield _sse_event(
-                            "reasoning",
-                            content=f"📂 분석 정보를 기반으로 매칭된 매뉴얼을 자동으로 선택했습니다:\n- 파일명: {matched_doc.get('filename')}"
-                        )
-                
-                # 질문 보강 (리라이팅)
-                rewritten_parts = []
-                if manuf: rewritten_parts.append(manuf)
-                if model: rewritten_parts.append(model)
-                if err_code: rewritten_parts.append(f"알람코드 {err_code}")
-                if symptom: rewritten_parts.append(symptom)
-                
-                if rewritten_parts:
-                    # 사용자 질문이 비어있거나 너무 짧으면 알람 분석 질문으로 대체
-                    if len(question.strip()) < 5:
-                        question = f"{' '.join(rewritten_parts)} 원인과 조치 대처법"
-                    else:
-                        question = f"{' '.join(rewritten_parts)} 에러 상황: {question}"
+                    info_parts = []
+                    if manuf: info_parts.append(f"제조사: {manuf}")
+                    if model: info_parts.append(f"모델: {model}")
+                    if err_code: info_parts.append(f"인식된 알람: {err_code}")
+                    if symptom: info_parts.append(f"증상: {symptom}")
                     
                     yield _sse_event(
                         "reasoning",
-                        content=f"⚙️ 질문 보강 완료: '{question}'"
+                        content="🔍 이미지 인식 성공!\n- " + "\n- ".join(info_parts)
                     )
-            else:
-                yield _sse_event("reasoning", content="⚠️ 이미지에서 명확한 장비 브랜드나 알람코드를 파악하지 못해 일반 RAG 모드로 계속합니다.")
-        except Exception as e:
-            logger.error(f"Error in image preprocessing: {e}")
-            yield _sse_event("reasoning", content=f"⚠️ 이미지 분석 중 오류 발생, 일반 RAG 모드로 진행합니다. (오류: {e})")
+                    
+                    # 문서 매칭: document_id가 지정되지 않은 경우, 분석된 제조사/모델과 일치하는 문서 검색
+                    if document_id is None:
+                        all_docs = get_all_documents()
+                        matched_doc = None
+                        
+                        # 1순위: 제조사와 모델 모두 매칭되는 문서
+                        if manuf and model:
+                            for d in all_docs:
+                                d_manuf = str(d.get("manufacturer", "")).upper()
+                                d_model = str(d.get("model_series", "")).upper()
+                                if manuf.upper() in d_manuf and model.upper() in d_model:
+                                    matched_doc = d
+                                    break
+                                    
+                        # 2순위: 모델명 매칭
+                        if not matched_doc and model:
+                            for d in all_docs:
+                                d_model = str(d.get("model_series", "")).upper()
+                                if model.upper() in d_model:
+                                    matched_doc = d
+                                    break
+                                    
+                        # 3순위: 제조사명 매칭
+                        if not matched_doc and manuf:
+                            for d in all_docs:
+                                d_manuf = str(d.get("manufacturer", "")).upper()
+                                if manuf.upper() in d_manuf:
+                                    matched_doc = d
+                                    break
+                                    
+                        if matched_doc:
+                            document_id = matched_doc["document_id"]
+                            yield _sse_event(
+                                "reasoning",
+                                content=f"📂 분석 정보를 기반으로 매칭된 매뉴얼을 자동으로 선택했습니다:\n- 파일명: {matched_doc.get('filename')}"
+                            )
+                    
+                    # 질문 보강 (리라이팅)
+                    rewritten_parts = []
+                    if manuf: rewritten_parts.append(manuf)
+                    if model: rewritten_parts.append(model)
+                    if err_code: rewritten_parts.append(f"알람코드 {err_code}")
+                    if symptom: rewritten_parts.append(symptom)
+                    
+                    if rewritten_parts:
+                        # 사용자 질문이 비어있거나 너무 짧으면 알람 분석 질문으로 대체
+                        if len(question.strip()) < 5:
+                            question = f"{' '.join(rewritten_parts)} 원인과 조치 대처법"
+                        else:
+                            question = f"{' '.join(rewritten_parts)} 에러 상황: {question}"
+                        
+                        yield _sse_event(
+                            "reasoning",
+                            content=f"⚙️ 질문 보강 완료: '{question}'"
+                        )
+                else:
+                    yield _sse_event("reasoning", content="⚠️ 이미지에서 명확한 장비 브랜드나 알람코드를 파악하지 못해 일반 RAG 모드로 계속합니다.")
+            except Exception as e:
+                logger.error(f"Error in image preprocessing: {e}")
+                yield _sse_event("reasoning", content=f"⚠️ 이미지 분석 중 오류 발생, 일반 RAG 모드로 진행합니다. (오류: {e})")
 
-    # ─── Step 0: 일상 대화 / 인사말 판별 (Early Exit) ───
-    if _is_general_conversation(question):
-        yield _sse_event("reasoning", content="일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다...")
-        
-        llm = _create_flash_llm()
-        chat_prompt = f"""당신은 산업용 매뉴얼 분석 비서 'Vision RAG 에이전트'입니다.
+        # ─── Step 0: 일상 대화 / 인사말 판별 (Early Exit) ───
+        if _is_general_conversation(question):
+            yield _sse_event("reasoning", content="일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다...")
+            
+            llm = _create_flash_llm()
+            chat_prompt = f"""당신은 산업용 매뉴얼 분석 비서 'Vision RAG 에이전트'입니다.
 사용자가 매뉴얼 검색과 관계없는 일반적인 인사나 일상적 대화를 건넸습니다.
 친절하고 자연스럽게 인사하고, 매뉴얼 PDF를 업로드하여 질문하면 해당 매뉴얼(알람코드, 도면, 표 등)을 원본 레이아웃 그대로 분석하여 정확하게 답변할 수 있는 도구임을 알려주세요.
 
@@ -388,165 +389,173 @@ async def run_agentic_pipeline(
 
 친절하고 자연스럽게 한국어로 답변을 생성해 주세요.
 """
-        try:
-            response = await llm.ainvoke([HumanMessage(content=chat_prompt)])
-            from app.services.agent_service import _extract_text_content
-            answer = _extract_text_content(response.content)
-            yield _sse_event("answer", content=answer)
-        except Exception as e:
-            logger.error(f"Error in general chatbot response: {e}")
-            yield _sse_event("answer", content="안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요? 매뉴얼 PDF를 업로드하신 뒤 관련 질문(예: 특정 에러 코드나 조치 방법)을 입력해 주시면 정확히 분석하여 답변해 드리겠습니다.")
-        
-        yield _sse_event("done")
-        return
-    
-    # ─── Step 0+1: 문서 선택 + 페이지 추론 (통합) ───
-
-    if document_id is None:
-        all_docs = get_all_documents()
-        
-        if not all_docs:
-            yield _sse_event("error", content="업로드된 문서가 없습니다. 먼저 PDF 매뉴얼을 업로드해 주세요.")
+            try:
+                response = await llm.ainvoke([HumanMessage(content=chat_prompt)])
+                from app.services.agent_service import _extract_text_content
+                answer = _extract_text_content(response.content)
+                yield _sse_event("answer", content=answer)
+            except Exception as e:
+                logger.error(f"Error in general chatbot response: {e}")
+                yield _sse_event("answer", content="안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요? 매뉴얼 PDF를 업로드하신 뒤 관련 질문(예: 특정 에러 코드나 조치 방법)을 입력해 주시면 정확히 분석하여 답변해 드리겠습니다.")
+            
             yield _sse_event("done")
             return
         
-        if len(all_docs) == 1:
-            yield _sse_event("reasoning", content=f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
+        # ─── Step 0+1: 문서 선택 + 페이지 추론 (통합) ───
+
+        if document_id is None:
+            all_docs = get_all_documents()
+            
+            if not all_docs:
+                yield _sse_event("error", content="업로드된 문서가 없습니다. 먼저 PDF 매뉴얼을 업로드해 주세요.")
+                yield _sse_event("done")
+                return
+            
+            if len(all_docs) == 1:
+                yield _sse_event("reasoning", content=f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
+            else:
+                yield _sse_event("reasoning", content=f"📚 {len(all_docs)}개 문서 중 적합한 문서와 페이지를 찾고 있습니다...")
+            
+            selection = _select_document_and_pages(question, all_docs)
+            document_id = selection["document_id"]
+            coarse_pages = selection["target_pages"]
+            coarse_title = selection.get("section_title", "")
+            coarse_reasoning = selection.get("reasoning", "")
+            
+            # 선택된 문서 메타 찾기
+            selected_doc = next((d for d in all_docs if d["document_id"] == document_id), all_docs[0])
+            yield _sse_event(
+                "reasoning",
+                content=f"📄 '{selected_doc.get('filename', '')}' → '{coarse_title}' (p.{coarse_pages})\n{coarse_reasoning}"
+            )
         else:
-            yield _sse_event("reasoning", content=f"📚 {len(all_docs)}개 문서 중 적합한 문서와 페이지를 찾고 있습니다...")
+            # document_id가 지정된 경우: Phase 1만 실행
+            meta = get_document(document_id)
+            if meta is None:
+                yield _sse_event("error", content=f"문서를 찾을 수 없습니다: {document_id}")
+                yield _sse_event("done")
+                return
+            
+            toc = meta.get("toc", [])
+            yield _sse_event("reasoning", content=f"📄 '{meta.get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
+            
+            selection = _select_document_and_pages(question, [meta])
+            coarse_pages = selection["target_pages"]
+            coarse_title = selection.get("section_title", "")
+            coarse_reasoning = selection.get("reasoning", "")
+            
+            yield _sse_event(
+                "reasoning",
+                content=f"'{coarse_title}' 섹션 특정 완료 (p.{coarse_pages})\n{coarse_reasoning}"
+            )
         
-        selection = _select_document_and_pages(question, all_docs)
-        document_id = selection["document_id"]
-        coarse_pages = selection["target_pages"]
-        coarse_title = selection.get("section_title", "")
-        coarse_reasoning = selection.get("reasoning", "")
-        
-        # 선택된 문서 메타 찾기
-        selected_doc = next((d for d in all_docs if d["document_id"] == document_id), all_docs[0])
-        yield _sse_event(
-            "reasoning",
-            content=f"📄 '{selected_doc.get('filename', '')}' → '{coarse_title}' (p.{coarse_pages})\n{coarse_reasoning}"
-        )
-    else:
-        # document_id가 지정된 경우: Phase 1만 실행
+        # ─── Step 1: 문서 검증 및 PDF 열기 ───
         meta = get_document(document_id)
         if meta is None:
             yield _sse_event("error", content=f"문서를 찾을 수 없습니다: {document_id}")
             yield _sse_event("done")
             return
         
+        pdf_path = get_document_path(document_id)
+        if pdf_path is None:
+            yield _sse_event("error", content="PDF 파일을 찾을 수 없습니다.")
+            yield _sse_event("done")
+            return
+        
         toc = meta.get("toc", [])
-        yield _sse_event("reasoning", content=f"📄 '{meta.get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
+        if not toc:
+            yield _sse_event("error", content="목차(ToC)가 없는 문서입니다. 먼저 ToC를 추출해주세요.")
+            yield _sse_event("done")
+            return
         
-        selection = _select_document_and_pages(question, [meta])
-        coarse_pages = selection["target_pages"]
-        coarse_title = selection.get("section_title", "")
-        coarse_reasoning = selection.get("reasoning", "")
-        
-        yield _sse_event(
-            "reasoning",
-            content=f"'{coarse_title}' 섹션 특정 완료 (p.{coarse_pages})\n{coarse_reasoning}"
-        )
-    
-    # ─── Step 1: 문서 검증 및 PDF 열기 ───
-    meta = get_document(document_id)
-    if meta is None:
-        yield _sse_event("error", content=f"문서를 찾을 수 없습니다: {document_id}")
-        yield _sse_event("done")
-        return
-    
-    pdf_path = get_document_path(document_id)
-    if pdf_path is None:
-        yield _sse_event("error", content="PDF 파일을 찾을 수 없습니다.")
-        yield _sse_event("done")
-        return
-    
-    toc = meta.get("toc", [])
-    if not toc:
-        yield _sse_event("error", content="목차(ToC)가 없는 문서입니다. 먼저 ToC를 추출해주세요.")
-        yield _sse_event("done")
-        return
-    
-    try:
-        doc = fitz.open(pdf_path)
-        total_pages = doc.page_count
-    except Exception as e:
-        logger.error(f"❌ [Pipeline] PDF 파일 열기 실패 ({pdf_path}): {e}", exc_info=True)
-        yield _sse_event("error", content=f"PDF 파일 열기 실패: {str(e)}")
-        yield _sse_event("done")
-        return
+        try:
+            doc = fitz.open(pdf_path)
+            total_pages = doc.page_count
+        except Exception as e:
+            logger.error(f"❌ [Pipeline] PDF 파일 열기 실패 ({pdf_path}): {e}", exc_info=True)
+            yield _sse_event("error", content=f"PDF 파일 열기 실패: {str(e)}")
+            yield _sse_event("done")
+            return
 
-    
-    # 섹션 범위 계산 (ToC 기반으로 정확한 섹션 끝 찾기)
-    section_start, section_end = _find_section_page_range(toc, coarse_pages, total_pages)
-    section_size = section_end - section_start + 1
-    
-    # ─── Step 2: 텍스트 기반 정밀 탐색 (Phase 2) ───
-    if section_size > 3:
-        yield _sse_event("reasoning", content=f"[세부 탐색] '{coarse_title}' 섹션(p.{section_start}~{section_end})의 텍스트를 분석하여 정확한 페이지를 찾고 있습니다...")
         
-        phase2_result = _refine_pages_with_text(doc, section_start, section_end, question)
-        target_pages = phase2_result.get("target_pages", coarse_pages)
-        refined_title = phase2_result.get("section_title", coarse_title)
-        refined_reasoning = phase2_result.get("reasoning", "")
+        # 섹션 범위 계산 (ToC 기반으로 정확한 섹션 끝 찾기)
+        section_start, section_end = _find_section_page_range(toc, coarse_pages, total_pages)
+        section_size = section_end - section_start + 1
         
-        yield _sse_event(
-            "reasoning",
-            content=f"[세부 탐색] '{refined_title}' → 타겟 페이지 {target_pages}\n{refined_reasoning}"
-        )
-    else:
-        # 섹션이 작으면 Phase 1 결과를 그대로 사용
-        target_pages = coarse_pages
-    
-    # ─── Step 4: 미니 PDF 추출 + 참조 이미지 생성 ───
-    yield _sse_event("reasoning", content=f"페이지 {target_pages}에서 미니 PDF를 추출하고 있습니다...")
-    
-    try:
-        valid_pages = [_normalize_page(p) - 1 for p in target_pages if 1 <= _normalize_page(p) <= total_pages]
-        if not valid_pages:
-            valid_pages = [0]
+        # ─── Step 2: 텍스트 기반 정밀 탐색 (Phase 2) ───
+        if section_size > 3:
+            yield _sse_event("reasoning", content=f"[세부 탐색] '{coarse_title}' 섹션(p.{section_start}~{section_end})의 텍스트를 분석하여 정확한 페이지를 찾고 있습니다...")
+            
+            phase2_result = _refine_pages_with_text(doc, section_start, section_end, question)
+            target_pages = phase2_result.get("target_pages", coarse_pages)
+            refined_title = phase2_result.get("section_title", coarse_title)
+            refined_reasoning = phase2_result.get("reasoning", "")
+            
+            yield _sse_event(
+                "reasoning",
+                content=f"[세부 탐색] '{refined_title}' → 타겟 페이지 {target_pages}\n{refined_reasoning}"
+            )
+        else:
+            # 섹션이 작으면 Phase 1 결과를 그대로 사용
+            target_pages = coarse_pages
         
-        # 💡 [버그 패치] 비연속적으로 멀리 떨어진 페이지(예: p.12, p.115)가 잡힐 경우, 
-        # min~max 범위의 모든 중간 페이지가 다 삽입되어 PDF가 비정상적으로 비대해지는 현상을 해결합니다.
-        # 필요한 페이지만 콕 집어서(sparse) 미니 PDF를 빌드합니다.
-        mini_doc = fitz.open()
-        for page_idx in sorted(set(valid_pages)):
-            mini_doc.insert_pdf(doc, from_page=page_idx, to_page=page_idx)
-        mini_pdf_bytes = mini_doc.tobytes()
-        mini_doc.close()
+        # ─── Step 4: 미니 PDF 추출 + 참조 이미지 생성 ───
+        yield _sse_event("reasoning", content=f"페이지 {target_pages}에서 미니 PDF를 추출하고 있습니다...")
         
-        for page_idx in valid_pages:
-            try:
-                png_bytes = render_page_thumbnail(doc, page_idx, dpi=150)
-                image_base64 = f"data:image/png;base64,{base64.b64encode(png_bytes).decode('utf-8')}"
-                yield _sse_event(
-                    "reference",
-                    page_number=page_idx + 1,
-                    image_base64=image_base64,
-                )
-            except Exception as e:
-                print(f"Thumbnail generation error for page {page_idx}: {e}")
-        
-        doc.close()
-        
-    except Exception as e:
-        doc.close()
-        logger.error(f"❌ [Pipeline] PDF 처리 및 참조 이미지 생성 실패: {e}", exc_info=True)
-        yield _sse_event("error", content=f"PDF 처리 중 오류: {str(e)}")
-        yield _sse_event("done")
-        return
+        try:
+            valid_pages = [_normalize_page(p) - 1 for p in target_pages if 1 <= _normalize_page(p) <= total_pages]
+            if not valid_pages:
+                valid_pages = [0]
+            
+            # 💡 [버그 패치] 비연속적으로 멀리 떨어진 페이지(예: p.12, p.115)가 잡힐 경우, 
+            # min~max 범위의 모든 중간 페이지가 다 삽입되어 PDF가 비정상적으로 비대해지는 현상을 해결합니다.
+            # 필요한 페이지만 콕 집어서(sparse) 미니 PDF를 빌드합니다.
+            mini_doc = fitz.open()
+            for page_idx in sorted(set(valid_pages)):
+                mini_doc.insert_pdf(doc, from_page=page_idx, to_page=page_idx)
+            mini_pdf_bytes = mini_doc.tobytes()
+            mini_doc.close()
+            
+            for page_idx in valid_pages:
+                try:
+                    png_bytes = render_page_thumbnail(doc, page_idx, dpi=150)
+                    image_base64 = f"data:image/png;base64,{base64.b64encode(png_bytes).decode('utf-8')}"
+                    yield _sse_event(
+                        "reference",
+                        page_number=page_idx + 1,
+                        image_base64=image_base64,
+                    )
+                except Exception as e:
+                    print(f"Thumbnail generation error for page {page_idx}: {e}")
+            
+            doc.close()
+            
+        except Exception as e:
+            doc.close()
+            logger.error(f"❌ [Pipeline] PDF 처리 및 참조 이미지 생성 실패: {e}", exc_info=True)
+            yield _sse_event("error", content=f"PDF 처리 중 오류: {str(e)}")
+            yield _sse_event("done")
+            return
 
+        
+        # ─── Step 5: Vision LLM 분석 (스트리밍) ───
+        yield _sse_event("reasoning", content="Gemini Vision으로 페이지를 분석하고 있습니다...")
+        
+        try:
+            async for chunk in analyze_pages_with_vision(mini_pdf_bytes, question, chat_history=chat_history):
+                yield _sse_event("answer", content=chunk)
+        except Exception as e:
+            logger.error(f"❌ [Pipeline] Vision 분석 중 오류 발생: {e}", exc_info=True)
+            yield _sse_event("error", content=f"Vision 분석 중 오류: {str(e)}")
+        
+        logger.info("🏁 [Pipeline] Agentic Search 파이프라인 처리 완료")
+        yield _sse_event("done")
     
-    # ─── Step 5: Vision LLM 분석 (스트리밍) ───
-    yield _sse_event("reasoning", content="Gemini Vision으로 페이지를 분석하고 있습니다...")
-    
-    try:
-        async for chunk in analyze_pages_with_vision(mini_pdf_bytes, question, chat_history=chat_history):
-            yield _sse_event("answer", content=chunk)
+    except GeneratorExit:
+        logger.info("🛑 [Pipeline] 클라이언트 중단 요청 → 파이프라인 조기 종료")
+        return
     except Exception as e:
-        logger.error(f"❌ [Pipeline] Vision 분석 중 오류 발생: {e}", exc_info=True)
-        yield _sse_event("error", content=f"Vision 분석 중 오류: {str(e)}")
-    
-    logger.info("🏁 [Pipeline] Agentic Search 파이프라인 처리 완료")
-    yield _sse_event("done")
+        logger.error(f"❌ [Pipeline] 예상치 못한 오류: {e}", exc_info=True)
+        yield _sse_event("error", content=f"시스템 오류: {str(e)}")
+        yield _sse_event("done")
 

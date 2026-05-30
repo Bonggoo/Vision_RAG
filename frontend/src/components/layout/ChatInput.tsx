@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useState, KeyboardEvent, useRef, useEffect } from "react";
-import { SendHorizontal, Sparkles, Camera, X } from "lucide-react";
+import { SendHorizontal, Sparkles, Camera, X, Square } from "lucide-react";
 
 interface ChatInputProps {
   onSubmit: (message: string, image?: string) => void;
   disabled?: boolean;
+  isStreaming?: boolean;
+  onStop?: () => void;
 }
 
-export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
+export default function ChatInput({ onSubmit, disabled, isStreaming, onStop }: ChatInputProps) {
   const [text, setText] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -120,13 +122,23 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
               disabled:opacity-40"
             rows={1}
           />
-          <button
-            onClick={handleSubmit}
-            disabled={(!text.trim() && !image) || disabled}
-            className="absolute right-2 bottom-1.5 btn-primary p-2.5 rounded-lg disabled:opacity-30 disabled:cursor-default disabled:transform-none disabled:shadow-none flex-shrink-0 transition-all"
-          >
-            <SendHorizontal className="w-4 h-4" />
-          </button>
+          {isStreaming ? (
+            <button
+              onClick={onStop}
+              className="absolute right-2 bottom-1.5 p-2.5 rounded-lg flex-shrink-0 transition-all bg-red-500/90 hover:bg-red-500 shadow-lg shadow-red-500/20 animate-pulse"
+              title="응답 중단"
+            >
+              <Square className="w-4 h-4 text-white fill-white" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={(!text.trim() && !image) || disabled}
+              className="absolute right-2 bottom-1.5 btn-primary p-2.5 rounded-lg disabled:opacity-30 disabled:cursor-default disabled:transform-none disabled:shadow-none flex-shrink-0 transition-all"
+            >
+              <SendHorizontal className="w-4 h-4" />
+            </button>
+          )}
         </div>
         <div className="flex items-center justify-center gap-1.5 mt-2 text-[10px] md:text-[11px] text-muted-foreground/35">
           <Sparkles className="w-3 h-3" />

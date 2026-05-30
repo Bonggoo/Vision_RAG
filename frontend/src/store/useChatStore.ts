@@ -155,6 +155,17 @@ export const useChatStore = create<ChatStore>()(
     }),
     {
       name: 'vision-rag-chat-storage',
+      onRehydrateStorage: () => (state) => {
+        // PWA 재실행 시 좀비 스트리밍 상태 정리
+        if (state) {
+          state.sessions = state.sessions.map((session) => ({
+            ...session,
+            messages: session.messages.map((msg) =>
+              msg.isStreaming ? { ...msg, isStreaming: false } : msg
+            ),
+          }));
+        }
+      },
     },
   ),
 );

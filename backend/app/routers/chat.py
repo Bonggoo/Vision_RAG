@@ -4,17 +4,53 @@
 사용자 질문을 받아 Agentic Search 파이프라인을 실행하고
 SSE(Server-Sent Events)로 결과를 스트리밍합니다.
 """
-from fastapi import APIRouter, HTTPException
+import asyncio
+import json
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from app.schemas.request import ChatRequest
 from app.services.agentic_graph import run_agentic_pipeline
 from app.services import metadata_service
+from app.utils.logger import logger
 
 router = APIRouter()
 
 
+async def _stream_with_disconnect_check(
+    http_request: Request,
+    generator,
+):
+    """
+    SSE 스트리밍 중 클라이언트 연결 끊김을 감지하여
+    파이프라인을 조기 종료하는 래퍼 제너레이터입니다.
+    """
+    try:
+        async for chunk in generator:
+            # 클라이언트 연결 끊김 감지
+            if await http_request.is_disconnected():
+                logger.info("🛑 [Stream] 클라이언트 연결 끊김 감지 → 파이프라인 중단")
+                break
+            yield chunk
+    except asyncio.CancelledError:
+        logger.info("🛑 [Stream] 요청 취소 감지 → 파이프라인 정리 중")
+        raise
+    except Exception as e:
+        logger.error(f"❌ [Stream] 스트리밍 중 오류: {e}", exc_info=True)
+        data = {"type": "error", "content": f"스트리밍 오류: {str(e)}"}
+        yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+        data = {"type": "done"}
+        yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+    finally:
+        # generator 정리 (aclose 호출)
+        if hasattr(generator, 'aclose'):
+            try:
+                await generator.aclose()
+            except Exception:
+                pass
+
+
 @router.post("/stream")
-async def chat_stream(request: ChatRequest):
+async def chat_stream(request: ChatRequest, http_request: Request):
     """
     Agentic Search → Vision LLM 분석 후 SSE 스트리밍으로 응답합니다.
     
@@ -40,8 +76,11 @@ async def chat_stream(request: ChatRequest):
     if request.chat_history:
         history = [{"role": h.role, "content": h.content} for h in request.chat_history]
     
+    pipeline = run_agentic_pipeline(
+        doc_id, request.question, chat_history=history, image=request.image
+    )
+    
     return StreamingResponse(
-        run_agentic_pipeline(doc_id, request.question, chat_history=history, image=request.image),
+        _stream_with_disconnect_check(http_request, pipeline),
         media_type="text/event-stream",
     )
-

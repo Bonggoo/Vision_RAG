@@ -23,6 +23,7 @@ export default function Home() {
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // 자동 스크롤
@@ -61,6 +62,13 @@ export default function Home() {
       references: [],
     });
 
+    // 기존 요청 중단
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const currentSession = sessions.find((s) => s.id === targetSessionId);
       const prevMessages = currentSession
@@ -85,11 +93,18 @@ export default function Home() {
           chat_history: prevMessages.length > 0 ? prevMessages : undefined,
           image: image || undefined,
         }),
+        signal: controller.signal,
       });
+
+      // 응답 상태 체크 (서버 오류 처리)
+      if (!response.ok) {
+        throw new Error(`서버 오류 (${response.status})`);
+      }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder("utf-8");
       let buffer = "";
+      let streamDone = false;
 
       if (reader) {
         while (true) {
@@ -121,19 +136,43 @@ export default function Home() {
                   break;
                 case "done":
                   finishStreaming(targetSessionId);
+                  streamDone = true;
                   break;
               }
             } catch {
               /* JSON parse error */
             }
           }
+          // done 이벤트 수신 시 while 루프 탈출
+          if (streamDone) break;
         }
       }
+      // done 이벤트를 못 받고 스트림이 끝난 경우에만 finishStreaming 호출
+      if (!streamDone) {
+        finishStreaming(targetSessionId);
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        // 사용자가 의도적으로 중단 → 에러 메시지 표시하지 않음
+        console.log('사용자가 스트리밍을 중단했습니다.');
+      } else {
+        console.error(error);
+        appendAnswerChunk(targetSessionId, `\n\n> ⚠️ ${error.message || '네트워크 오류가 발생했습니다.'}`);
+      }
       finishStreaming(targetSessionId);
-    } catch (error) {
-      console.error(error);
-      appendAnswerChunk(targetSessionId, "\n\n> ⚠️ 네트워크 오류가 발생했습니다.");
-      finishStreaming(targetSessionId);
+    } finally {
+      abortControllerRef.current = null;
+    }
+  };
+
+  /** 스트리밍 중단 핸들러 */
+  const handleStopStreaming = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    if (activeSessionId) {
+      finishStreaming(activeSessionId);
     }
   };
 
@@ -232,6 +271,10 @@ export default function Home() {
           disabled={
             activeSession?.messages[activeSession.messages.length - 1]?.isStreaming
           }
+          isStreaming={
+            activeSession?.messages[activeSession.messages.length - 1]?.isStreaming
+          }
+          onStop={handleStopStreaming}
         />
       </div>
     </div>
