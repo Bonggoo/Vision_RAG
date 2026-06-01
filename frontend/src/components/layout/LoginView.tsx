@@ -42,11 +42,10 @@ export default function LoginView() {
           client_id: GOOGLE_CLIENT_ID,
           callback: async (response: any) => {
             if (response.credential) {
-              const success = await loginWithGoogleCredential(response.credential);
-              if (success) {
-                // 로그인 성공 시 상태 업데이트로 인해 메인 화면으로 전환됩니다.
-                window.location.reload(); 
-              }
+              await loginWithGoogleCredential(response.credential);
+              // 💡 reload() 제거: Zustand 상태 변경(isAuthenticated=true)이
+              // React를 자동으로 리렌더하여 메인 화면으로 전환합니다.
+              // reload()는 sessionStorage persist와 타이밍 충돌을 일으킵니다.
             }
           },
           auto_select: false, // 자동 로그인 차단 (계정 선택 유도)

@@ -37,6 +37,13 @@ export default function Home() {
     setIsMounted(true);
   }, []);
 
+  // 💡 자동 스크롤 - 반드시 조건부 return 전에 선언 (React Hooks 규칙)
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [activeSession?.messages]);
+
   // 마운트 전에는 조건부 렌더링 방어막
   if (!isMounted) {
     return null;
@@ -46,13 +53,6 @@ export default function Home() {
   if (!isAuthenticated) {
     return <LoginView />;
   }
-
-  // 자동 스크롤
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-    }
-  }, [activeSession?.messages]);
 
   const handleChatSubmit = async (text: string, image?: string) => {
     let targetSessionId = activeSessionId;
