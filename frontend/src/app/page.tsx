@@ -11,6 +11,9 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { Search, BookOpen, Cpu, Zap } from "lucide-react";
 
 export default function Home() {
+  // 💡 Hydration 에러 방지: 마운트 상태 추가
+  const [isMounted, setIsMounted] = useState(false);
+
   const { isAuthenticated } = useAuthStore();
   const {
     sessions,
@@ -28,6 +31,16 @@ export default function Home() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // 💡 브라우저 마운트 완료 후 렌더링
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // 마운트 전에는 조건부 렌더링 방어막
+  if (!isMounted) {
+    return null;
+  }
 
   // 💡 비로그인 유저는 로그인 화면을 반환
   if (!isAuthenticated) {
@@ -233,7 +246,7 @@ export default function Home() {
                   {features.map((f, i) => (
                     <div
                       key={i}
-                      className="glass-subtle rounded-xl p-3 md:p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/40 group cursor-pointer"
+                      className="glass-subtle rounded-xl p-3 md:p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/40 group"
                       style={{ animationDelay: `${i * 100}ms` }}
                     >
                       <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2 md:mb-3 group-hover:bg-primary/20 transition-colors">
