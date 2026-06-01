@@ -11,10 +11,18 @@ interface HeaderProps {
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
+  // 💡 Hydration 에러 방지: 마운트 상태 추가
+  const [isMounted, setIsMounted] = useState(false);
+
   const { sessions, activeSessionId } = useChatStore();
   const { user, logout } = useAuthStore();
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
+
+  // 💡 브라우저 마운트 완료 후 렌더링
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     // 초기 테마 로드
@@ -39,6 +47,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
       localStorage.setItem("theme", "light");
     }
   };
+
+  // 마운트 전에는 조건부 렌더링 방어막
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <header className="header-blur header-safe-area sticky top-0 z-30 w-full">
@@ -125,5 +138,3 @@ export default function Header({ onMenuClick }: HeaderProps) {
     </header>
   );
 }
-
-
