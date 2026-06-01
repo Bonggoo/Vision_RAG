@@ -11,7 +11,7 @@ interface HeaderProps {
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
-  // 💡 Hydration 에러 방지: 마운트 상태 추가
+  // 💡 Hydration 에러 방지: 마운트 상태 추가 (모든 hooks 바로 아래)
   const [isMounted, setIsMounted] = useState(false);
 
   const { sessions, activeSessionId } = useChatStore();
@@ -19,39 +19,59 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
+  // 💡 마운트 전 렌더링 완벽히 차단 (방어막이 모든 hooks 바로 아래)
+  if (!isMounted) {
+    return null;
+  }
+
   // 💡 브라우저 마운트 완료 후 렌더링
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   useEffect(() => {
-    // 초기 테마 로드
-    const savedTheme = localStorage.getItem("theme");
-    const isDark = savedTheme === "dark" || (!savedTheme && document.documentElement.classList.contains("dark"));
-    setTheme(isDark ? "dark" : "light");
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
+    if (!isMounted) return; // 마운트 후에만 실행
+
+    // 💡 안전한 localStorage 접근 (브라우저 환경 검증)
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
+      return;
     }
-  }, []);
+
+    try {
+      // 초기 테마 로드
+      const savedTheme = localStorage.getItem("theme");
+      const isDark = savedTheme === "dark" || (!savedTheme && document.documentElement.classList.contains("dark"));
+      setTheme(isDark ? "dark" : "light");
+      if (isDark) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    } catch (error) {
+      console.error("Theme loading error:", error);
+    }
+  }, [isMounted]);
 
   const toggleTheme = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
+    // 💡 안전한 테마 토글 (브라우저 환경 검증)
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
+      return;
+    }
+
+    try {
+      const nextTheme = theme === "dark" ? "light" : "dark";
+      setTheme(nextTheme);
+      if (nextTheme === "dark") {
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("theme", "light");
+      }
+    } catch (error) {
+      console.error("Theme toggle error:", error);
     }
   };
-
-  // 마운트 전에는 조건부 렌더링 방어막
-  if (!isMounted) {
-    return null;
-  }
 
   return (
     <header className="header-blur header-safe-area sticky top-0 z-30 w-full">

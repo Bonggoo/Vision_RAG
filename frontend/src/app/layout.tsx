@@ -48,14 +48,19 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  var savedTheme = localStorage.getItem('theme');
-                  var isDark = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                  if (isDark) {
-                    document.documentElement.classList.add('dark');
-                  } else {
-                    document.documentElement.classList.remove('dark');
+                  // 💡 브라우저 환경 검증 + 안전한 localStorage 접근
+                  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+                    var savedTheme = localStorage.getItem('theme');
+                    var isDark = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    if (isDark) {
+                      document.documentElement.classList.add('dark');
+                    } else {
+                      document.documentElement.classList.remove('dark');
+                    }
                   }
-                } catch (e) {}
+                } catch (e) {
+                  console.error('Theme initialization error:', e);
+                }
               })();
             `,
           }}
@@ -68,4 +73,3 @@ export default function RootLayout({
     </html>
   );
 }
-
