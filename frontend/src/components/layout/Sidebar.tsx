@@ -26,12 +26,15 @@ import { useDocumentStore, Document } from "@/store/useDocumentStore";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
+  // 💡 Hydration 에러 방지: 마운트 상태 추가
+  const [isMounted, setIsMounted] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { sessions, activeSessionId, setActiveSession, createSession, deleteSession } =
     useChatStore();
   const { user } = useAuthStore();
 
-  // 현재 로그인 사용자의 세션만 필터링 (ownerEmail 미설정 레거시 세션은 공용으로 포함)
+  // 현재 로그인 사용자의 세션만 필터링 (ownerEmail 미설정 ���거시 세션은 공용으로 포함)
   const mySessions = sessions.filter(
     (s) => s.ownerEmail === user?.email || !s.ownerEmail
   );
@@ -69,6 +72,11 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
   // 업로드 진행률 애니메이션용 상태
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // 💡 브라우저 마운트 완료 후 렌더링
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isUploading && uploadTotal > 0) {
@@ -112,7 +120,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       downloadName += ".pdf";
     }
     
-    const confirmMessage = `📥 "${downloadName}" 문서를 다운로드하시겠습니까?\n\n💡 안내: 보안 임시 서명 링크(Signed URL)를 생성하여 클라우드 스토리지(GCS)로부터 즉시 안전하게 초고속 다운로드합니다.`;
+    const confirmMessage = `📥 "${downloadName}" 문서를 다운로드하시겠습니까?\n\n💡 안내: 보안 임시 서명 링크(Signed URL)를 생성하여 클라우드 스토리지(GCS)에서 직접 다운로드됩니다.`;
     
     if (window.confirm(confirmMessage)) {
       downloadDoc(doc.document_id);
@@ -566,6 +574,11 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     );
   };
 
+  // 마운트 전에는 조건부 렌더링 방어막
+  if (!isMounted) {
+    return null;
+  }
+
   const sidebarContent = (
     <div
       onDragOver={handleDragOver}
@@ -663,7 +676,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
             placeholder="문서 검색 (이름, 제조사, 모델)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-8 py-1.5 text-[11px] rounded-lg bg-accent/20 border border-transparent focus:border-primary/30 focus:bg-accent/10 focus:outline-none transition-all placeholder:text-muted-foreground/40 text-foreground"
+            className="w-full pl-9 pr-8 py-1.5 text-[11px] rounded-lg bg-accent/20 border border-transparent focus:border-primary/30 focus:bg-accent/10 focus:outline-none transition-all placeholder-muted-foreground/40"
           />
           {searchQuery && (
             <button
