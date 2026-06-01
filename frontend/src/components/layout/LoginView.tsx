@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { KeyRound, ShieldCheck, HelpCircle } from "lucide-react";
 
@@ -12,10 +12,19 @@ declare global {
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "1023361734160-rfo5n5kufp15b0h5efknm46kki58j77t.apps.googleusercontent.com";
 
 export default function LoginView() {
+  // 💡 Hydration 에러 방지: 마운트 상태 추가
+  const [isMounted, setIsMounted] = useState(false);
+
   const { loginWithGoogleCredential, isLoading, errorMsg, clearError } = useAuthStore();
-  const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  // 💡 브라우저 마운트 완료 후 렌더링
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
+    if (!isMounted) return; // 마운트 후에만 실행
+
     // 에러 상태 초기 청소
     clearError();
 
@@ -44,8 +53,9 @@ export default function LoginView() {
         });
 
         // 3. 커스텀 버튼 렌더링
-        if (googleBtnRef.current) {
-          window.google.accounts.id.renderButton(googleBtnRef.current, {
+        const googleBtnRef = document.getElementById("google-login-btn");
+        if (googleBtnRef) {
+          window.google.accounts.id.renderButton(googleBtnRef, {
             theme: "filled_blue",
             size: "large",
             shape: "pill",
@@ -57,9 +67,16 @@ export default function LoginView() {
     };
 
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
-  }, [loginWithGoogleCredential, clearError]);
+  }, [isMounted, loginWithGoogleCredential, clearError]);
+
+  // 마운트 전에는 조건부 렌더링 방어막
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-[#0a0f1d] px-4">
@@ -103,7 +120,7 @@ export default function LoginView() {
           </div>
         ) : (
           /* 구글 로그인 버튼 컨테이너 */
-          <div className="my-4 transition-all duration-300 hover:scale-105" ref={googleBtnRef} id="google-login-btn" />
+          <div className="my-4 transition-all duration-300 hover:scale-105" id="google-login-btn" />
         )}
 
         {/* ❌ 정중한 에러 표시 영역 */}
@@ -113,7 +130,7 @@ export default function LoginView() {
               ⚠️ 접근 권한 승인 실패
             </p>
             <p className="text-[11px] text-white/60 leading-relaxed">
-              본 시스템에 등록되지 않은 구글 계정입니다. 서비스 이용 및 접근 권한 활성화가 필요하신 경우, <strong>시스템 관리자</strong>에게 계정 정보 등록을 요청해 주시기 바랍니다.
+              본 시스템에 등록되지 않은 구글 계정입니다. 서비스 이용 및 접근 권한 활성화가 필요하신 경우, <strong>시스템 관리자</strong>에게 계정 등록을 요청해 주세요.
             </p>
           </div>
         )}
