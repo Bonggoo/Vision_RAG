@@ -318,6 +318,7 @@ async def analyze_pages_with_vision(
 ) -> AsyncGenerator[str, None]:
     """
     미니 PDF를 Gemini Vision에 전송하여 질문에 대한 답변을 스트리밍으로 생성합니다.
+    최대 3회 retry + exponential backoff 적용.
     
     Args:
         pdf_bytes: 분석할 미니 PDF
@@ -327,6 +328,32 @@ async def analyze_pages_with_vision(
     Yields:
         답변 텍스트 청크 (마크다운 형식)
     """
+    import asyncio
+    from app.utils.logger import logger
+    
+    MAX_RETRIES = 3
+    
+    for attempt in range(MAX_RETRIES):
+        try:
+            async for chunk in _do_vision_analysis(pdf_bytes, question, chat_history):
+                yield chunk
+            return  # 스트리밍 성공 시 즉시 종료
+        except Exception as e:
+            if attempt < MAX_RETRIES - 1:
+                wait = 2 ** attempt  # 1초, 2초
+                logger.warning(f"⚠️ [Vision Retry {attempt+1}/{MAX_RETRIES}] {e} → {wait}초 후 재시도")
+                await asyncio.sleep(wait)
+            else:
+                logger.error(f"❌ [Vision] {MAX_RETRIES}회 시도 모두 실패: {e}")
+                raise
+
+
+async def _do_vision_analysis(
+    pdf_bytes: bytes,
+    question: str,
+    chat_history: list[dict] | None = None,
+) -> AsyncGenerator[str, None]:
+    """Vision 분석 실제 실행 (retry 없는 단일 시도)."""
     llm = _create_llm(temperature=0.1)
     pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
     

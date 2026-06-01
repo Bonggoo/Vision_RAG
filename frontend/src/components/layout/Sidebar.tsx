@@ -120,7 +120,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       downloadName += ".pdf";
     }
     
-    const confirmMessage = `📥 "${downloadName}" 문서를 다운로드하시겠습니까?\n\n💡 안내: 보안 임시 서명 링크(Signed URL)를 생성하여 클라우드 스토리지(GCS)에서 직접 다운로드됩니다.`;
+    const confirmMessage = `📥 "${downloadName}" 문서를 다운로드하시겠습니까?`;
     
     if (window.confirm(confirmMessage)) {
       downloadDoc(doc.document_id);

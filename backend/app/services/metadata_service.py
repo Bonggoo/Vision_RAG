@@ -60,12 +60,12 @@ def get_all_documents(owner_email: Optional[str] = None) -> List[Dict[str, Any]]
         except Exception as e:
             logger.error(f"GCS list error: {e}")
 
-    # 사용자별 필터링: owner_email이 주어지면 해당 사용자 소유 + 레거시(owner_email 없음) 문서만 반환
+    # 사용자별 필터링: 엄격 격리 — 본인 소유 문서만 반환 (레거시 문서도 차단)
     if owner_email:
         email_lower = owner_email.lower()
         documents = [
             d for d in documents
-            if d.get("owner_email") is None or d.get("owner_email", "").lower() == email_lower
+            if d.get("owner_email", "").lower() == email_lower
         ]
 
     # 업로드 시간 역순 정렬
@@ -74,13 +74,13 @@ def get_all_documents(owner_email: Optional[str] = None) -> List[Dict[str, Any]]
 
 
 def verify_document_owner(document_id: str, owner_email: str) -> bool:
-    """문서 소유권을 검증합니다. 레거시 문서(owner_email 없음)는 True 반환."""
+    """문서 소유권을 검증합니다. 엄격 격리: 본인 소유 문서만 허용."""
     meta = get_document(document_id)
     if meta is None:
         return False
     doc_owner = meta.get("owner_email")
     if doc_owner is None:
-        return True  # 레거시 문서는 모든 사용자에게 허용
+        return False  # 레거시 문서(소유자 미배정)는 접근 차단
     return doc_owner.lower() == owner_email.lower()
 
 def get_document(document_id: str) -> Optional[Dict[str, Any]]:

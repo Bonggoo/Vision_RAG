@@ -51,6 +51,8 @@ interface ChatStore {
   renameSession: (sessionId: string, title: string) => void;
   /** 활성 세션 초기화 (로그아웃 시 사용) */
   resetActiveSession: () => void;
+  /** 전체 세션 삭제 (로그아웃 시 채팅 기록 완전 초기화) */
+  clearAllSessions: () => void;
 }
 
 /** 마지막 assistant 메시지를 업데이트하는 헬퍼 */
@@ -162,6 +164,8 @@ export const useChatStore = create<ChatStore>()(
         })),
 
       resetActiveSession: () => set({ activeSessionId: null }),
+
+      clearAllSessions: () => set({ sessions: [], activeSessionId: null }),
     }),
     {
       name: 'vision-rag-chat-storage',

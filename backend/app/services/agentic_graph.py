@@ -8,13 +8,40 @@ Phase 3: 타겟 페이지 미니 PDF 분석 → 답변 스트리밍 (Flash-Lite)
 """
 import base64
 import json
+import re
 import fitz  # PyMuPDF
 from typing import AsyncGenerator
 from app.services.metadata_service import get_document, get_document_path, get_all_documents, verify_document_owner
-from app.services.agent_service import analyze_pages_with_vision, _create_flash_llm, _clean_json_response
+from app.services.agent_service import analyze_pages_with_vision, _create_flash_llm, _clean_json_response, _extract_text_content
 from app.services.pdf_service import extract_pages_as_pdf, render_page_thumbnail
 from app.utils.logger import logger
 from langchain_core.messages import HumanMessage
+
+
+# ─── C-1: 규칙 기반 빠른 분류 (LLM 호출 생략) ───
+_TECHNICAL_PATTERNS = re.compile(
+    r"(에러|알람|alarm|error|코드|code|파라미터|parameter|"
+    r"서보|servo|모터|motor|PLC|plc|센서|sensor|드라이브|drive|"
+    r"설정|세팅|배선|원점|조그|인버터|엔코더|토크|"
+    r"매뉴얼|manual|사양|스펙|spec|트러블|trouble|"
+    r"AL\.|Er\.|E\d|[A-Z]{2,}-[A-Z0-9])",
+    re.IGNORECASE
+)
+
+_GREETING_PATTERNS = re.compile(
+    r"^(안녕|하이|hello|hi|hey|감사|고마워|수고|반갑|잘가|bye)[\s하세요습니다!?.]*$",
+    re.IGNORECASE
+)
+
+
+def _quick_classify(question: str) -> str | None:
+    """규칙 기반 빠른 분류. 확실한 경우만 반환, 애매하면 None (→ LLM 판별)."""
+    q = question.strip()
+    if len(q) < 20 and _GREETING_PATTERNS.match(q):
+        return "general"
+    if _TECHNICAL_PATTERNS.search(q):
+        return "technical"
+    return None
 
 
 def _sse_event(event_type: str, **kwargs) -> str:
@@ -77,7 +104,7 @@ def _find_section_page_range(toc: list[dict], target_pages: list[int], total_pag
     return start, end
 
 
-def _refine_pages_with_text(
+async def _refine_pages_with_text(
     doc: fitz.Document,
     section_start: int,
     section_end: int,
@@ -85,7 +112,7 @@ def _refine_pages_with_text(
 ) -> dict:
     """
     Phase 2: 섹션 내의 전체 텍스트를 추출하여 경량 LLM(Flash-Lite)에게 분석시키고,
-    질문에 답변하기 위한 정확한 타겟 페이지를 추론합니다.
+    질문에 답변하기 위한 정확한 타겟 페이지를 추론합니다. (C-3: 비동기화)
     """
     llm = _create_flash_llm()
     logger.info(f"🔍 [Phase 2] 정밀 텍스트 탐색 시작: p.{section_start}~{section_end}")
@@ -128,7 +155,8 @@ def _refine_pages_with_text(
     message = HumanMessage(content=prompt)
     
     try:
-        response = llm.invoke([message])
+        # C-3: 비동기 호출로 이벤트 루프 블로킹 방지
+        response = await llm.ainvoke([message])
         content = _clean_json_response(response.content)
         result = json.loads(content)
         
@@ -156,11 +184,12 @@ def _refine_pages_with_text(
 def _select_document_and_pages(
     question: str,
     documents: list[dict],
+    chat_history: list[dict] | None = None,
 ) -> dict:
     """
     Phase 0+1 통합: 문서 선택 + 타겟 페이지 추론을 1회 LLM 호출로 처리합니다.
     
-    문서가 1개면 선택 없이 바로 페이지 추론만 수행합니다.
+    B-2: 제조사/모델 정보 + 대화 이력 활용으로 문서 선택 정확도 향상.
     
     Returns:
         {
@@ -176,7 +205,7 @@ def _select_document_and_pages(
     single_doc = len(documents) == 1
 
     
-    # 각 문서의 요약 정보 구성
+    # 각 문서의 요약 정보 구성 (B-2: 제조사/모델 정보 추가)
     doc_summaries = []
     for i, doc in enumerate(documents):
         toc = doc.get("toc", [])
@@ -189,6 +218,8 @@ def _select_document_and_pages(
             f"[문서 {i+1}]\n"
             f"  ID: {doc['document_id']}\n"
             f"  제목: {doc.get('filename', '알 수 없음')}\n"
+            f"  제조사: {doc.get('manufacturer', '미상')}\n"
+            f"  모델 시리즈: {doc.get('model_series', '미상')}\n"
             f"  원본 파일명: {doc.get('original_filename', '')}\n"
             f"  페이지 수: {doc.get('total_pages', 0)}\n"
             f"  목차(ToC):\n{toc_text}"
@@ -196,16 +227,26 @@ def _select_document_and_pages(
     
     docs_text = "\n\n".join(doc_summaries)
     
+    # B-2: 대화 이력 맥락 구성
+    context_section = ""
+    if chat_history:
+        recent = chat_history[-4:]
+        pairs = []
+        for item in recent:
+            role_label = "사용자" if item["role"] == "user" else "AI"
+            pairs.append(f"{role_label}: {item['content'][:200]}")
+        context_section = "\n이전 대화 맥락:\n" + "\n".join(pairs) + "\n"
+    
     if single_doc:
         select_instruction = "문서가 1개이므로 해당 문서를 사용합니다."
     else:
-        select_instruction = "먼저 질문에 가장 적합한 문서를 선택하세요."
+        select_instruction = "먼저 질문에 가장 적합한 문서를 선택하세요. 제조사, 모델 시리즈 정보를 참고하세요."
     
     prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
 아래는 업로드된 문서 목록과 목차입니다:
 
 {docs_text}
-
+{context_section}
 사용자의 질문: "{question}"
 
 {select_instruction}
@@ -249,28 +290,113 @@ def _select_document_and_pages(
         }
 
 
-def _is_general_conversation(question: str) -> bool:
+def _classify_and_select(
+    question: str,
+    documents: list[dict],
+    chat_history: list[dict] | None = None,
+) -> dict:
     """
-    사용자의 질문이 매뉴얼 검색이 필요 없는 일반적인 인사말이나 일상 대화인지 판별합니다.
+    C-2: Step 0 + Phase 0+1 병합 — 1회 LLM 호출로 일상대화 판별 + 문서/페이지 선택을 동시에 수행합니다.
+    
+    Returns:
+        {
+            "classification": "general" | "technical",
+            "document_id": str | None,
+            "target_pages": list[int],
+            "section_title": str,
+            "reasoning": str
+        }
     """
     llm = _create_flash_llm()
     
-    prompt = f"""사용자의 질문을 분석하여, 이 질문이 산업용 매뉴얼(기계 작동법, 알람 코드, 기술 매뉴얼 내용 등)의 검색이 필요한 **기술적 질문**인지, 
-아니면 매뉴얼 검색이 필요 없는 **단순 인사말, 시스템 소개 요구, 감사 인사 또는 일상적 대화**인지 판별하세요.
+    # 문서 요약 구성 (B-2: 제조사/모델 포함)
+    doc_summaries = []
+    for i, doc in enumerate(documents):
+        toc = doc.get("toc", [])
+        toc_text = json.dumps(toc, ensure_ascii=False)
+        if len(toc_text) > 3000:
+            toc_text = json.dumps(toc[:30], ensure_ascii=False) + f" ... (총 {len(toc)}개 항목)"
+        
+        doc_summaries.append(
+            f"[문서 {i+1}]\n"
+            f"  ID: {doc['document_id']}\n"
+            f"  제목: {doc.get('filename', '알 수 없음')}\n"
+            f"  제조사: {doc.get('manufacturer', '미상')}\n"
+            f"  모델 시리즈: {doc.get('model_series', '미상')}\n"
+            f"  페이지 수: {doc.get('total_pages', 0)}\n"
+            f"  목차(ToC):\n{toc_text}"
+        )
+    
+    docs_text = "\n\n".join(doc_summaries)
+    
+    # 대화 이력
+    context_section = ""
+    if chat_history:
+        recent = chat_history[-4:]
+        pairs = [f"{'사용자' if m['role']=='user' else 'AI'}: {m['content'][:200]}" for m in recent]
+        context_section = "\n이전 대화 맥락:\n" + "\n".join(pairs) + "\n"
+    
+    single_doc = len(documents) == 1
+    select_instruction = "문서가 1개이므로 해당 문서를 사용합니다." if single_doc else "질문에 가장 적합한 문서를 선택하세요. 제조사, 모델 시리즈를 참고하세요."
+    
+    prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
 
-사용자 질문: "{question}"
+[Step 1] 사용자의 질문이 매뉴얼 검색이 필요한 기술적 질문인지 판별하세요.
+- 인사말, 잡담, 감사 → "general"
+- 매뉴얼에서 정보를 찾아야 하는 질문 → "technical"
 
-다음 형식으로만 대답하세요 (추가 텍스트나 마크다운 없이 오직 단어 하나만):
-- 매뉴얼 검색이 불필요한 일상 대화/인사/잡담인 경우: "general"
-- 매뉴얼에서 정보를 찾아야 하는 기술적 질문인 경우: "technical"
-"""
+[Step 2] "technical"인 경우에만, 아래 문서 목록에서 적합한 문서와 타겟 페이지를 선택하세요.
+
+{docs_text}
+{context_section}
+사용자의 질문: "{question}"
+
+{select_instruction}
+
+다음 JSON 형식으로만 응답하세요 (마크다운 코드블록 없이):
+{{
+    "classification": "general" 또는 "technical",
+    "document_id": "선택한 문서의 ID (general이면 null)",
+    "target_pages": [타겟 페이지들] (general이면 []),
+    "section_title": "관련 섹션의 제목 (general이면 빈 문자열)",
+    "reasoning": "판별 및 추론 과정을 한국어로 간략히 설명"
+}}
+
+규칙:
+- classification이 "general"이면 document_id, target_pages, section_title은 null/빈값으로 설정
+- classification이 "technical"이면 반드시 문서와 페이지를 선택
+- 타겟 페이지는 최소 1개, 최대 5개
+- 페이지 번호는 목차의 page 값 기준"""
+    
     try:
         response = llm.invoke([HumanMessage(content=prompt)])
-        result = _clean_json_response(response.content).strip().lower()
-        return "general" in result
+        result = json.loads(_clean_json_response(response.content))
+        
+        # classification 정규화
+        classification = result.get("classification", "technical").lower().strip()
+        result["classification"] = "general" if "general" in classification else "technical"
+        
+        if result["classification"] == "technical":
+            # document_id 검증
+            selected_id = result.get("document_id")
+            found = any(d["document_id"] == selected_id for d in documents)
+            if not found:
+                result["document_id"] = documents[0]["document_id"]
+            
+            # target_pages 정규화
+            raw_pages = result.get("target_pages", [1])
+            result["target_pages"] = [_normalize_page(p) for p in raw_pages][:5]
+        
+        return result
     except Exception as e:
-        logger.error(f"Failed to classify conversation type: {e}")
-        return False
+        logger.error(f"❌ [Classify+Select] Error: {e}", exc_info=True)
+        return {
+            "classification": "technical",
+            "document_id": documents[0]["document_id"],
+            "target_pages": [1],
+            "section_title": "알 수 없음",
+            "reasoning": f"판별+추론 중 오류 발생: {str(e)}"
+        }
 
 
 async def run_agentic_pipeline(
@@ -377,8 +503,11 @@ async def run_agentic_pipeline(
                 logger.error(f"Error in image preprocessing: {e}")
                 yield _sse_event("reasoning", content=f"⚠️ 이미지 분석 중 오류 발생, 일반 RAG 모드로 진행합니다. (오류: {e})")
 
-        # ─── Step 0: 일상 대화 / 인사말 판별 (Early Exit) ───
-        if _is_general_conversation(question):
+        # ─── C-1: 규칙 기반 빠른 분류 ───
+        quick_result = _quick_classify(question)
+        
+        if quick_result == "general":
+            # 명확한 인사말 → LLM 호출 없이 즉시 Early Exit
             yield _sse_event("reasoning", content="일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다...")
             
             llm = _create_flash_llm()
@@ -392,7 +521,6 @@ async def run_agentic_pipeline(
 """
             try:
                 response = await llm.ainvoke([HumanMessage(content=chat_prompt)])
-                from app.services.agent_service import _extract_text_content
                 answer = _extract_text_content(response.content)
                 yield _sse_event("answer", content=answer)
             except Exception as e:
@@ -402,7 +530,7 @@ async def run_agentic_pipeline(
             yield _sse_event("done")
             return
         
-        # ─── Step 0+1: 문서 선택 + 페이지 추론 (통합) ───
+        # ─── C-2: Step 0 + Phase 0+1 통합 (1회 LLM 호출) ───
 
         if document_id is None:
             all_docs = get_all_documents(owner_email=user_email)
@@ -417,11 +545,45 @@ async def run_agentic_pipeline(
             else:
                 yield _sse_event("reasoning", content=f"📚 {len(all_docs)}개 문서 중 적합한 문서와 페이지를 찾고 있습니다...")
             
-            selection = _select_document_and_pages(question, all_docs)
-            document_id = selection["document_id"]
-            coarse_pages = selection["target_pages"]
-            coarse_title = selection.get("section_title", "")
-            coarse_reasoning = selection.get("reasoning", "")
+            # C-2: 애매한 질문은 분류+문서선택을 1회 LLM으로 통합
+            if quick_result is None:
+                # 규칙으로 분류 안 된 경우 → 통합 LLM 호출
+                combined = _classify_and_select(question, all_docs, chat_history)
+                
+                if combined["classification"] == "general":
+                    # LLM이 일상대화로 판단 → Early Exit
+                    yield _sse_event("reasoning", content="일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다...")
+                    llm = _create_flash_llm()
+                    chat_prompt = f"""당신은 산업용 매뉴얼 분석 비서 'Vision RAG 에이전트'입니다.
+사용자가 매뉴얼 검색과 관계없는 일반적인 인사나 일상적 대화를 건넸습니다.
+친절하고 자연스럽게 인사하고, 매뉴얼 PDF를 업로드하여 질문하면 해당 매뉴얼(알람코드, 도면, 표 등)을 원본 레이아웃 그대로 분석하여 정확하게 답변할 수 있는 도구임을 알려주세요.
+
+사용자 입력: "{question}"
+
+친절하고 자연스럽게 한국어로 답변을 생성해 주세요.
+"""
+                    try:
+                        response = await llm.ainvoke([HumanMessage(content=chat_prompt)])
+                        answer = _extract_text_content(response.content)
+                        yield _sse_event("answer", content=answer)
+                    except Exception as e:
+                        logger.error(f"Error in general chatbot response: {e}")
+                        yield _sse_event("answer", content="안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요?")
+                    yield _sse_event("done")
+                    return
+                
+                # technical → 이미 문서+페이지 선택 완료
+                document_id = combined["document_id"]
+                coarse_pages = combined["target_pages"]
+                coarse_title = combined.get("section_title", "")
+                coarse_reasoning = combined.get("reasoning", "")
+            else:
+                # quick_result == "technical" → 문서선택만 수행
+                selection = _select_document_and_pages(question, all_docs, chat_history)
+                document_id = selection["document_id"]
+                coarse_pages = selection["target_pages"]
+                coarse_title = selection.get("section_title", "")
+                coarse_reasoning = selection.get("reasoning", "")
             
             # 선택된 문서 메타 찾기
             selected_doc = next((d for d in all_docs if d["document_id"] == document_id), all_docs[0])
@@ -440,7 +602,7 @@ async def run_agentic_pipeline(
             toc = meta.get("toc", [])
             yield _sse_event("reasoning", content=f"📄 '{meta.get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
             
-            selection = _select_document_and_pages(question, [meta])
+            selection = _select_document_and_pages(question, [meta], chat_history)
             coarse_pages = selection["target_pages"]
             coarse_title = selection.get("section_title", "")
             coarse_reasoning = selection.get("reasoning", "")
@@ -487,7 +649,8 @@ async def run_agentic_pipeline(
         if section_size > 3:
             yield _sse_event("reasoning", content=f"[세부 탐색] '{coarse_title}' 섹션(p.{section_start}~{section_end})의 텍스트를 분석하여 정확한 페이지를 찾고 있습니다...")
             
-            phase2_result = _refine_pages_with_text(doc, section_start, section_end, question)
+            # C-3: 비동기 호출
+            phase2_result = await _refine_pages_with_text(doc, section_start, section_end, question)
             target_pages = phase2_result.get("target_pages", coarse_pages)
             refined_title = phase2_result.get("section_title", coarse_title)
             refined_reasoning = phase2_result.get("reasoning", "")
@@ -539,15 +702,23 @@ async def run_agentic_pipeline(
             return
 
         
-        # ─── Step 5: Vision LLM 분석 (스트리밍) ───
+        # ─── Step 5: Vision LLM 분석 (스트리밍) + B-1 Fallback ───
         yield _sse_event("reasoning", content="Gemini Vision으로 페이지를 분석하고 있습니다...")
         
         try:
             async for chunk in analyze_pages_with_vision(mini_pdf_bytes, question, chat_history=chat_history):
                 yield _sse_event("answer", content=chunk)
         except Exception as e:
-            logger.error(f"❌ [Pipeline] Vision 분석 중 오류 발생: {e}", exc_info=True)
-            yield _sse_event("error", content=f"Vision 분석 중 오류: {str(e)}")
+            logger.error(f"❌ [Pipeline] Vision 분석 3회 재시도 모두 실패: {e}", exc_info=True)
+            
+            # B-1 Fallback: Vision 실패 시 텍스트 기반 답변 생성
+            yield _sse_event("reasoning", content="⚠️ Vision 분석이 실패하여 텍스트 기반으로 답변을 생성합니다...")
+            try:
+                fallback_answer = await _generate_text_fallback(pdf_path, target_pages, question, chat_history)
+                yield _sse_event("answer", content=fallback_answer)
+            except Exception as fb_err:
+                logger.error(f"❌ [Pipeline] 텍스트 Fallback도 실패: {fb_err}", exc_info=True)
+                yield _sse_event("error", content=f"Vision 분석 및 텍스트 분석 모두 실패: {str(e)}")
         
         logger.info("🏁 [Pipeline] Agentic Search 파이프라인 처리 완료")
         yield _sse_event("done")
@@ -560,3 +731,65 @@ async def run_agentic_pipeline(
         yield _sse_event("error", content=f"시스템 오류: {str(e)}")
         yield _sse_event("done")
 
+
+async def _generate_text_fallback(
+    pdf_path: str,
+    target_pages: list[int],
+    question: str,
+    chat_history: list[dict] | None = None,
+) -> str:
+    """
+    B-1 Fallback: Vision 분석 실패 시 텍스트를 추출하여 LLM으로 답변을 생성합니다.
+    PyMuPDF로 타겟 페이지의 텍스트를 추출하고, Flash-Lite LLM에게 답변을 요청합니다.
+    """
+    doc = fitz.open(pdf_path)
+    
+    text_content = []
+    for page_num in target_pages:
+        if 1 <= page_num <= doc.page_count:
+            text = doc[page_num - 1].get_text()
+            text_content.append(f"--- PAGE {page_num} ---\n{text}\n")
+    
+    doc.close()
+    full_text = "\n".join(text_content)
+    
+    if not full_text.strip():
+        return "⚠️ 해당 페이지에서 텍스트를 추출할 수 없습니다. 스캔된 PDF이거나 이미지 기반 문서일 수 있습니다."
+    
+    # 대화 이력 구성
+    context_section = ""
+    if chat_history:
+        recent = chat_history[-4:]
+        pairs = [f"{'사용자' if m['role']=='user' else 'AI'}: {m['content'][:200]}" for m in recent]
+        context_section = "\n이전 대화 맥락:\n" + "\n".join(pairs) + "\n"
+    
+    prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
+아래는 매뉴얼에서 추출한 텍스트입니다. 이 텍스트를 분석하여 사용자의 질문에 정확하게 답변하세요.
+{context_section}
+질문: "{question}"
+
+--- 매뉴얼 텍스트 시작 ---
+{full_text[:8000]}
+--- 매뉴얼 텍스트 끝 ---
+
+답변 형식 (마크다운):
+## 답변 요약
+(핵심 답변을 1-2문장으로)
+
+### 상세 내용
+(매뉴얼 내용을 기반으로 상세하게)
+
+### 조치 방법 (해당 시)
+1. 단계별 조치 방법
+2. ...
+
+> ⚠️ 참고: 이 답변은 텍스트 기반 분석입니다. 표/도면 등 시각적 정보는 포함되지 않았습니다.
+
+규칙:
+- 매뉴얼에 없는 내용은 추측하지 마세요.
+- 한국어로 답변하세요.
+"""
+    
+    llm = _create_flash_llm()
+    response = await llm.ainvoke([HumanMessage(content=prompt)])
+    return _extract_text_content(response.content)

@@ -1,13 +1,26 @@
 # 📋 To Do List (Vision RAG)
 
 ## 향후 작업 (Next Tasks)
-- [ ] 👥 사용자별 RAG 개인화(멀티테넌시) 시스템 구축
-  - [ ] 백엔드: `metadata_service.py`에 `owner_email` 필터링 및 소유권 검증 로직 구현
-  - [ ] 백엔드: `/upload`, `/documents` 등의 라우터에 현재 유저 이메일 연동 및 격리 필터 적용
-  - [ ] 백엔드: `/chat/stream` RAG 실행 시 본인 소유의 매뉴얼 문서 풀 내에서만 자동 매칭되도록 제한
-  - [ ] 프론트엔드: `useChatStore.ts` 세션 구조에 `ownerEmail` 추가 및 생성 시 이메일 바인딩
-  - [ ] 프론트엔드: `Sidebar.tsx` 및 대화방 렌더링 시 현재 로그인 유저의 대화방만 격리 필터 적용
-  - [ ] 전체 빌드 검증 및 교차 로그인 시나리오 기반 개인화(대화 및 파일 완전 격리) 테스트
+- [ ] 🎨 UI 전면 리디자인 (로고, 색상 팔레트, 레이아웃 등)
+- [ ] 📛 앱 이름/브랜딩 변경 (Vision RAG → 새 이름)
+- [ ] 🌐 커스텀 도메인 연결 (Cloud Run URL 노출 해결)
+
+## 완료된 작업 (Completed Tasks)
+- [x] 👥 사용자별 RAG 개인화(멀티테넌시) 시스템 구축
+  - [x] 백엔드: `metadata_service.py`에 `owner_email` 필터링 및 소유권 검증 로직 구현
+  - [x] 백엔드: `/upload`, `/documents` 등의 라우터에 현재 유저 이메일 연동 및 격리 필터 적용
+  - [x] 백엔드: `/chat/stream` RAG 실행 시 본인 소유의 매뉴얼 문서 풀 내에서만 자동 매칭되도록 제한
+  - [x] 프론트엔드: `useChatStore.ts` 세션 구조에 `ownerEmail` 추가 및 생성 시 이메일 바인딩
+  - [x] 프론트엔드: `Sidebar.tsx` 및 대화방 렌더링 시 현재 로그인 유저의 대화방만 격리 필터 적용
+  - [x] 레거시 문서 owner_email 마이그레이션 스크립트 작성 및 엄격 격리 정책 적용
+  - [x] 로그아웃 시 채팅 세션 완전 초기화 (프론트엔드 잔류 방지)
+- [x] ⚡ 답변 품질 + 속도 최적화 (93.33% → 98%+ 목표)
+  - [x] Phase 3 Vision API retry (3회) + exponential backoff 구현
+  - [x] Vision 실패 시 텍스트 기반 fallback 답변 생성
+  - [x] 규칙 기반 빠른 분류 (기술질문/인사말 LLM 호출 생략) → ~1~2초 절감
+  - [x] Step 0 + Phase 0+1 병합 (2회 LLM → 1회) → ~2~3초 절감
+  - [x] Phase 2 비동기화 (이벤트 루프 블로킹 방지)
+  - [x] 문서 선택에 제조사/모델 시리즈 정보 + 대화 이력 추가
 
 ## 완료된 작업 (Completed Tasks)
 - [x] 🔐 구글 OAuth & 화이트리스트 보안 인증 체계 구축

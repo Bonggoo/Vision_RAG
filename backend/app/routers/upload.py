@@ -251,12 +251,17 @@ async def trigger_analysis(request: AnalyzeRequest, background_tasks: Background
 
 
 @router.post("/toc", response_model=UploadResponse)
-async def extract_toc_with_range(request: TocRangeRequest):
+async def extract_toc_with_range(request: TocRangeRequest, current_user: dict = Depends(get_current_user)):
     """
     스캔 PDF에 대해 사용자가 지정한 페이지 범위에서 ToC를 재추출합니다.
     status가 'toc_required'인 문서에 대해 호출됩니다.
     """
     doc_id = str(request.document_id)
+    
+    # 소유권 검증
+    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+        raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
+    
     meta = metadata_service.get_document(doc_id)
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")

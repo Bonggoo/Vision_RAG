@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useChatStore } from "@/store/useChatStore";
 
 interface UserProfile {
   email: string;
@@ -75,6 +76,9 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout: () => {
+        // 채팅 세션 전체 초기화 (로그아웃 시 대화 기록 삭제)
+        useChatStore.getState().clearAllSessions();
+
         set({
           token: null,
           user: null,

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
-import { KeyRound, ShieldCheck, HelpCircle } from "lucide-react";
+import { KeyRound } from "lucide-react";
 
 declare global {
   interface Window {
@@ -98,18 +98,7 @@ export default function LoginView() {
           Vectorless Agentic PDF Search
         </p>
 
-        {/* 💡 시스템 안내 카드 */}
-        <div className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 mb-6 text-left">
-          <div className="flex items-start gap-2.5 text-violet-400 text-sm font-semibold mb-1">
-            <ShieldCheck className="w-5 h-5 flex-shrink-0" />
-            <span>보안 인증 기반 시스템</span>
-          </div>
-          <p className="text-white/70 text-xs leading-relaxed">
-            본 시스템은 기밀 유지 및 사내 자산 보안을 위해 
-            <strong> 사전에 승인된 사용자 계정</strong>으로만 접근이 가능합니다. 
-            권한을 획득하신 본인의 구글 계정으로 로그인해 주시기 바랍니다.
-          </p>
-        </div>
+
 
         {/* 로딩 표시 */}
         {isLoading ? (
@@ -134,11 +123,7 @@ export default function LoginView() {
           </div>
         )}
 
-        {/* 카피라이트 */}
-        <span className="text-[10px] text-white/20 mt-8 flex items-center gap-1">
-          <HelpCircle className="w-3.5 h-3.5" />
-          보안 계정 및 사내 문서 보호 정책 연동
-        </span>
+
       </div>
     </div>
   );
