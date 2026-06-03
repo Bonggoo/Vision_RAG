@@ -1,7 +1,7 @@
 import jwt
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from google.oauth2 import id_token
@@ -13,12 +13,6 @@ logger = logging.getLogger(__name__)
 
 # Bearer Token 추출 스키마 (보안)
 security_recipient = HTTPBearer(auto_error=False)
-
-def get_allowed_users_list() -> List[str]:
-    """쉼표로 구분된 화이트리스트 이메일 리스트 파싱"""
-    if not settings.ALLOWED_USERS:
-        return []
-    return [email.strip().lower() for email in settings.ALLOWED_USERS.split(",") if email.strip()]
 
 def verify_google_token(credential: str) -> dict:
     """구글 ID 토큰 검증"""
@@ -62,11 +56,10 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
     """
     현재 접속 유저 검증 의존성 (Dependencies)
     - 헤더에 Authorization: Bearer <JWT> 형태로 들어오는 백엔드 JWT를 검증
-    - 이메일이 화이트리스트(ALLOWED_USERS)에 있는지 실시간 확인
+    - 구글 계정으로 정상 로그인한 사용자라면 누구나 접근 허용 (화이트리스트 제거)
     """
-    # 환경변수에 ALLOWED_USERS가 설정되지 않았거나 비어 있다면 인증 필터를 무시하고 개발 모드로 둡니다.
-    # (개발 편의성 및 로컬 테스트 호환성 유지)
-    if not settings.ALLOWED_USERS:
+    # 로컬 개발 모드: JWT 토큰이 없으면 더미 유저로 처리 (로컬 테스트 편의성)
+    if not credentials and not settings.GOOGLE_CLIENT_ID:
         return {"email": "local-dev@visionrag.app", "name": "Dev User", "picture": ""}
 
     if not credentials:
@@ -86,14 +79,8 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
                 detail="JWT 토큰에 이메일 정보가 누락되었습니다."
             )
             
-        # 화이트리스트 검사
-        allowed_users = get_allowed_users_list()
-        if email not in allowed_users:
-            logger.warning(f"비인가 유저 접속 차단 시도: {email}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="접근 권한이 허가되지 않은 이메일 계정입니다."
-            )
+        # 구글 인증된 유저라면 접근 허용 (화이트리스트 제거됨)
+        logger.info(f"유저 인증 성공: {email}")
             
         return {
             "email": email,
