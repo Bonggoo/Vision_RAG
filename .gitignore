@@ -53,3 +53,6 @@ Thumbs.db
 
 # Agent
 .agents/
+
+# Deploy Config (Secrets 포함)
+trigger_config.yaml

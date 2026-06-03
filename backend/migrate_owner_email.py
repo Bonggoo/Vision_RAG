@@ -47,7 +47,9 @@ def migrate_owner_email(default_owner: str, dry_run: bool = False) -> int:
             filename = meta.get("filename", "알 수 없음")
             current_owner = meta.get("owner_email")
             
-            if current_owner is None or current_owner == "":
+            # 레거시: owner_email 없음, 빈 값, 또는 로컬개발 더미 값
+            LEGACY_OWNERS = {None, "", "local-dev@visionrag.app"}
+            if current_owner in LEGACY_OWNERS:
                 if dry_run:
                     print(f"  🔄 [대상] {filename} → {default_owner}")
                 else:

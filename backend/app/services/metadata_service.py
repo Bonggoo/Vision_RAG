@@ -63,16 +63,10 @@ def get_all_documents(owner_email: Optional[str] = None) -> List[Dict[str, Any]]
     # 사용자별 필터링: 엄격 격리 — 본인 소유 문서만 반환 (레거시 문서도 차단)
     if owner_email:
         email_lower = owner_email.lower()
-        # 디버깅: 필터링 전 각 문서의 owner_email 확인
-        for d in documents:
-            logger.info(f"🔍 [격리 필터] 문서 '{d.get('filename', '?')}' owner_email='{d.get('owner_email')}' vs 요청='{email_lower}'")
-        
-        before_count = len(documents)
         documents = [
             d for d in documents
             if d.get("owner_email", "").lower() == email_lower
         ]
-        logger.info(f"🔒 [격리 결과] {before_count}건 → {len(documents)}건 (요청자: {email_lower})")
 
     # 업로드 시간 역순 정렬
     documents.sort(key=lambda d: d.get("uploaded_at", ""), reverse=True)
