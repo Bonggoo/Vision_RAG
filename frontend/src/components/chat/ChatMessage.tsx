@@ -75,7 +75,7 @@ function ReferenceImages({ references }: { references: ReferenceImage[] }) {
               alt={`페이지 ${ref.pageNumber}`}
               className={`transition-all duration-300 ${
                 expandedIdx === i
-                  ? "w-64 sm:w-80 lg:w-96 h-auto rounded-lg shadow-xl"
+                  ? "w-64 sm:w-80 lg:w-96 max-w-full h-auto rounded-lg shadow-xl"
                   : "w-16 h-22 sm:w-20 sm:h-28 object-cover rounded-lg border border-border/50 hover:border-primary/40 hover:shadow-lg hover:scale-105"
               }`}
             />
@@ -172,7 +172,8 @@ export default function ChatMessage({ message }: ChatMessageProps) {
 
           {/* 답변 본문 (라이트/다크 가독성 분기) */}
           {message.content ? (
-            <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed
+            <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed break-words
+              [overflow-wrap:anywhere]
               prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight
               prose-h2:text-[14.5px] prose-h2:mt-5 prose-h2:mb-2 prose-h2:pb-1.5 prose-h2:border-b prose-h2:border-border/30
               prose-h3:text-[13px] prose-h3:mt-4 prose-h3:mb-1.5 prose-h3:text-foreground/90

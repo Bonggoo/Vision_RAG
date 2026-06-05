@@ -51,7 +51,11 @@ export default function Home() {
 
   // 💡 비로그인 유저는 로그인 화면을 반환
   if (!isAuthenticated) {
-    return <LoginView />;
+    return (
+      <div className="animate-fade">
+        <LoginView />
+      </div>
+    );
   }
 
   const handleChatSubmit = async (text: string, image?: string) => {
@@ -211,7 +215,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex h-screen-mobile overflow-hidden bg-background">
+    <div className="flex h-screen-mobile overflow-hidden bg-background animate-fade" style={{ animationDuration: '0.5s' }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -234,7 +238,7 @@ export default function Home() {
 
                 <div>
                   <h2 className="text-xl md:text-3xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-foreground via-foreground to-primary/80 bg-clip-text text-transparent">
-                    Vision RAG
+                    TechNote
                   </h2>
                   <p className="text-[11px] md:text-sm text-muted-foreground/80 leading-relaxed max-w-md mx-auto px-2">
                     산업용 매뉴얼(PDF)을 AI가 인간처럼 목차를 읽고 원본 레이아웃 그대로 분석하여, 현장에서 활용 가능한 조치법을 제공합니다.

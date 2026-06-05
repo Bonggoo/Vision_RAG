@@ -92,10 +92,10 @@ export default function LoginView() {
 
         {/* 로고 */}
         <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-pink-400 to-blue-400 tracking-tight mb-2">
-          💎 Vision RAG
+          📑 TechNote
         </h1>
         <p className="text-xs text-white/40 font-mono tracking-widest uppercase mb-6">
-          Vectorless Agentic PDF Search
+          AI-Powered Industrial Manual Assistant
         </p>
 
 

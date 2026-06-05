@@ -314,6 +314,13 @@ button,
   }
   .prose pre {
     overflow-x: auto;
-    max-width: calc(100vw - 4.5rem);
+    max-width: calc(100vw - 7rem);
+  }
+  .prose code {
+    word-break: break-all;
+  }
+  .prose img {
+    max-width: 100%;
+    height: auto;
   }
 }

@@ -26,7 +26,7 @@ export default function ExportButton() {
 
     // 1. 마크다운 생성
     const today = new Date().toISOString().split("T")[0];
-    let markdown = `# 💎 Vision RAG 대화 기록\n`;
+    let markdown = `# 📑 TechNote 대화 기록\n`;
     markdown += `> 💬 **대화 제목**: ${session.title}\n`;
     markdown += `> 📅 **내보낸 날짜**: ${today}\n\n`;
     markdown += `---\n\n`;
@@ -36,7 +36,7 @@ export default function ExportButton() {
         markdown += `## 👤 사용자\n`;
         markdown += `${msg.content}\n\n`;
       } else {
-        markdown += `## 🤖 Vision RAG\n`;
+        markdown += `## 🤖 TechNote\n`;
         
         // 생각 과정(reasoningSteps)이 존재한다면 요약 블록으로 추가
         if (msg.reasoningSteps && msg.reasoningSteps.length > 0) {
@@ -53,7 +53,7 @@ export default function ExportButton() {
       markdown += `---\n\n`;
     });
 
-    markdown += `_Vectorless Agentic Vision RAG에서 생성된 대화 기록입니다._\n`;
+    markdown += `_TechNote AI에서 생성된 대화 기록입니다._\n`;
 
     // 2. Blob을 이용한 다운로드 실행
     try {
@@ -63,7 +63,7 @@ export default function ExportButton() {
       
       // 파일명 조합 (특수문자 필터링)
       const cleanTitle = session.title.replace(/[\\/*?:"<>|]/g, "").trim();
-      const filename = `VisionRAG_${cleanTitle || "대화"}_${today.replace(/-/g, "")}.md`;
+      const filename = `TechNote_${cleanTitle || "대화"}_${today.replace(/-/g, "")}.md`;
       
       link.href = url;
       link.setAttribute("download", filename);

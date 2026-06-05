@@ -1,6 +1,6 @@
 {
-  "name": "Vision RAG - AI 매뉴얼 분석",
-  "short_name": "Vision RAG",
+  "name": "TechNote - AI 매뉴얼 분석",
+  "short_name": "TechNote",
   "description": "산업용 매뉴얼을 AI가 분석하여 현장에서 바로 활용 가능한 답변을 제공합니다.",
   "start_url": "/",
   "display": "standalone",

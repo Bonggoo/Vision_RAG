@@ -66,13 +66,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
           <div className="hidden md:flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
-              <span className="text-white text-[10px] font-bold">V</span>
+              <span className="text-white text-[10px] font-bold">T</span>
             </div>
-            <h1 className="font-semibold text-[15px] tracking-tight">Vision RAG</h1>
+            <h1 className="font-semibold text-[15px] tracking-tight">TechNote</h1>
           </div>
 
           {/* 모바일에서 제목 표시 */}
-          <h1 className="md:hidden font-semibold text-[15px] tracking-tight">Vision RAG</h1>
+          <h1 className="md:hidden font-semibold text-[15px] tracking-tight">TechNote</h1>
         </div>
 
         {/* 활성 대화 표시 및 우측 제어 */}

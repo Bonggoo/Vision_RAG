@@ -15,13 +15,13 @@ const notoSansKr = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: "Vision RAG",
-  description: "Agentic Vision RAG for Industrial Manuals",
+  title: "TechNote",
+  description: "AI 기반 산업용 매뉴얼 분석 시스템",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Vision RAG",
+    title: "TechNote",
   },
   icons: {
     icon: "/icon-192x192.png",

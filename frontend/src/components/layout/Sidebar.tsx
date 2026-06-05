@@ -260,6 +260,33 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     }
   };
 
+  // 제조사/모델 단위 일괄 삭제 핸들러
+  const handleBatchDelete = async (e: React.MouseEvent, docs: Document[], groupLabel: string) => {
+    e.stopPropagation();
+    const targetDocs = docs.filter(d => d.status !== "analyzing");
+    if (targetDocs.length === 0) return;
+    if (!confirm(`"${groupLabel}" 그룹의 문서 ${targetDocs.length}개를 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    for (const doc of targetDocs) {
+      await deleteDoc(doc.document_id);
+    }
+  };
+
+  // 제조사/모델 단위 일괄 다운로드 핸들러
+  const handleBatchDownload = async (e: React.MouseEvent, docs: Document[], groupLabel: string) => {
+    e.stopPropagation();
+    const targetDocs = docs.filter(d => d.status !== "analyzing" && d.status !== "error");
+    if (targetDocs.length === 0) {
+      alert("다운로드 가능한 문서가 없습니다.");
+      return;
+    }
+    if (!confirm(`"${groupLabel}" 그룹의 문서 ${targetDocs.length}개를 순차 다운로드합니다.`)) return;
+    for (const doc of targetDocs) {
+      await downloadDoc(doc.document_id);
+      // 브라우저가 다운로드를 처리할 시간 확보
+      await new Promise(r => setTimeout(r, 500));
+    }
+  };
+
   // 실시간 필터링 검색
   const filteredDocuments = documents.filter((doc) => {
     const query = searchQuery.toLowerCase().trim();
@@ -341,29 +368,48 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
           return (
             <div key={mfg} className="space-y-1">
               {/* 제조사 1단 헤더 */}
-              <button
-                onClick={() => toggleManufacturer(mfg)}
-                className="w-full flex items-center justify-between text-xs font-semibold text-foreground/80 hover:text-foreground hover:bg-accent/30 py-1.5 px-2 rounded-lg transition-all"
-              >
-                <div className="flex items-center gap-1.5 truncate">
-                  {mfg === "미분류" ? (
-                    <Folder className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-                  ) : (
-                    <Building className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-                  )}
-                  <span className="truncate">{mfg}</span>
+              <div className="group/mfg flex items-center gap-0.5">
+                <button
+                  onClick={() => toggleManufacturer(mfg)}
+                  className="flex-1 min-w-0 flex items-center justify-between text-xs font-semibold text-foreground/80 hover:text-foreground hover:bg-accent/30 py-1.5 px-2 rounded-lg transition-all"
+                >
+                  <div className="flex items-center gap-1.5 truncate">
+                    {mfg === "미분류" ? (
+                      <Folder className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                    ) : (
+                      <Building className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                    )}
+                    <span className="truncate">{mfg}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground/50 font-normal">
+                      ({Object.values(models).flat().length})
+                    </span>
+                    {isMfgExpanded ? (
+                      <ChevronDown className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                    ) : (
+                      <ChevronRight className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                    )}
+                  </div>
+                </button>
+                {/* 제조사 일괄 작업 버튼 */}
+                <div className="flex items-center gap-0.5 opacity-0 group-hover/mfg:opacity-100 transition-opacity shrink-0">
+                  <button
+                    onClick={(e) => handleBatchDownload(e, Object.values(models).flat(), mfg)}
+                    title={`${mfg} 전체 다운로드`}
+                    className="p-1 rounded hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"
+                  >
+                    <Download className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={(e) => handleBatchDelete(e, Object.values(models).flat(), mfg)}
+                    title={`${mfg} 전체 삭제`}
+                    className="p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-muted-foreground/50 font-normal">
-                    ({Object.values(models).flat().length})
-                  </span>
-                  {isMfgExpanded ? (
-                    <ChevronDown className="w-3 h-3 text-muted-foreground/60 shrink-0" />
-                  ) : (
-                    <ChevronRight className="w-3 h-3 text-muted-foreground/60 shrink-0" />
-                  )}
-                </div>
-              </button>
+              </div>
 
               {/* 2단 모델 시리즈 영역 */}
               {isMfgExpanded && (
@@ -374,25 +420,44 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                     return (
                       <div key={model} className="space-y-0.5">
                         {/* 모델 2단 헤더 */}
-                        <button
-                          onClick={() => toggleModel(`${mfg}-${model}`)}
-                          className="w-full flex items-center justify-between text-[11px] font-medium text-foreground/70 hover:text-foreground hover:bg-accent/30 py-1 px-1.5 rounded transition-all"
-                        >
-                          <div className="flex items-center gap-1 truncate">
-                            <Cpu className="w-3 h-3 text-blue-500/60 shrink-0" />
-                            <span className="truncate">{model}</span>
+                        <div className="group/model flex items-center gap-0.5">
+                          <button
+                            onClick={() => toggleModel(`${mfg}-${model}`)}
+                            className="flex-1 min-w-0 flex items-center justify-between text-[11px] font-medium text-foreground/70 hover:text-foreground hover:bg-accent/30 py-1 px-1.5 rounded transition-all"
+                          >
+                            <div className="flex items-center gap-1 truncate">
+                              <Cpu className="w-3 h-3 text-blue-500/60 shrink-0" />
+                              <span className="truncate">{model}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-muted-foreground/50 font-normal">
+                                ({docs.length})
+                              </span>
+                              {isModelExpanded ? (
+                                <ChevronDown className="w-2.5 h-2.5 text-muted-foreground/60 shrink-0" />
+                              ) : (
+                                <ChevronRight className="w-2.5 h-2.5 text-muted-foreground/60 shrink-0" />
+                              )}
+                            </div>
+                          </button>
+                          {/* 모델 일괄 작업 버튼 */}
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover/model:opacity-100 transition-opacity shrink-0">
+                            <button
+                              onClick={(e) => handleBatchDownload(e, docs, `${mfg} > ${model}`)}
+                              title={`${model} 전체 다운로드`}
+                              className="p-0.5 rounded hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"
+                            >
+                              <Download className="w-2.5 h-2.5" />
+                            </button>
+                            <button
+                              onClick={(e) => handleBatchDelete(e, docs, `${mfg} > ${model}`)}
+                              title={`${model} 전체 삭제`}
+                              className="p-0.5 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
+                            >
+                              <Trash2 className="w-2.5 h-2.5" />
+                            </button>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[9px] text-muted-foreground/50 font-normal">
-                              ({docs.length})
-                            </span>
-                            {isModelExpanded ? (
-                              <ChevronDown className="w-2.5 h-2.5 text-muted-foreground/60 shrink-0" />
-                            ) : (
-                              <ChevronRight className="w-2.5 h-2.5 text-muted-foreground/60 shrink-0" />
-                            )}
-                          </div>
-                        </button>
+                        </div>
 
                         {/* 문서 아이템 */}
                         {isModelExpanded && (
@@ -604,9 +669,9 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center shadow-lg">
-              <span className="text-white text-xs font-bold">V</span>
+              <span className="text-white text-xs font-bold">T</span>
             </div>
-            <span className="text-sm font-semibold tracking-tight">Vision RAG</span>
+            <span className="text-sm font-semibold tracking-tight">TechNote</span>
           </div>
           {onClose && (
             <button onClick={onClose} className="md:hidden p-1 rounded hover:bg-accent/50 text-muted-foreground">
@@ -772,7 +837,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       {/* 하단 정보 */}
       <div className="p-4 border-t border-border/30">
         <p className="text-[10px] text-muted-foreground/40 text-center">
-          Vectorless Agentic Vision RAG v1.5
+          TechNote v2.0
         </p>
       </div>
     </div>
