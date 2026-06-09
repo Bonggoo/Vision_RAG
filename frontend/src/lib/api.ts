@@ -20,9 +20,6 @@ let refreshSubscribers: Array<(token: string) => void> = [];
 
 /** 리프레시 토큰으로 새 액세스 토큰 발급 시도 */
 async function tryRefreshToken(): Promise<string | null> {
-  const refreshToken = useAuthStore.getState().refreshToken;
-  if (!refreshToken) return null;
-
   // 이미 갱신 중이면 대기열에 추가
   if (isRefreshing) {
     return new Promise((resolve) => {
@@ -32,19 +29,18 @@ async function tryRefreshToken(): Promise<string | null> {
 
   isRefreshing = true;
   try {
+    // 💡 credentials: "include"로 쿠키 자동 전송
     const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      credentials: "include",
     });
 
     if (!res.ok) return null;
 
     const data = await res.json();
-    // 스토어에 새 토큰 저장
+    // 스토어에 새 Access Token 저장
     useAuthStore.setState({
       token: data.access_token,
-      refreshToken: data.refresh_token,
     });
 
     // 대기 중인 요청들에 새 토큰 전달
@@ -62,13 +58,19 @@ async function tryRefreshToken(): Promise<string | null> {
 /** fetch 래퍼: 401 응답 시 토큰 갱신 후 자동 재시도 */
 async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const headers = getAuthHeaders((options.headers as Record<string, string>) || {});
-  let res = await fetch(url, { ...options, headers });
+  const fetchOptions: RequestInit = {
+    ...options,
+    headers,
+    credentials: "include" // 크로스 오리진 쿠키 공유를 위해 필수 지정
+  };
+  let res = await fetch(url, fetchOptions);
 
   if (res.status === 401) {
     const newToken = await tryRefreshToken();
     if (newToken) {
-      headers["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(url, { ...options, headers });
+      const newHeaders = getAuthHeaders((options.headers as Record<string, string>) || {});
+      newHeaders["Authorization"] = `Bearer ${newToken}`;
+      res = await fetch(url, { ...fetchOptions, headers: newHeaders });
     } else {
       useAuthStore.getState().logout();
     }

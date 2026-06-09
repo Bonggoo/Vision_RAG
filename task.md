@@ -6,6 +6,12 @@
 - [ ] 🌐 커스텀 도메인 연결 (Cloud Run URL 노출 해결)
 
 ## 완료된 작업 (Completed Tasks)
+- [x] 🛡️ Refresh Token HttpOnly 쿠키 전환 (보안 로드맵 Phase 1)
+  - [x] 백엔드: 쿠키 옵션 유틸 및 로그아웃 API 구현
+  - [x] 백엔드: `/auth/google` 및 `/auth/refresh` API 쿠키 기반으로 변경
+  - [x] 프론트엔드: `useAuthStore`에서 `refreshToken` 스토어 변수 제거 및 로그아웃 수정
+  - [x] 프론트엔드: `api.ts` fetch 래퍼에 `credentials: "include"` 옵션 추가 및 갱신 API 수정
+  - [x] 전체 빌드 및 로컬 테스트 검증 (Next.js 빌드 성공 확인)
 - [x] 📛 앱 이름/브랜딩 변경 (Vision RAG → TechNote 테크노트)
 - [x] 🎨 UI 전면 리디자인 (TechNote 브랜딩의 글래스모피즘/다크모드 적용)
 - [x] 🛡️ 중장기 보안 개선 로드맵 문서 작성 (`doc/security_roadmap.md` 신설)

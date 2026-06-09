@@ -2,7 +2,7 @@ import jwt
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -145,3 +145,32 @@ def verify_refresh_token(refresh_token: str) -> str:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="올바르지 않은 Refresh Token입니다."
         )
+
+
+def set_refresh_cookie(response: Response, refresh_token: str):
+    """브라우저 쿠키에 Refresh Token 설정 (XSS 방어)"""
+    is_local = settings.USE_LOCAL_STORAGE or not settings.GOOGLE_CLIENT_ID
+    
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=not is_local,
+        samesite="lax" if is_local else "none",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600,
+        path="/"
+    )
+
+
+def delete_refresh_cookie(response: Response):
+    """브라우저 쿠키에서 Refresh Token 삭제 (로그아웃용)"""
+    is_local = settings.USE_LOCAL_STORAGE or not settings.GOOGLE_CLIENT_ID
+    
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=not is_local,
+        samesite="lax" if is_local else "none",
+        path="/"
+    )
+
