@@ -237,4 +237,14 @@ export const api = {
     a.click();
     document.body.removeChild(a);
   },
+
+  /** 미분류 문서 일괄 재분류 */
+  reclassifyDocuments: async (): Promise<{ status: string; message: string; count: number }> => {
+    const res = await fetch(`${API_BASE_URL}/documents/reclassify`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("재분류 요청에 실패했습니다.");
+    return res.json();
+  },
 };

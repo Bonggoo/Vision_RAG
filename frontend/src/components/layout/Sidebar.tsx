@@ -19,11 +19,13 @@ import {
   Folder,
   Search,
   AlertCircle,
-  RotateCw
+  RotateCw,
+  RefreshCw
 } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
 import { useDocumentStore, Document } from "@/store/useDocumentStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { api } from "@/lib/api";
 
 export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   // 💡 Hydration 에러 방지: 마운트 상태 추가
@@ -287,6 +289,28 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     }
   };
 
+  // 미분류 문서 일괄 재분류
+  const [isReclassifying, setIsReclassifying] = useState(false);
+  const handleReclassify = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isReclassifying) return;
+    setIsReclassifying(true);
+    try {
+      const result = await api.reclassifyDocuments();
+      alert(result.message);
+      // 재분류는 백그라운드로 처리되므로 일정 시간 후 새로고침
+      if (result.count > 0) {
+        setTimeout(() => fetchDocuments(), result.count * 2000 + 3000);
+        // 중간 체크도 한번
+        setTimeout(() => fetchDocuments(), Math.min(result.count * 1000, 15000));
+      }
+    } catch (err: any) {
+      alert(err.message || "재분류 요청에 실패했습니다.");
+    } finally {
+      setIsReclassifying(false);
+    }
+  };
+
   // 실시간 필터링 검색
   const filteredDocuments = documents.filter((doc) => {
     const query = searchQuery.toLowerCase().trim();
@@ -394,6 +418,16 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                 </button>
                 {/* 제조사 일괄 작업 버튼 */}
                 <div className="flex items-center gap-0.5 opacity-0 group-hover/mfg:opacity-100 transition-opacity shrink-0">
+                  {mfg === "미분류" && (
+                    <button
+                      onClick={handleReclassify}
+                      disabled={isReclassifying}
+                      title="미분류 문서 AI 재분류"
+                      className="p-1 rounded hover:bg-primary/20 text-muted-foreground/40 hover:text-primary transition-all disabled:opacity-40"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isReclassifying ? "animate-spin" : ""}`} />
+                    </button>
+                  )}
                   <button
                     onClick={(e) => handleBatchDownload(e, Object.values(models).flat(), mfg)}
                     title={`${mfg} 전체 다운로드`}

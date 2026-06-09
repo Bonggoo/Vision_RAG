@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from fastapi.responses import FileResponse
 from uuid import UUID
 from typing import Optional
@@ -6,8 +6,10 @@ from pydantic import BaseModel
 from app.schemas.response import DocumentListResponse
 from app.services import metadata_service
 from app.services.auth_service import get_current_user
+from app.utils.logger import logger
 import fitz
 import os
+import asyncio
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -17,6 +19,88 @@ class DocumentUpdateRequest(BaseModel):
     filename: Optional[str] = None
     manufacturer: Optional[str] = None
     model_series: Optional[str] = None
+
+
+async def _reclassify_documents(doc_ids: list[str]):
+    """
+    백그라운드에서 미분류 문서들을 Gemini Vision으로 일괄 재분류합니다.
+    Rate limit 방지를 위해 문서 간 1.5초 딜레이를 둡니다.
+    """
+    from app.services.pdf_service import _extract_document_classification, extract_pages_as_pdf
+
+    success_count = 0
+    fail_count = 0
+
+    for doc_id in doc_ids:
+        try:
+            meta = metadata_service.get_document(doc_id)
+            if meta is None:
+                continue
+
+            pdf_path = metadata_service.get_document_path(doc_id)
+            if not pdf_path or not os.path.exists(pdf_path):
+                logger.warning(f"⚠️ [재분류] PDF 파일 없음: {doc_id}")
+                fail_count += 1
+                continue
+
+            # Gemini Vision으로 재분류
+            fallback = meta.get("original_filename", meta.get("filename", "unknown"))
+            classification = await _extract_document_classification(pdf_path, fallback)
+
+            updates = {}
+            if classification.get("manufacturer"):
+                updates["manufacturer"] = classification["manufacturer"]
+            if classification.get("model_series"):
+                updates["model_series"] = classification["model_series"]
+            if classification.get("doc_type"):
+                updates["doc_type"] = classification["doc_type"]
+            if classification.get("title") and not meta.get("filename"):
+                updates["filename"] = classification["title"]
+
+            if updates:
+                metadata_service.update_document_metadata(doc_id, updates)
+                logger.info(f"✅ [재분류] 성공: {doc_id} → {updates}")
+                success_count += 1
+            else:
+                logger.warning(f"⚠️ [재분류] 분류 결과 없음: {doc_id}")
+                fail_count += 1
+
+            # Rate limit 방지 딜레이
+            await asyncio.sleep(1.5)
+
+        except Exception as e:
+            logger.error(f"❌ [재분류] 실패: {doc_id} - {e}")
+            fail_count += 1
+            await asyncio.sleep(1.0)
+
+    logger.info(f"🏁 [재분류] 완료: 성공 {success_count}건, 실패 {fail_count}건")
+
+
+@router.post("/reclassify")
+async def reclassify_documents(background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
+    """
+    미분류(manufacturer/model_series가 없는) 문서들을 Gemini Vision으로 일괄 재분류합니다.
+    백그라운드 태스크로 실행되어 즉시 202 응답을 반환합니다.
+    """
+    docs = metadata_service.get_all_documents(owner_email=current_user["email"])
+
+    # 미분류 문서 필터링 (manufacturer 또는 model_series가 없는 문서)
+    unclassified = [
+        d["document_id"] for d in docs
+        if (not d.get("manufacturer") or not d.get("model_series"))
+        and d.get("status") not in ("analyzing", "error")
+    ]
+
+    if not unclassified:
+        return {"status": "no_action", "message": "재분류할 미분류 문서가 없습니다.", "count": 0}
+
+    background_tasks.add_task(_reclassify_documents, unclassified)
+
+    return {
+        "status": "started",
+        "message": f"미분류 문서 {len(unclassified)}건의 재분류가 시작되었습니다. 완료까지 약 {len(unclassified) * 2}초 소요됩니다.",
+        "count": len(unclassified),
+    }
 
 
 @router.get("", response_model=DocumentListResponse)
