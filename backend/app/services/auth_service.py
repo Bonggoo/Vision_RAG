@@ -65,9 +65,15 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
     - 헤더에 Authorization: Bearer <JWT> 형태로 들어오는 백엔드 JWT를 검증
     - 구글 계정으로 정상 로그인한 사용자라면 누구나 접근 허용 (화이트리스트 제거)
     """
-    # 로컬 개발 모드: JWT 토큰이 없으면 더미 유저로 처리 (로컬 테스트 편의성)
+    # 로컬 개발 모드: JWT 토큰이 없고 구글 클라이언트 ID가 없는 로컬 스토리지 모드인 경우에만 더미 유저 허용
     if not credentials and not settings.GOOGLE_CLIENT_ID:
-        return {"email": "local-dev@visionrag.app", "name": "Dev User", "picture": ""}
+        if settings.USE_LOCAL_STORAGE:
+            return {"email": "local-dev@visionrag.app", "name": "Dev User", "picture": ""}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="인증 헤더가 누락되었습니다."
+            )
 
     if not credentials:
         raise HTTPException(
