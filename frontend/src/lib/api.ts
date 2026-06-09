@@ -14,6 +14,68 @@ function getAuthHeaders(headers: Record<string, string> = {}): Record<string, st
   return headers;
 }
 
+// 토큰 갱신 동시 요청 방지를 위한 플래그 및 대기열
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+/** 리프레시 토큰으로 새 액세스 토큰 발급 시도 */
+async function tryRefreshToken(): Promise<string | null> {
+  const refreshToken = useAuthStore.getState().refreshToken;
+  if (!refreshToken) return null;
+
+  // 이미 갱신 중이면 대기열에 추가
+  if (isRefreshing) {
+    return new Promise((resolve) => {
+      refreshSubscribers.push(resolve);
+    });
+  }
+
+  isRefreshing = true;
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    // 스토어에 새 토큰 저장
+    useAuthStore.setState({
+      token: data.access_token,
+      refreshToken: data.refresh_token,
+    });
+
+    // 대기 중인 요청들에 새 토큰 전달
+    refreshSubscribers.forEach((cb) => cb(data.access_token));
+    refreshSubscribers = [];
+
+    return data.access_token;
+  } catch {
+    return null;
+  } finally {
+    isRefreshing = false;
+  }
+}
+
+/** fetch 래퍼: 401 응답 시 토큰 갱신 후 자동 재시도 */
+async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const headers = getAuthHeaders((options.headers as Record<string, string>) || {});
+  let res = await fetch(url, { ...options, headers });
+
+  if (res.status === 401) {
+    const newToken = await tryRefreshToken();
+    if (newToken) {
+      headers["Authorization"] = `Bearer ${newToken}`;
+      res = await fetch(url, { ...options, headers });
+    } else {
+      useAuthStore.getState().logout();
+    }
+  }
+  return res;
+}
+
 /** 파일의 SHA-256 해시 계산 (Web Crypto API 사용) */
 async function calculateFileHash(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
@@ -60,9 +122,9 @@ export const api = {
       const fileHash = await calculateFileHash(file);
       
       // 2. Pre-flight 검증 API 호출
-      const preflightRes = await fetch(`${API_BASE_URL}/upload/preflight`, {
+      const preflightRes = await authFetch(`${API_BASE_URL}/upload/preflight`, {
         method: "POST",
-        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           file_hash: fileHash,
           file_size: file.size,
@@ -94,9 +156,9 @@ export const api = {
       await uploadToGCS(file, upload_url, onProgress);
       
       // 5. 비동기 AI 분석 파이프라인 트리거 (Phase C)
-      const analyzeRes = await fetch(`${API_BASE_URL}/upload/analyze`, {
+      const analyzeRes = await authFetch(`${API_BASE_URL}/upload/analyze`, {
         method: "POST",
-        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           document_id,
           filename: file.name,
@@ -180,9 +242,7 @@ export const api = {
 
   /** 전체 문서 목록 조회 */
   getDocuments: async () => {
-    const res = await fetch(`${API_BASE_URL}/documents`, {
-      headers: getAuthHeaders(),
-    });
+    const res = await authFetch(`${API_BASE_URL}/documents`);
     if (!res.ok) throw new Error("Failed to fetch documents");
     return res.json();
   },
@@ -192,10 +252,11 @@ export const api = {
     filename?: string;
     manufacturer?: string;
     model_series?: string;
+    doc_type?: string;
   }) => {
-    const res = await fetch(`${API_BASE_URL}/documents/${docId}`, {
+    const res = await authFetch(`${API_BASE_URL}/documents/${docId}`, {
       method: "PATCH",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!res.ok) {
@@ -211,9 +272,8 @@ export const api = {
 
   /** 문서 삭제 */
   deleteDocument: async (docId: string) => {
-    const res = await fetch(`${API_BASE_URL}/documents/${docId}`, {
+    const res = await authFetch(`${API_BASE_URL}/documents/${docId}`, {
       method: "DELETE",
-      headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to delete document");
     return res.json();
@@ -221,9 +281,7 @@ export const api = {
 
   /** 문서 다운로드 */
   downloadDocument: async (docId: string) => {
-    const res = await fetch(`${API_BASE_URL}/documents/${docId}/download-url`, {
-      headers: getAuthHeaders(),
-    });
+    const res = await authFetch(`${API_BASE_URL}/documents/${docId}/download-url`);
     if (!res.ok) throw new Error("문서 다운로드에 실패했습니다.");
     const data = await res.json();
     
@@ -240,9 +298,8 @@ export const api = {
 
   /** 미분류 문서 일괄 재분류 */
   reclassifyDocuments: async (): Promise<{ status: string; message: string; count: number }> => {
-    const res = await fetch(`${API_BASE_URL}/documents/reclassify`, {
+    const res = await authFetch(`${API_BASE_URL}/documents/reclassify`, {
       method: "POST",
-      headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("재분류 요청에 실패했습니다.");
     return res.json();

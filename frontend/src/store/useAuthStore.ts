@@ -10,6 +10,7 @@ interface UserProfile {
 
 interface AuthStore {
   token: string | null;
+  refreshToken: string | null;
   user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -27,6 +28,7 @@ export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
       token: null,
+      refreshToken: null,
       user: null,
       isAuthenticated: false,
       isLoading: false,
@@ -52,6 +54,7 @@ export const useAuthStore = create<AuthStore>()(
           
           set({
             token: data.access_token,
+            refreshToken: data.refresh_token ?? null,
             user: {
               email: data.email,
               name: data.name,
@@ -66,6 +69,7 @@ export const useAuthStore = create<AuthStore>()(
           console.error("🔒 Google OAuth Login Error:", error);
           set({
             token: null,
+            refreshToken: null,
             user: null,
             isAuthenticated: false,
             isLoading: false,
@@ -81,6 +85,7 @@ export const useAuthStore = create<AuthStore>()(
 
         set({
           token: null,
+          refreshToken: null,
           user: null,
           isAuthenticated: false,
           isLoading: false,
@@ -97,16 +102,16 @@ export const useAuthStore = create<AuthStore>()(
       storage: {
         getItem: (name: string) => {
           if (typeof window === "undefined") return null;
-          const value = sessionStorage.getItem(name);
+          const value = localStorage.getItem(name);
           return value ? JSON.parse(value) : null;
         },
         setItem: (name: string, value: unknown) => {
           if (typeof window === "undefined") return;
-          sessionStorage.setItem(name, JSON.stringify(value));
+          localStorage.setItem(name, JSON.stringify(value));
         },
         removeItem: (name: string) => {
           if (typeof window === "undefined") return;
-          sessionStorage.removeItem(name);
+          localStorage.removeItem(name);
         },
       },
     }
