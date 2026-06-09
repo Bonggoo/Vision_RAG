@@ -8,6 +8,7 @@
 - [ ] 🌐 커스텀 도메인 연결 (Cloud Run URL 노출 해결)
 
 ## 완료된 작업 (Completed Tasks)
+- [x] 🛡️ 중장기 보안 개선 로드맵 문서 작성 (`doc/security_roadmap.md` 신설)
 - [x] 🛡️ 시스템 운영 및 개인정보 보호를 위한 보안 개선 사항 조치 (보안 리포트 가이드 기반)
   - [x] 백엔드 auth_service.py 로컬 우회 조건 강화 (프로덕션 차단)
   - [x] 백엔드 main.py 기동 시 JWT_SECRET 기본값 위협 강제 차단 구현
