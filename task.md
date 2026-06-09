@@ -1,11 +1,21 @@
 # 📋 To Do List (Vision RAG)
 
+## 진행 중인 작업 (In Progress Tasks)
+
 ## 향후 작업 (Next Tasks)
 - [ ] 🎨 UI 전면 리디자인 (로고, 색상 팔레트, 레이아웃 등)
 - [ ] 📛 앱 이름/브랜딩 변경 (Vision RAG → 새 이름)
 - [ ] 🌐 커스텀 도메인 연결 (Cloud Run URL 노출 해결)
 
 ## 완료된 작업 (Completed Tasks)
+- [x] 📑 모든 문서 최신화 (PRD, API Contract, README, 로드맵, 개선 요구사항 정의서 등)
+  - [x] 백엔드 및 프론트엔드 최신 구현 스펙 파악 완료
+  - [x] `task.md` 구조 정리 및 문서화 계획 추가
+  - [x] `doc/PRD.md` 최신화 (인증, 멀티테넌시, PWA 등 구현 사항 반영)
+  - [x] `doc/API_Contract.md` 최신화 (인증, 비동기 업로드, 재분류, 다운로드 URL 등 엔드포인트 추가)
+  - [x] `doc/async_upload_roadmap.md` 및 `doc/gcs_signed_url_roadmap.md` 완료 보고서로 전환
+  - [x] `doc/improvement_list.md` 구현 완료 사항 업데이트
+  - [x] `README.md` 최신 기능 및 아키텍처, 디렉토리 구조 동기화
 - [x] 👥 사용자별 RAG 개인화(멀티테넌시) 시스템 구축
   - [x] 백엔드: `metadata_service.py`에 `owner_email` 필터링 및 소유권 검증 로직 구현
   - [x] 백엔드: `/upload`, `/documents` 등의 라우터에 현재 유저 이메일 연동 및 격리 필터 적용
@@ -22,8 +32,6 @@
   - [x] Step 0 + Phase 0+1 병합 (2회 LLM → 1회) → ~2~3초 절감
   - [x] Phase 2 비동기화 (이벤트 루프 블로킹 방지)
   - [x] 문서 선택에 제조사/모델 시리즈 정보 + 대화 이력 추가
-
-## 완료된 작업 (Completed Tasks)
 - [x] 🔐 구글 OAuth & 화이트리스트 보안 인증 체계 구축
   - [x] 백엔드: JWT 토큰 생성 및 검증 모듈 추가 (`pyjwt` 설치 및 `auth_service.py`)
   - [x] 백엔드: 구글 ID Token 검증 및 화이트리스트 이메일 확인 API (`/api/auth/google`) 구현
@@ -33,8 +41,6 @@
   - [x] 프론트엔드: 고급 글래스모피즘 로그인 화면 UI 및 Google API 연동 (`/login` 페이지)
   - [x] 프론트엔드: 비로그인 상태일 때 `/login` 페이지로 강제 리다이렉트하는 가드 구현
   - [x] 전체 빌드 및 다중 브라우저 활용 교차 로그인(인가/비인가 계정) 검증 테스트
-
-## 완료된 작업 (Completed Tasks)
 - [x] 답변 품질 테스트 프로그램 개발 및 실행 🧪
   - [x] doc/질문.md, doc/질문2.md 파싱 유틸리티 구현
   - [x] 백엔드 API (/chat/stream) 연동 테스트 클라이언트 개발
@@ -47,16 +53,12 @@
   - [x] 자동 배포 서비스 계정 IAM 권한(Storage, Artifact, Container, Run Admin, Log) 정격 정밀 보강 완료 🏛️
   - [x] 깃허브 연동 기반 백엔드 자동 빌드 및 실서버 최종 배포 완수 (`SUCCESS` 완료) 🚀
 - [x] 챗 서비스 활용 가이드라인 배포 (완료)
-
-## 완료된 작업 (Completed Tasks)
 - [x] 장비 알람 이미지 분석 RAG 기능 구현 완료 🚀
   - [x] 백엔드: ChatRequest 스펙 확장 및 이미지 분석(Gemini Vision) 비동기 함수 구현
   - [x] 백엔드: agentic_graph.py 이미지 기반 자동 문서 매칭 및 질문 리라이팅 전처리 연동
   - [x] 프론트엔드: useChatStore 및 ChatMessage 이미지 보존 및 렌더링 추가
   - [x] 프론트엔드: ChatInput 모바일 카메라/갤러리 사진 첨부 및 썸네일 미리보기 UI 구현
   - [x] 프론트엔드: page.tsx 이미지 Base64 취합 및 SSE API 전송 연동
-
-## 완료된 작업 (Completed Tasks)
 - [x] 문서 관리 고도화 및 기존 문서 마이그레이션 (총 10개 기능 + 마이그레이션)
   - [x] 1. 백엔드: 커스텀 예외 정의 (`app/exceptions.py`)
   - [x] 2. 백엔드: AI 기반 제조사/모델 시리즈 자동 분류 기능 (`app/services/agent_service.py` 수정)
@@ -82,4 +84,5 @@
 - [x] 프리미엄 UI 및 멀티턴 대화 구현
 - [x] 프로젝트 문서(README, PRD, API Contract) 최신화
 - [x] GitHub 원격 저장소 연동
+
 
