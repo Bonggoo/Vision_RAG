@@ -48,7 +48,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
+    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+    return encoded_jwt
+
+def create_refresh_token(email: str) -> str:
+    """JWT Refresh Token 생성 (email만 포함)"""
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode = {"email": email, "exp": expire, "type": "refresh"}
     encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
 
@@ -72,6 +79,14 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
     try:
         # JWT 해독
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        
+        # Refresh Token으로 API 접근 차단
+        if payload.get("type") != "access":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Access Token이 아닙니다."
+            )
+        
         email = payload.get("email", "").lower()
         if not email:
             raise HTTPException(
@@ -96,4 +111,31 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="올바르지 않은 세션 토큰입니다."
+        )
+
+def verify_refresh_token(refresh_token: str) -> str:
+    """Refresh Token 검증 후 email 반환"""
+    try:
+        payload = jwt.decode(refresh_token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh Token이 아닙니다."
+            )
+        email = payload.get("email", "").lower()
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh Token에 이메일 정보가 누락되었습니다."
+            )
+        return email
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh Token이 만료되었습니다. 다시 로그인해 주세요."
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="올바르지 않은 Refresh Token입니다."
         )
