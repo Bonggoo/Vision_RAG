@@ -3,11 +3,11 @@
 ## 진행 중인 작업 (In Progress Tasks)
 
 ## 향후 작업 (Next Tasks)
-- [ ] 🎨 UI 전면 리디자인 (로고, 색상 팔레트, 레이아웃 등)
-- [ ] 📛 앱 이름/브랜딩 변경 (Vision RAG → 새 이름)
 - [ ] 🌐 커스텀 도메인 연결 (Cloud Run URL 노출 해결)
 
 ## 완료된 작업 (Completed Tasks)
+- [x] 📛 앱 이름/브랜딩 변경 (Vision RAG → TechNote 테크노트)
+- [x] 🎨 UI 전면 리디자인 (TechNote 브랜딩의 글래스모피즘/다크모드 적용)
 - [x] 🛡️ 중장기 보안 개선 로드맵 문서 작성 (`doc/security_roadmap.md` 신설)
 - [x] 🛡️ 시스템 운영 및 개인정보 보호를 위한 보안 개선 사항 조치 (보안 리포트 가이드 기반)
   - [x] 백엔드 auth_service.py 로컬 우회 조건 강화 (프로덕션 차단)

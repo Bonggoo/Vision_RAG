@@ -1,4 +1,4 @@
-# 📑 Vision RAG
+# 📑 TechNote (테크노트)
 
 > **Vectorless Agentic Vision RAG** — 벡터 DB 없이 AI 에이전트가 매뉴얼을 탐색하는 차세대 검색 시스템
 
@@ -122,7 +122,7 @@ npm run dev
 ## 📁 프로젝트 구조
 
 ```
-Vision_RAG/
+TechNote/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py                   # FastAPI 앱 + CORS + 라우터 등록
@@ -166,7 +166,8 @@ Vision_RAG/
     ├── API_Contract.md               # API 규약
     ├── async_upload_roadmap.md       # 대용량 비동기 GCS 업로드 아키텍처 보고서
     ├── gcs_signed_url_roadmap.md     # GCS Signed URL 고속 다운로드 보고서
-    └── improvement_list.md           # 개선 및 고도화 요구사항 정의서
+    ├── improvement_list.md           # 개선 및 고도화 요구사항 정의서
+    └── security_roadmap.md           # 중장기 보안 개선 로드맵 보고서
 ```
 
 ---
