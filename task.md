@@ -3,9 +3,11 @@
 ## 진행 중인 작업 (In Progress Tasks)
 
 ## 향후 작업 (Next Tasks)
-- [ ] 🌐 커스텀 도메인 연결 (Cloud Run URL 노출 해결)
 
 ## 완료된 작업 (Completed Tasks)
+- [x] 🌐 커스텀 도메인 연결 (Cloud Run URL 노출 해결)
+  - [x] 백엔드(Cloud Run) 커스텀 도메인 매핑 설정 가이드 및 DNS 레코드 연동 완료 (`doc/custom_domain_mapping.md` 생성)
+  - [x] 백엔드 및 프론트엔드 환경변수 연동 가이드라인 정리 완료
 - [x] 🛡️ Refresh Token HttpOnly 쿠키 전환 (보안 로드맵 Phase 1)
   - [x] 백엔드: 쿠키 옵션 유틸 및 로그아웃 API 구현
   - [x] 백엔드: `/auth/google` 및 `/auth/refresh` API 쿠키 기반으로 변경
