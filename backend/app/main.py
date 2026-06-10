@@ -70,12 +70,14 @@ async def startup_event():
         import sys
         sys.exit("Critical Security Error: Please set a secure JWT_SECRET environment variable.")
 
-    # 2. 서버 기동 시 기존 레거시 제조사 정규화 마이그레이션 자동 수행
+    # 2. 서버 기동 시 기존 레거시 제조사 정규화 마이그레이션 자동 수행 (부팅 지연 예방을 위해 백그라운드 태스크로 처리)
     try:
+        import asyncio
         from app.services.metadata_service import migrate_legacy_manufacturers
-        migrate_legacy_manufacturers()
+        asyncio.create_task(asyncio.to_thread(migrate_legacy_manufacturers))
+        logger.info("🔄 레거시 제조사 정규화 마이그레이션을 백그라운드에서 백그라운드 태스크로 실행 중...")
     except Exception as e:
-        logger.error(f"❌ 시작 마이그레이션 실패: {e}")
+        logger.error(f"❌ 시작 마이그레이션 비동기 실행 실패: {e}")
 
 
 @app.get("/")
