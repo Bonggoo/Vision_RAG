@@ -63,7 +63,14 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    # 서버 기동 시 기존 레거시 제조사 정규화 마이그레이션 자동 수행
+    # 1. JWT_SECRET 기본값 위협 검증
+    DEFAULT_SECRET = "vision-rag-jwt-secret-key-change-in-production-12345"
+    if settings.JWT_SECRET == DEFAULT_SECRET and not settings.USE_LOCAL_STORAGE:
+        logger.critical("❌ [보안 위협] 프로덕션 환경에서 하드코딩된 레거시 JWT_SECRET 키가 감지되었습니다. 서버 실행을 중단합니다.")
+        import sys
+        sys.exit("Critical Security Error: Please set a secure JWT_SECRET environment variable.")
+
+    # 2. 서버 기동 시 기존 레거시 제조사 정규화 마이그레이션 자동 수행
     try:
         from app.services.metadata_service import migrate_legacy_manufacturers
         migrate_legacy_manufacturers()

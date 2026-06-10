@@ -1,6 +1,10 @@
 [
   {
-    "origin": ["*"],
+    "origin": [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "https://vision-rag-two.vercel.app"
+    ],
     "method": ["GET", "PUT"],
     "responseHeader": ["Content-Type", "Content-Disposition"],
     "maxAgeSeconds": 3600

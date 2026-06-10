@@ -3,11 +3,26 @@
 ## 진행 중인 작업 (In Progress Tasks)
 
 ## 향후 작업 (Next Tasks)
-- [ ] 🎨 UI 전면 리디자인 (로고, 색상 팔레트, 레이아웃 등)
-- [ ] 📛 앱 이름/브랜딩 변경 (Vision RAG → 새 이름)
-- [ ] 🌐 커스텀 도메인 연결 (Cloud Run URL 노출 해결)
 
 ## 완료된 작업 (Completed Tasks)
+- [x] 🌐 커스텀 도메인 연결 (Cloud Run URL 노출 해결)
+  - [x] 백엔드(Cloud Run) 커스텀 도메인 매핑 설정 가이드 및 DNS 레코드 연동 완료 (`doc/custom_domain_mapping.md` 생성)
+  - [x] 백엔드 및 프론트엔드 환경변수 연동 가이드라인 정리 완료
+- [x] 🛡️ Refresh Token HttpOnly 쿠키 전환 (보안 로드맵 Phase 1)
+  - [x] 백엔드: 쿠키 옵션 유틸 및 로그아웃 API 구현
+  - [x] 백엔드: `/auth/google` 및 `/auth/refresh` API 쿠키 기반으로 변경
+  - [x] 프론트엔드: `useAuthStore`에서 `refreshToken` 스토어 변수 제거 및 로그아웃 수정
+  - [x] 프론트엔드: `api.ts` fetch 래퍼에 `credentials: "include"` 옵션 추가 및 갱신 API 수정
+  - [x] 전체 빌드 및 로컬 테스트 검증 (Next.js 빌드 성공 확인)
+- [x] 📛 앱 이름/브랜딩 변경 (Vision RAG → TechNote 테크노트)
+- [x] 🎨 UI 전면 리디자인 (TechNote 브랜딩의 글래스모피즘/다크모드 적용)
+- [x] 🛡️ 중장기 보안 개선 로드맵 문서 작성 (`doc/security_roadmap.md` 신설)
+- [x] 🛡️ 시스템 운영 및 개인정보 보호를 위한 보안 개선 사항 조치 (보안 리포트 가이드 기반)
+  - [x] 백엔드 auth_service.py 로컬 우회 조건 강화 (프로덕션 차단)
+  - [x] 백엔드 main.py 기동 시 JWT_SECRET 기본값 위협 강제 차단 구현
+  - [x] gcs_cors.json CORS 오리진 제한 수정
+  - [x] trigger_config.yaml 내 하드코딩 민감 정보 제거 및 더미 처리
+  - [x] 로컬 실행 테스트 및 보안 기능 검증
 - [x] 📑 모든 문서 최신화 (PRD, API Contract, README, 로드맵, 개선 요구사항 정의서 등)
   - [x] 백엔드 및 프론트엔드 최신 구현 스펙 파악 완료
   - [x] `task.md` 구조 정리 및 문서화 계획 추가

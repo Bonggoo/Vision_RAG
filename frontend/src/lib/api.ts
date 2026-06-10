@@ -20,9 +20,6 @@ let refreshSubscribers: Array<(token: string) => void> = [];
 
 /** 리프레시 토큰으로 새 액세스 토큰 발급 시도 */
 async function tryRefreshToken(): Promise<string | null> {
-  const refreshToken = useAuthStore.getState().refreshToken;
-  if (!refreshToken) return null;
-
   // 이미 갱신 중이면 대기열에 추가
   if (isRefreshing) {
     return new Promise((resolve) => {
@@ -32,19 +29,18 @@ async function tryRefreshToken(): Promise<string | null> {
 
   isRefreshing = true;
   try {
+    // 💡 credentials: "include"로 쿠키 자동 전송
     const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      credentials: "include",
     });
 
     if (!res.ok) return null;
 
     const data = await res.json();
-    // 스토어에 새 토큰 저장
+    // 스토어에 새 Access Token 저장
     useAuthStore.setState({
       token: data.access_token,
-      refreshToken: data.refresh_token,
     });
 
     // 대기 중인 요청들에 새 토큰 전달
@@ -62,13 +58,19 @@ async function tryRefreshToken(): Promise<string | null> {
 /** fetch 래퍼: 401 응답 시 토큰 갱신 후 자동 재시도 */
 async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const headers = getAuthHeaders((options.headers as Record<string, string>) || {});
-  let res = await fetch(url, { ...options, headers });
+  const fetchOptions: RequestInit = {
+    ...options,
+    headers,
+    credentials: "include" // 크로스 오리진 쿠키 공유를 위해 필수 지정
+  };
+  let res = await fetch(url, fetchOptions);
 
   if (res.status === 401) {
     const newToken = await tryRefreshToken();
     if (newToken) {
-      headers["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(url, { ...options, headers });
+      const newHeaders = getAuthHeaders((options.headers as Record<string, string>) || {});
+      newHeaders["Authorization"] = `Bearer ${newToken}`;
+      res = await fetch(url, { ...fetchOptions, headers: newHeaders });
     } else {
       useAuthStore.getState().logout();
     }
@@ -285,15 +287,32 @@ export const api = {
     if (!res.ok) throw new Error("문서 다운로드에 실패했습니다.");
     const data = await res.json();
     
-    const downloadUrl = data.mode === "gcs" ? data.url : `${API_BASE_URL}${data.url}`;
-    
-    // a 태그를 생성하여 직접 다운로드 트리거 (Safari 팝업 차단 예방 및 cross-origin 대응)
-    const a = document.createElement("a");
-    a.href = downloadUrl;
-    a.download = data.filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    if (data.mode === "gcs") {
+      // GCS 모드일 때는 Signed URL을 브라우저에 그대로 위임 (서명이 쿼리에 포함되어 헤더 불필요)
+      const a = document.createElement("a");
+      a.href = data.url;
+      a.download = data.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      // 로컬 모드일 때는 인증 헤더를 동반하여 파일 바이너리를 직접 가져와 다운로드
+      const fileRes = await authFetch(`${API_BASE_URL}${data.url}`);
+      if (!fileRes.ok) throw new Error("문서 파일 다운로드에 실패했습니다.");
+      
+      const blob = await fileRes.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = data.filename;
+      document.body.appendChild(a);
+      a.click();
+      
+      // 메모리 유수 방지를 위해 해제
+      window.URL.revokeObjectURL(blobUrl);
+      document.body.removeChild(a);
+    }
   },
 
   /** 미분류 문서 일괄 재분류 */

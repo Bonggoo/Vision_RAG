@@ -10,14 +10,13 @@ interface UserProfile {
 
 interface AuthStore {
   token: string | null;
-  refreshToken: string | null;
   user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   errorMsg: string | null;
   
   loginWithGoogleCredential: (credential: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -28,7 +27,6 @@ export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
       token: null,
-      refreshToken: null,
       user: null,
       isAuthenticated: false,
       isLoading: false,
@@ -43,6 +41,7 @@ export const useAuthStore = create<AuthStore>()(
               "Content-Type": "application/json",
             },
             body: JSON.stringify({ credential }),
+            credentials: "include", // 쿠키를 수신하기 위해 credentials 포함
           });
 
           if (!response.ok) {
@@ -54,7 +53,6 @@ export const useAuthStore = create<AuthStore>()(
           
           set({
             token: data.access_token,
-            refreshToken: data.refresh_token ?? null,
             user: {
               email: data.email,
               name: data.name,
@@ -69,7 +67,6 @@ export const useAuthStore = create<AuthStore>()(
           console.error("🔒 Google OAuth Login Error:", error);
           set({
             token: null,
-            refreshToken: null,
             user: null,
             isAuthenticated: false,
             isLoading: false,
@@ -79,13 +76,22 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      logout: () => {
+      logout: async () => {
         // 채팅 세션 전체 초기화 (로그아웃 시 대화 기록 삭제)
         useChatStore.getState().clearAllSessions();
 
+        try {
+          // 백엔드 세션 파괴 (Refresh Token 쿠키 삭제)
+          await fetch(`${API_BASE_URL}/api/auth/logout`, {
+            method: "POST",
+            credentials: "include",
+          });
+        } catch (error) {
+          console.error("🔒 Failed to notify logout to backend:", error);
+        }
+
         set({
           token: null,
-          refreshToken: null,
           user: null,
           isAuthenticated: false,
           isLoading: false,

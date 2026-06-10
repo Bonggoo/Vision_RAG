@@ -278,8 +278,22 @@ async def _extract_document_classification(pdf_path: str, fallback: str) -> dict
             # PDF 메타데이터에서 title 확인
             pdf_meta = doc.metadata or {}
             pdf_title = (pdf_meta.get("title") or "").strip()
+            
+            # 노이즈 패턴 정의 (예: Microsoft Word - cover.doc, 00]앞표지.cdr, untitled 등)
+            bad_title_pattern = re.compile(
+                r"^(microsoft word\s*-\s*)"
+                r"|^(한글\s*-\s*)"
+                r"|^(adobe indesign\s*)"
+                r"|untitled|document|cover|제목\s*없음|작업\s*일지"
+                r"|\.(doc|docx|pdf|cdr|xls|xlsx|ppt|pptx|hwp|png|jpg)$",
+                re.IGNORECASE
+            )
+            
             if pdf_title and len(pdf_title) > 5 and pdf_title != fallback:
-                result["title"] = pdf_title
+                if not bad_title_pattern.search(pdf_title):
+                    result["title"] = pdf_title
+                else:
+                    logger.info(f"🚫 무시된 PDF 메타데이터 노이즈 제목: '{pdf_title}'")
             
             # 첫 페이지 텍스트에서 제목 조합
             if not result["title"] and doc.page_count > 0:
