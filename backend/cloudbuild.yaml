@@ -20,7 +20,7 @@ steps:
       - '--region'
       - 'asia-northeast3'
       - '--allow-unauthenticated'
-      - '--set-env-vars=^##^GEMINI_API_KEY=$_GEMINI_API_KEY##ALLOWED_ORIGINS=https://vision-rag-two.vercel.app,http://localhost:8374##GOOGLE_CLIENT_ID=$_GOOGLE_CLIENT_ID'
+      - '--set-env-vars=^##^GEMINI_API_KEY=$_GEMINI_API_KEY##ALLOWED_ORIGINS=https://vision-rag-two.vercel.app,http://localhost:8374##GOOGLE_CLIENT_ID=$_GOOGLE_CLIENT_ID##JWT_SECRET=vision-rag-production-secure-secret-key-9b1cb9e-ff1540'
 
 options:
   logging: CLOUD_LOGGING_ONLY
