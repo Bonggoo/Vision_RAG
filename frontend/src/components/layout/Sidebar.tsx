@@ -27,6 +27,19 @@ import { useDocumentStore, Document } from "@/store/useDocumentStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { api } from "@/lib/api";
 
+// 💡 PDF 메타데이터 찌꺼기 등을 제외하고 가독성 있는 파일명을 결정하는 헬퍼 함수
+export const getDisplayFilename = (doc: any): string => {
+  const badTitlePattern = /^(microsoft word\s*-\s*)|^(한글\s*-\s*)|^(adobe indesign\s*)|untitled|document|cover|제목\s*없음|\.(doc|docx|pdf|cdr|xls|xlsx|ppt|pptx|hwp|png|jpg)$/i;
+  
+  if (doc.filename && badTitlePattern.test(doc.filename)) {
+    if (doc.original_filename) {
+      // original_filename에서 .pdf 확장자 제거
+      return doc.original_filename.replace(/\.pdf$/i, "");
+    }
+  }
+  return doc.filename;
+};
+
 export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   // 💡 Hydration 에러 방지: 마운트 상태 추가
   const [isMounted, setIsMounted] = useState(false);
@@ -109,14 +122,15 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const handleDownloadDoc = (e: React.MouseEvent, doc: any) => {
     e.stopPropagation();
     
+    const displayFilename = getDisplayFilename(doc);
     // 다운로드 파일명 조합
     const parts = [
       doc.manufacturer,
       doc.model_series,
-      doc.doc_type || doc.filename
+      doc.doc_type || displayFilename
     ].filter(Boolean);
     
-    const fallbackName = doc.filename.endsWith(".pdf") ? doc.filename : `${doc.filename}.pdf`;
+    const fallbackName = displayFilename.endsWith(".pdf") ? displayFilename : `${displayFilename}.pdf`;
     let downloadName = parts.length > 0 ? `${parts.join("_")}` : fallbackName;
     if (parts.length > 0 && !downloadName.endsWith(".pdf")) {
       downloadName += ".pdf";
@@ -240,7 +254,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     setEditingDocId(doc.document_id);
     setEditingMfg(doc.manufacturer || "");
     setEditingModel(doc.model_series || "");
-    setEditingName(doc.filename);
+    setEditingName(getDisplayFilename(doc));
   };
 
   const handleSaveMeta = async (docId: string) => {
@@ -317,7 +331,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     if (!query) return true;
     
     return (
-      doc.filename.toLowerCase().includes(query) ||
+      getDisplayFilename(doc).toLowerCase().includes(query) ||
       (doc.manufacturer || "").toLowerCase().includes(query) ||
       (doc.model_series || "").toLowerCase().includes(query)
     );
@@ -589,7 +603,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
             
             <div className="flex-1 min-w-0">
               <p className="text-xs md:text-[11px] font-medium text-foreground/80 group-hover:text-foreground line-clamp-3 break-all leading-tight pr-1">
-                {doc.filename}
+                {getDisplayFilename(doc)}
               </p>
               
               {/* 메타 배지 및 상태 배지 분기 */}
@@ -809,7 +823,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                   className="flex items-center gap-1.8 px-2 py-1 rounded-md bg-background/40 border border-amber-500/5 text-[10px] text-foreground/70"
                 >
                   <Loader2 className="w-2.5 h-2.5 text-amber-500 animate-spin shrink-0" />
-                  <span className="truncate flex-1 font-medium leading-tight">{doc.filename}</span>
+                  <span className="truncate flex-1 font-medium leading-tight">{getDisplayFilename(doc)}</span>
                   <span className="text-[8px] text-amber-500 shrink-0 font-semibold bg-amber-500/10 px-1 py-0.2 rounded">분석 중...</span>
                 </div>
               ))}

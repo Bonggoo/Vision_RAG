@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 export interface Document {
   document_id: string;
   filename: string;
+  original_filename?: string; // 💡 실제 원본 파일명 저장용 필드 추가
   total_pages: number;
   uploaded_at?: string;
   status: string;
