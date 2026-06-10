@@ -5,6 +5,12 @@
 ## 향후 작업 (Next Tasks)
 
 ## 완료된 작업 (Completed Tasks)
+- [x] 📑 사이드바 문서 정렬 방식(최신순/이름순) 필터 UI 및 2단 트리 정렬 기능 구현
+  - [x] `Sidebar.tsx` 내에 `sortBy` 상태 및 정렬 방식 토글 UI 추가
+  - [x] 최신순/이름순 정렬 헬퍼 함수 (`sortByDate`, `getLatestDateInDocs`) 구현
+  - [x] 플랫 리스트 및 제조사 > 모델 2단 트리 그룹의 동적 정렬 로직 연동
+  - [x] 로컬 환경 빌드 및 수동 검증 테스트 실행 (Turbopack 빌드 성공 확인)
+  - [x] 변경사항 Git 커밋 및 PR 생성 (gh CLI)
 - [x] 🌐 커스텀 도메인 연결 (Cloud Run URL 노출 해결)
   - [x] 백엔드(Cloud Run) 커스텀 도메인 매핑 설정 가이드 및 DNS 레코드 연동 완료 (`doc/custom_domain_mapping.md` 생성)
   - [x] 백엔드 및 프론트엔드 환경변수 연동 가이드라인 정리 완료

@@ -47,6 +47,19 @@ export const sortByName = (a: string, b: string): number => {
   return a.localeCompare(b, "ko", { sensitivity: "base", numeric: true });
 };
 
+// 💡 업로드 날짜 기준 정렬 (최신 등록순)
+export const sortByDate = (a: any, b: any): number => {
+  const dateA = a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0;
+  const dateB = b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0;
+  return dateB - dateA;
+};
+
+// 💡 문서 배열 내에서 가장 최신 업로드 시간을 구하는 헬퍼 함수
+export const getLatestDateInDocs = (docs: any[]): number => {
+  if (docs.length === 0) return 0;
+  return Math.max(...docs.map(d => d.uploaded_at ? new Date(d.uploaded_at).getTime() : 0));
+};
+
 export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   // 💡 Hydration 에러 방지: 마운트 상태 추가
   const [isMounted, setIsMounted] = useState(false);
@@ -94,6 +107,9 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
   // 업로드 진행률 애니메이션용 상태
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // 문서 정렬 방식 상태 (latest: 최신순, name: 이름순)
+  const [sortBy, setSortBy] = useState<"latest" | "name">("latest");
 
   // 💡 브라우저 마운트 완료 후 렌더링
   useEffect(() => {
@@ -397,9 +413,12 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
     // 💡 전체 문서 개수가 3개 이하이거나 검색 결과가 3개 이하일 때는 트리 구조 대신 플랫 리스트로 표시
     if (completedDocs.length <= 3 || completedFilteredDocs.length <= 3) {
-      const sortedFlatDocs = [...completedFilteredDocs].sort((a, b) =>
-        sortByName(getDisplayFilename(a), getDisplayFilename(b))
-      );
+      const sortedFlatDocs = [...completedFilteredDocs].sort((a, b) => {
+        if (sortBy === "latest") {
+          return sortByDate(a, b);
+        }
+        return sortByName(getDisplayFilename(a), getDisplayFilename(b));
+      });
       return (
         <div className="space-y-1">
           {sortedFlatDocs.map((doc) => renderSingleDocItem(doc))}
@@ -407,10 +426,17 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       );
     }
 
-    // 트리 2단 그룹 렌더링 (제조사 이름 오름차순 정렬)
-    const sortedManufacturers = Object.entries(groupedDocs).sort(([mfgA], [mfgB]) =>
-      sortByName(mfgA, mfgB)
-    );
+    // 트리 2단 그룹 렌더링 (제조사 이름 오름차순 혹은 최신 업로드순 정렬)
+    const sortedManufacturers = Object.entries(groupedDocs).sort(([mfgA, modelsA], [mfgB, modelsB]) => {
+      if (mfgA === "미분류") return 1;
+      if (mfgB === "미분류") return -1;
+      if (sortBy === "latest") {
+        const docsA = Object.values(modelsA).flat();
+        const docsB = Object.values(modelsB).flat();
+        return getLatestDateInDocs(docsB) - getLatestDateInDocs(docsA);
+      }
+      return sortByName(mfgA, mfgB);
+    });
 
     return (
       <div className="space-y-2.5">
@@ -477,7 +503,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
               {isMfgExpanded && (
                 <div className="pl-3.5 border-l border-border/40 ml-3.5 space-y-1 pt-0.5">
                   {Object.entries(models)
-                    .sort(([modelA], [modelB]) => sortByName(modelA, modelB))
+                    .sort(([modelA, docsA], [modelB, docsB]) => {
+                      if (modelA === "미분류") return 1;
+                      if (modelB === "미분류") return -1;
+                      if (sortBy === "latest") {
+                        return getLatestDateInDocs(docsB) - getLatestDateInDocs(docsA);
+                      }
+                      return sortByName(modelA, modelB);
+                    })
                     .map(([model, docs]) => {
                       const isModelExpanded = !!expandedModels[`${mfg}-${model}`];
                     
@@ -523,11 +556,16 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                           </div>
                         </div>
 
-                        {/* 문서 아이템 (가나다/알파벳 순 정렬) */}
+                        {/* 문서 아이템 (가나다/알파벳 순 정렬 혹은 최신순 정렬) */}
                         {isModelExpanded && (
                           <div className="pl-2 space-y-0.5 pt-0.5">
                             {[...docs]
-                              .sort((a, b) => sortByName(getDisplayFilename(a), getDisplayFilename(b)))
+                              .sort((a, b) => {
+                                if (sortBy === "latest") {
+                                  return sortByDate(a, b);
+                                }
+                                return sortByName(getDisplayFilename(a), getDisplayFilename(b));
+                              })
                               .map((doc) => renderSingleDocItem(doc))}
                           </div>
                         )}
@@ -822,9 +860,35 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
       {/* 업로드된 문서 목록 영역 */}
       <div className="px-3 pt-3 pb-1">
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground/70 px-2 py-1 uppercase tracking-widest">
-          <FileText className="w-3 h-3" />
-          업로드된 문서 {documents.length > 0 && `(${documents.length - analyzingDocuments.length})`}
+        <div className="flex items-center justify-between px-2 py-1">
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-widest">
+            <FileText className="w-3 h-3" />
+            업로드된 문서 {documents.length > 0 && `(${documents.length - analyzingDocuments.length})`}
+          </div>
+          
+          {/* 정렬 필터 UI */}
+          <div className="flex items-center gap-1 bg-accent/20 p-0.5 rounded-md border border-border/10 shrink-0">
+            <button
+              onClick={() => setSortBy("latest")}
+              className={`text-[9px] px-1.5 py-0.5 rounded transition-all font-medium ${
+                sortBy === "latest"
+                  ? "bg-background text-foreground shadow-sm font-semibold"
+                  : "text-muted-foreground/50 hover:text-foreground"
+              }`}
+            >
+              최신순
+            </button>
+            <button
+              onClick={() => setSortBy("name")}
+              className={`text-[9px] px-1.5 py-0.5 rounded transition-all font-medium ${
+                sortBy === "name"
+                  ? "bg-background text-foreground shadow-sm font-semibold"
+                  : "text-muted-foreground/50 hover:text-foreground"
+              }`}
+            >
+              이름순
+            </button>
+          </div>
         </div>
         
         {/* 🤖 AI 분석 중인 문서 전용 격리 섹션 */}
