@@ -287,15 +287,32 @@ export const api = {
     if (!res.ok) throw new Error("문서 다운로드에 실패했습니다.");
     const data = await res.json();
     
-    const downloadUrl = data.mode === "gcs" ? data.url : `${API_BASE_URL}${data.url}`;
-    
-    // a 태그를 생성하여 직접 다운로드 트리거 (Safari 팝업 차단 예방 및 cross-origin 대응)
-    const a = document.createElement("a");
-    a.href = downloadUrl;
-    a.download = data.filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    if (data.mode === "gcs") {
+      // GCS 모드일 때는 Signed URL을 브라우저에 그대로 위임 (서명이 쿼리에 포함되어 헤더 불필요)
+      const a = document.createElement("a");
+      a.href = data.url;
+      a.download = data.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      // 로컬 모드일 때는 인증 헤더를 동반하여 파일 바이너리를 직접 가져와 다운로드
+      const fileRes = await authFetch(`${API_BASE_URL}${data.url}`);
+      if (!fileRes.ok) throw new Error("문서 파일 다운로드에 실패했습니다.");
+      
+      const blob = await fileRes.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = data.filename;
+      document.body.appendChild(a);
+      a.click();
+      
+      // 메모리 유수 방지를 위해 해제
+      window.URL.revokeObjectURL(blobUrl);
+      document.body.removeChild(a);
+    }
   },
 
   /** 미분류 문서 일괄 재분류 */
