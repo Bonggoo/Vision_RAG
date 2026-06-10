@@ -40,6 +40,13 @@ export const getDisplayFilename = (doc: any): string => {
   return doc.filename;
 };
 
+// 💡 한글 가나다 및 영어 ABCD 사전식 오름차순 정렬을 위한 헬퍼 함수
+export const sortByName = (a: string, b: string): number => {
+  if (a === "미분류") return 1;
+  if (b === "미분류") return -1;
+  return a.localeCompare(b, "ko", { sensitivity: "base", numeric: true });
+};
+
 export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   // 💡 Hydration 에러 방지: 마운트 상태 추가
   const [isMounted, setIsMounted] = useState(false);
@@ -390,17 +397,24 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
     // 💡 전체 문서 개수가 3개 이하이거나 검색 결과가 3개 이하일 때는 트리 구조 대신 플랫 리스트로 표시
     if (completedDocs.length <= 3 || completedFilteredDocs.length <= 3) {
+      const sortedFlatDocs = [...completedFilteredDocs].sort((a, b) =>
+        sortByName(getDisplayFilename(a), getDisplayFilename(b))
+      );
       return (
         <div className="space-y-1">
-          {completedFilteredDocs.map((doc) => renderSingleDocItem(doc))}
+          {sortedFlatDocs.map((doc) => renderSingleDocItem(doc))}
         </div>
       );
     }
 
-    // 트리 2단 그룹 렌더링
+    // 트리 2단 그룹 렌더링 (제조사 이름 오름차순 정렬)
+    const sortedManufacturers = Object.entries(groupedDocs).sort(([mfgA], [mfgB]) =>
+      sortByName(mfgA, mfgB)
+    );
+
     return (
       <div className="space-y-2.5">
-        {Object.entries(groupedDocs).map(([mfg, models]) => {
+        {sortedManufacturers.map(([mfg, models]) => {
           const isMfgExpanded = !!expandedManufacturers[mfg];
           
           return (
@@ -462,8 +476,10 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
               {/* 2단 모델 시리즈 영역 */}
               {isMfgExpanded && (
                 <div className="pl-3.5 border-l border-border/40 ml-3.5 space-y-1 pt-0.5">
-                  {Object.entries(models).map(([model, docs]) => {
-                    const isModelExpanded = !!expandedModels[`${mfg}-${model}`];
+                  {Object.entries(models)
+                    .sort(([modelA], [modelB]) => sortByName(modelA, modelB))
+                    .map(([model, docs]) => {
+                      const isModelExpanded = !!expandedModels[`${mfg}-${model}`];
                     
                     return (
                       <div key={model} className="space-y-0.5">
@@ -507,10 +523,12 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                           </div>
                         </div>
 
-                        {/* 문서 아이템 */}
+                        {/* 문서 아이템 (가나다/알파벳 순 정렬) */}
                         {isModelExpanded && (
                           <div className="pl-2 space-y-0.5 pt-0.5">
-                            {docs.map((doc) => renderSingleDocItem(doc))}
+                            {[...docs]
+                              .sort((a, b) => sortByName(getDisplayFilename(a), getDisplayFilename(b)))
+                              .map((doc) => renderSingleDocItem(doc))}
                           </div>
                         )}
                       </div>
