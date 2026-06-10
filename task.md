@@ -5,6 +5,11 @@
 ## 향후 작업 (Next Tasks)
 
 ## 완료된 작업 (Completed Tasks)
+- [x] 📑 이름순 정렬 시 영어가 한글보다 우선 배치되도록 정렬 알고리즘 수정
+  - [x] `Sidebar.tsx` 내에 `isKoreanStart` 판별 함수 추가 및 `sortByName` 수정
+  - [x] Next.js 빌드 성공 여부 검증 (Turbopack 빌드 성공 확인)
+  - [x] 변경사항 Git 커밋 및 PR 생성 (gh CLI)
+  - [x] PR 머지 및 실서버 배포
 - [x] 📑 사이드바 문서 정렬 방식(최신순/이름순) 필터 UI 및 2단 트리 정렬 기능 구현
   - [x] `Sidebar.tsx` 내에 `sortBy` 상태 및 정렬 방식 토글 UI 추가
   - [x] 최신순/이름순 정렬 헬퍼 함수 (`sortByDate`, `getLatestDateInDocs`) 구현

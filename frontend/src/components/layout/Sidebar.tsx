@@ -40,10 +40,25 @@ export const getDisplayFilename = (doc: any): string => {
   return doc.filename;
 };
 
-// 💡 한글 가나다 및 영어 ABCD 사전식 오름차순 정렬을 위한 헬퍼 함수
+// 💡 문자열의 첫 글자가 한글인지 여부를 판별하는 헬퍼 함수
+const isKoreanStart = (str: string): boolean => {
+  if (!str) return false;
+  const firstChar = str.trim().charAt(0);
+  return /[\u3130-\u318F\uAC00-\uD7A3]/.test(firstChar);
+};
+
+// 💡 한글 가나다 및 영어 ABCD 사전식 오름차순 정렬을 위한 헬퍼 함수 (영어 우선 배치)
 export const sortByName = (a: string, b: string): number => {
   if (a === "미분류") return 1;
   if (b === "미분류") return -1;
+
+  const aIsKo = isKoreanStart(a);
+  const bIsKo = isKoreanStart(b);
+
+  // 영어가 한글보다 먼저 배치되도록 처리 (한글로 시작하는 문자열을 뒤로 보냄)
+  if (aIsKo && !bIsKo) return 1;
+  if (!aIsKo && bIsKo) return -1;
+
   return a.localeCompare(b, "ko", { sensitivity: "base", numeric: true });
 };
 
