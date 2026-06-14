@@ -44,7 +44,7 @@ def _find_gcs_prefix_for_document(bucket, document_id: str) -> Optional[str]:
         프리픽스 문자열 (예: "users/bonggoo@gmail.com/abc-123") 또는 None
     """
     # 방법 1: users/ 하위에서 match_glob으로 탐색
-    blobs = list(bucket.list_blobs(match_glob=f"users/*/{document_id}/metadata.json"))
+    blobs = list(bucket.list_blobs(match_glob=f"users/**/{document_id}/metadata.json"))
     if blobs:
         # 예: "users/bonggoo@gmail.com/abc-123/metadata.json" → "users/bonggoo@gmail.com/abc-123"
         return blobs[0].name.rsplit("/metadata.json", 1)[0]
@@ -93,7 +93,7 @@ def get_all_documents(owner_email: Optional[str] = None) -> List[Dict[str, Any]]
             prefix = f"users/{owner_email.lower()}/"
             logger.info(f"☁️ GCS 사용자별 프리픽스로 문서 목록 조회 중: {prefix}")
             try:
-                blobs = bucket.list_blobs(prefix=prefix, match_glob="*/metadata.json")
+                blobs = bucket.list_blobs(prefix=prefix, match_glob="**/metadata.json")
                 for blob in blobs:
                     try:
                         content = blob.download_as_text()
@@ -108,7 +108,7 @@ def get_all_documents(owner_email: Optional[str] = None) -> List[Dict[str, Any]]
             # 전체 조회 (관리자용, 마이그레이션 등)
             logger.info("☁️ GCS 버킷에서 전체 문서 목록 조회 중...")
             try:
-                blobs = bucket.list_blobs(prefix="users/", match_glob="*/metadata.json")
+                blobs = bucket.list_blobs(prefix="users/", match_glob="**/metadata.json")
                 for blob in blobs:
                     try:
                         content = blob.download_as_text()
