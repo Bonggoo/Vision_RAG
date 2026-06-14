@@ -68,7 +68,7 @@ async def chat_stream(request: ChatRequest, http_request: Request, current_user:
     
     # document_id가 지정된 경우 사전 검증 + 소유권 확인
     if doc_id:
-        meta = metadata_service.get_document(doc_id)
+        meta = metadata_service.get_document(doc_id, owner_email=current_user["email"])
         if meta is None:
             raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
         if not metadata_service.verify_document_owner(doc_id, current_user["email"]):

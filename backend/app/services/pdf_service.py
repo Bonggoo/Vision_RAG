@@ -214,10 +214,10 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
             client = storage.Client()
             bucket = client.bucket(settings.GCS_BUCKET_NAME)
             
-            blob_pdf = bucket.blob(f"{doc_id}/original.pdf")
+            blob_pdf = bucket.blob(metadata_service.gcs_blob_path(owner_email, str(doc_id), "original.pdf"))
             blob_pdf.upload_from_string(content, content_type="application/pdf")
             
-            blob_meta = bucket.blob(f"{doc_id}/metadata.json")
+            blob_meta = bucket.blob(metadata_service.gcs_blob_path(owner_email, str(doc_id), "metadata.json"))
             blob_meta.upload_from_string(json.dumps(metadata, ensure_ascii=False, indent=2), content_type="application/json")
             logger.info(f"✅ GCS 업로드 성공: {doc_id}")
         except Exception as e:

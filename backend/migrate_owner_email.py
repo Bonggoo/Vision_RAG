@@ -1,6 +1,8 @@
 """
 레거시 문서에 owner_email을 일괄 배정하는 마이그레이션 스크립트.
 
+새 GCS 구조(users/{email}/{uuid}/)에서도 정상 동작합니다.
+
 사용법:
     python migrate_owner_email.py <owner_email>
     예: python migrate_owner_email.py bonggoo@gmail.com
@@ -26,7 +28,9 @@ def migrate_owner_email(default_owner: str, dry_run: bool = False) -> int:
     """
     client = storage.Client()
     bucket = client.bucket(settings.GCS_BUCKET_NAME)
-    blobs = list(bucket.list_blobs(match_glob="*/metadata.json"))
+    
+    # 새 구조(users/ 하위)에서 metadata.json 검색
+    blobs = list(bucket.list_blobs(prefix="users/", match_glob="*/metadata.json"))
     
     print(f"\n📋 총 {len(blobs)}개 문서 메타데이터 발견")
     print(f"🎯 대상: owner_email이 없는 레거시 문서")
