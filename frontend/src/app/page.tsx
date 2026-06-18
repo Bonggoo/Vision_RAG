@@ -8,7 +8,8 @@ import ChatMessage from "@/components/chat/ChatMessage";
 import LoginView from "@/components/layout/LoginView";
 import { useChatStore } from "@/store/useChatStore";
 import { useAuthStore } from "@/store/useAuthStore";
-import { Search, BookOpen, Cpu, Zap } from "lucide-react";
+import { authFetch, API_BASE_URL } from "@/lib/api";
+import { Search, BookOpen, Cpu, Zap, MessageCircleQuestion } from "lucide-react";
 
 export default function Home() {
   // 💡 Hydration 에러 방지: 마운트 상태 추가
@@ -31,6 +32,7 @@ export default function Home() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // 💡 브라우저 마운트 완료 후 렌더링
   useEffect(() => {
@@ -103,22 +105,9 @@ export default function Home() {
             .map((m) => ({ role: m.role, content: m.content.slice(0, 300) }))
         : [];
 
-      let apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      if (apiUrl === "http://localhost:8000" && typeof window !== "undefined") {
-        const hostname = window.location.hostname;
-        if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1" && !hostname.includes("vercel.app")) {
-          apiUrl = `http://${hostname}:8000`;
-        }
-      }
-      const token = useAuthStore.getState().token;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(`${apiUrl}/chat/stream`, {
+      const response = await authFetch(`${API_BASE_URL}/chat/stream`, {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
           chat_history: prevMessages.length > 0 ? prevMessages : undefined,
@@ -214,9 +203,21 @@ export default function Home() {
     { icon: Zap, title: "즉시 답변", desc: "구조화된 트러블슈팅 가이드를 제공합니다" },
   ];
 
+  const examplePrompts = [
+    { emoji: "🔧", text: "에러 코드 AL.E6이 뭔가요?" },
+    { emoji: "🌡️", text: "모터 과열 시 조치 방법" },
+    { emoji: "⚙️", text: "파라미터 초기화 방법" },
+    { emoji: "📋", text: "정기 점검 체크리스트" },
+  ];
+
   return (
     <div className="flex h-screen-mobile overflow-hidden bg-background animate-fade" style={{ animationDuration: '0.5s' }}>
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
 
       <div className="flex-1 flex flex-col min-w-0">
         <Header onMenuClick={() => setSidebarOpen(true)} />
@@ -261,13 +262,37 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+
+                {/* 💡 예시 질문 카드 */}
+                <div className="w-full mt-4 md:mt-6">
+                  <div className="flex items-center justify-center gap-1.5 mb-3 text-[10px] text-muted-foreground/50 font-medium">
+                    <MessageCircleQuestion className="w-3 h-3" />
+                    <span>이런 질문을 해보세요</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 w-full">
+                    {examplePrompts.map((p, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleChatSubmit(p.text)}
+                        className="glass-subtle rounded-xl px-3 py-2.5 text-left transition-all duration-200
+                          hover:-translate-y-0.5 hover:shadow-md hover:shadow-primary/5 hover:border-primary/30
+                          active:scale-[0.98] cursor-pointer group"
+                      >
+                        <span className="text-sm block mb-0.5">{p.emoji}</span>
+                        <span className="text-[11px] md:text-xs text-muted-foreground/80 group-hover:text-foreground transition-colors leading-snug">
+                          {p.text}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           ) : activeSession.messages.length === 0 ? (
             /* ── 빈 대화 ── */
             <div className="flex-1 flex flex-col justify-center items-center px-6 relative overflow-hidden">
               <div className="hero-gradient absolute inset-0 pointer-events-none" />
-              <div className="relative z-10 text-center space-y-5 animate-slide-up">
+              <div className="relative z-10 text-center space-y-5 animate-slide-up max-w-lg w-full">
                 <div className="relative w-16 h-16 mx-auto mb-2 animate-float">
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 blur-lg opacity-70" />
                   <div className="hero-icon w-16 h-16 rounded-2xl flex items-center justify-center border border-primary/15 bg-card/40 backdrop-blur-md shadow-xl relative z-10">
@@ -279,11 +304,29 @@ export default function Home() {
                     &apos;{activeSession.title}&apos; 대화 시작
                   </h2>
                   <p className="text-xs md:text-sm text-muted-foreground/70 max-w-sm mx-auto">
-                    하단의 입력창에 관련 질문을 입력해 주세요.
+                    아래 예시를 클릭하거나, 입력창에 질문을 입력해 주세요.
                     <span className="block mt-2.5 text-primary/60 text-xs bg-primary/5 border border-primary/10 rounded-full px-3 py-1 font-medium inline-block">
                       💡 AI가 업로드된 문서 중 적합한 문서를 자동 판별합니다.
                     </span>
                   </p>
+                </div>
+
+                {/* 💡 예시 질문 카드 (빈 대화) */}
+                <div className="grid grid-cols-2 gap-2 w-full mt-4">
+                  {examplePrompts.map((p, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleChatSubmit(p.text)}
+                      className="glass-subtle rounded-xl px-3 py-2.5 text-left transition-all duration-200
+                        hover:-translate-y-0.5 hover:shadow-md hover:shadow-primary/5 hover:border-primary/30
+                        active:scale-[0.98] cursor-pointer group"
+                    >
+                      <span className="text-sm block mb-0.5">{p.emoji}</span>
+                      <span className="text-[11px] md:text-xs text-muted-foreground/80 group-hover:text-foreground transition-colors leading-snug">
+                        {p.text}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>

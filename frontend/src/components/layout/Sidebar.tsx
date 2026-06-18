@@ -20,7 +20,9 @@ import {
   Search,
   AlertCircle,
   RotateCw,
-  RefreshCw
+  RefreshCw,
+  PanelLeftClose,
+  PanelLeftOpen
 } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
 import { useDocumentStore, Document } from "@/store/useDocumentStore";
@@ -75,7 +77,12 @@ export const getLatestDateInDocs = (docs: any[]): number => {
   return Math.max(...docs.map(d => d.uploaded_at ? new Date(d.uploaded_at).getTime() : 0));
 };
 
-export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
+export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse }: {
+  isOpen?: boolean;
+  onClose?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}) {
   // 💡 Hydration 에러 방지: 마운트 상태 추가
   const [isMounted, setIsMounted] = useState(false);
 
@@ -797,6 +804,16 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
               <X className="w-4 h-4" />
             </button>
           )}
+          {/* 데스크톱 접기 버튼 */}
+          {onToggleCollapse && (
+            <button
+              onClick={onToggleCollapse}
+              title="사이드바 접기"
+              className="hidden md:flex p-1.5 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-all"
+            >
+              <PanelLeftClose className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         <input
@@ -995,12 +1012,91 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
         <div className="sidebar-overlay fixed inset-0 z-40 md:hidden animate-fade" onClick={onClose} />
       )}
 
-      {/* 데스크탑: 항상 표시 / 모바일: isOpen 시 표시 */}
+      {/* 데스크톱: 펼침/접힘 상태에 따라 표시 / 모바일: isOpen 시 표시 */}
       <aside className={`
-        sidebar w-72 h-full flex-col z-50
+        sidebar h-full flex-col z-50
         hidden md:flex
+        transition-all duration-300 ease-in-out
+        ${isCollapsed ? 'w-16' : 'w-72'}
       `}>
-        {sidebarContent}
+        {isCollapsed ? (
+          /* 접힘 상태: 아이콘 미니 모드 */
+          <div className="flex flex-col h-full items-center py-4 gap-3">
+            {/* 로고 */}
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center shadow-lg">
+              <span className="text-white text-xs font-bold">T</span>
+            </div>
+
+            {/* 펼치기 버튼 */}
+            <button
+              onClick={onToggleCollapse}
+              title="사이드바 펼치기"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all"
+            >
+              <PanelLeftOpen className="w-4 h-4" />
+            </button>
+
+            <div className="h-px w-8 bg-border/50" />
+
+            {/* 업로드 버튼 */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              title="PDF 매뉴얼 업로드"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all disabled:opacity-40"
+            >
+              {isUploading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <UploadCloud className="w-4 h-4" />
+              )}
+            </button>
+
+            {/* 새 대화 버튼 */}
+            <button
+              onClick={handleNewChat}
+              title="새 대화 시작"
+              className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-all"
+            >
+              <PlusCircle className="w-4 h-4" />
+            </button>
+
+            <div className="h-px w-8 bg-border/50" />
+
+            {/* 문서 아이콘 */}
+            <div
+              title={`문서 ${documents.filter(d => d.status !== 'analyzing').length}개`}
+              className="p-2 rounded-lg text-muted-foreground/60"
+            >
+              <FileText className="w-4 h-4" />
+              {documents.filter(d => d.status !== 'analyzing').length > 0 && (
+                <span className="text-[8px] font-bold text-primary mt-0.5 block text-center">
+                  {documents.filter(d => d.status !== 'analyzing').length}
+                </span>
+              )}
+            </div>
+
+            {/* 대화 아이콘 */}
+            <div
+              title={`대화 ${mySessions.length}개`}
+              className="p-2 rounded-lg text-muted-foreground/60"
+            >
+              <MessageSquare className="w-4 h-4" />
+              {mySessions.length > 0 && (
+                <span className="text-[8px] font-bold text-primary mt-0.5 block text-center">
+                  {mySessions.length}
+                </span>
+              )}
+            </div>
+
+            {/* 하단 버전 */}
+            <div className="mt-auto">
+              <p className="text-[8px] text-muted-foreground/30 font-medium">v2.0</p>
+            </div>
+          </div>
+        ) : (
+          sidebarContent
+        )}
       </aside>
 
       {/* 모바일 슬라이드인 */}

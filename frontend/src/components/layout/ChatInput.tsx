@@ -73,18 +73,15 @@ export default function ChatInput({ onSubmit, disabled, isStreaming, onStop }: C
         {/* 이미지 업로드 미리보기 프리뷰 바 */}
         {image && (
           <div className="flex justify-start items-center animate-slide-up">
-            <div className="relative rounded-xl overflow-hidden border border-primary/20 bg-card/60 backdrop-blur-md p-1.5 pr-8 flex items-center shadow-lg">
+            <div className="relative rounded-xl overflow-hidden border border-primary/20 bg-card/60 backdrop-blur-md p-1.5 flex items-center shadow-lg">
               <img
                 src={image}
                 alt="미리보기"
                 className="w-12 h-12 object-cover rounded-lg"
               />
-              <span className="text-xs text-muted-foreground ml-2.5 font-medium max-w-[120px] truncate">
-                알람 사진 첨부됨
-              </span>
               <button
                 onClick={() => setImage(null)}
-                className="absolute right-1.5 w-5 h-5 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center transition-colors cursor-pointer"
+                className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-black/70 hover:bg-black/90 flex items-center justify-center transition-colors cursor-pointer shadow-md"
               >
                 <X className="w-3 h-3 text-white" />
               </button>

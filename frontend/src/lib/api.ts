@@ -1,6 +1,7 @@
 import { useAuthStore } from "@/store/useAuthStore";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export { API_BASE_URL };
 
 /** API 요청에 JWT 토큰 헤더 추가하는 헬퍼 */
 function getAuthHeaders(headers: Record<string, string> = {}): Record<string, string> {
@@ -77,6 +78,8 @@ async function authFetch(url: string, options: RequestInit = {}): Promise<Respon
   }
   return res;
 }
+
+export { authFetch };
 
 /** 파일의 SHA-256 해시 계산 (Web Crypto API 사용) */
 async function calculateFileHash(file: File): Promise<string> {

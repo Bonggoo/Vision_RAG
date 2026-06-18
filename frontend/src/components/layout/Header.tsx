@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Menu, FileText, Sparkles, Sun, Moon, LogOut } from "lucide-react";
+import { Menu, Sun, Moon, LogOut } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import ExportButton from "@/components/chat/ExportButton";
@@ -14,9 +14,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
   // 💡 Hydration 에러 방지: 마운트 상태 추가
   const [isMounted, setIsMounted] = useState(false);
 
-  const { sessions, activeSessionId } = useChatStore();
+  const { activeSessionId } = useChatStore();
   const { user, logout } = useAuthStore();
-  const activeSession = sessions.find((s) => s.id === activeSessionId);
+
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   // 💡 브라우저 마운트 완료 후 렌더링
@@ -75,22 +75,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <h1 className="md:hidden font-semibold text-[15px] tracking-tight">TechNote</h1>
         </div>
 
-        {/* 활성 대화 표시 및 우측 제어 */}
+        {/* 우측 제어 */}
         <div className="flex items-center gap-3">
-          {activeSession && (
-            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-accent/30 px-3 py-1.5 rounded-full">
-              <Sparkles className="w-3.5 h-3.5 text-primary/70" />
-              <span className="max-w-[150px] truncate">{activeSession.title}</span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
-            <Sparkles className="w-3.5 h-3.5 text-primary/50" />
-            <span className="hidden sm:inline">Gemini 3.1 Flash-Lite</span>
-          </div>
-
           {/* 대화 내보내기 버튼 */}
-          {activeSession && <ExportButton />}
+          {activeSessionId && <ExportButton />}
 
           {/* 테마 토글 버튼 (마이크로 모션 제공) */}
           <button
