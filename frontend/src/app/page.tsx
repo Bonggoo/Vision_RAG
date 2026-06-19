@@ -24,6 +24,7 @@ export default function Home() {
     appendAnswerChunk,
     appendReasoning,
     appendReference,
+    setTocCards,
     finishStreaming,
     renameSession,
   } = useChatStore();
@@ -181,6 +182,9 @@ export default function Home() {
                     pageNumber: data.page_number,
                     imageBase64: data.image_base64,
                   });
+                  break;
+                case "toc_cards":
+                  setTocCards(targetSessionId, data.cards);
                   break;
                 case "answer":
                   appendAnswerChunk(targetSessionId, data.content);

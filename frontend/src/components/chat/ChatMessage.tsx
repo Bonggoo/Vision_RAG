@@ -11,8 +11,9 @@ import {
   User,
   Brain,
   X,
+  BookOpen,
 } from "lucide-react";
-import type { Message, ReferenceImage } from "@/store/useChatStore";
+import type { Message, ReferenceImage, TocCard } from "@/store/useChatStore";
 
 interface ChatMessageProps {
   message: Message;
@@ -52,9 +53,26 @@ function ReasoningBlock({ steps }: { steps: string[] }) {
   );
 }
 
+interface ReferenceImagesProps {
+  references: ReferenceImage[];
+  activePage: number | null;
+  setActivePage: (page: number | null) => void;
+}
+
 /** 참조 이미지 */
-function ReferenceImages({ references }: { references: ReferenceImage[] }) {
+function ReferenceImages({ references, activePage, setActivePage }: ReferenceImagesProps) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
+  // activePage 변경 시 해당 페이지 자동 확장
+  useEffect(() => {
+    if (activePage !== null) {
+      const idx = references.findIndex((ref) => ref.pageNumber === activePage);
+      if (idx !== -1) {
+        setExpandedIdx(idx);
+      }
+    }
+  }, [activePage, references]);
+
   if (!references || references.length === 0) return null;
 
   return (
@@ -67,7 +85,15 @@ function ReferenceImages({ references }: { references: ReferenceImage[] }) {
         {references.map((ref, i) => (
           <button
             key={i}
-            onClick={() => setExpandedIdx(expandedIdx === i ? null : i)}
+            onClick={() => {
+              if (expandedIdx === i) {
+                setExpandedIdx(null);
+                setActivePage(null);
+              } else {
+                setExpandedIdx(i);
+                setActivePage(ref.pageNumber);
+              }
+            }}
             className="flex-shrink-0 group relative rounded-lg overflow-hidden"
           >
             <img
@@ -89,6 +115,59 @@ function ReferenceImages({ references }: { references: ReferenceImage[] }) {
             )}
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** 추천 ToC 목차 카드 목록 */
+function TocCards({
+  cards,
+  onCardClick,
+  activePage,
+}: {
+  cards: TocCard[];
+  onCardClick: (page: number) => void;
+  activePage: number | null;
+}) {
+  if (!cards || cards.length === 0) return null;
+
+  return (
+    <div className="mb-4 animate-fade-in">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground mb-2">
+        <BookOpen className="w-3.5 h-3.5 text-violet-500/80" />
+        <span>관련 목차 추천 (3가지)</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {cards.map((card, i) => {
+          const isActive = activePage === card.page;
+          return (
+            <button
+              key={i}
+              onClick={() => onCardClick(card.page)}
+              className={`flex flex-col text-left p-3 rounded-xl border text-xs transition-all duration-300 backdrop-blur-md relative overflow-hidden group
+                ${isActive 
+                  ? "bg-violet-500/10 border-violet-500/40 dark:border-violet-400/40 shadow-sm ring-1 ring-violet-500/20 scale-[1.02]" 
+                  : "bg-card/30 border-border/40 hover:border-violet-500/25 hover:bg-violet-500/5 dark:hover:bg-violet-500/5 hover:scale-[1.01]"
+                }
+              `}
+            >
+              {/* 은은한 그라데이션 포인트 */}
+              <div className="absolute top-0 right-0 w-12 h-12 bg-gradient-to-br from-violet-500/5 to-transparent rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform" />
+              
+              <span className="font-semibold text-foreground/80 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors line-clamp-2 leading-relaxed mb-1.5 pr-2">
+                {card.title}
+              </span>
+              
+              <span className="text-[10px] font-mono text-violet-500/70 dark:text-violet-400/70 mt-auto flex items-center gap-1">
+                <span>p.{card.page}</span>
+                <span className="opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-1 group-hover:translate-x-0">
+                  → 바로보기
+                </span>
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -123,6 +202,7 @@ function StreamingIndicator() {
 /** 개별 채팅 메시지 */
 export default function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
+  const [activePage, setActivePage] = useState<number | null>(null);
 
   if (isUser) {
     return (
@@ -167,8 +247,19 @@ export default function ChatMessage({ message }: ChatMessageProps) {
           {/* 추론 과정 */}
           <ReasoningBlock steps={message.reasoningSteps || []} />
 
+          {/* 추천 목차 카드 */}
+          <TocCards
+            cards={message.tocCards || []}
+            onCardClick={(page) => setActivePage(activePage === page ? null : page)}
+            activePage={activePage}
+          />
+
           {/* 참조 이미지 */}
-          <ReferenceImages references={message.references || []} />
+          <ReferenceImages
+            references={message.references || []}
+            activePage={activePage}
+            setActivePage={setActivePage}
+          />
 
           {/* 답변 본문 (라이트/다크 가독성 분기) */}
           {message.content ? (

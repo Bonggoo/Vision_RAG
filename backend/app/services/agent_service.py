@@ -9,6 +9,7 @@ from typing import List, Dict, Any, AsyncGenerator
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from app.config import settings
+from app.utils.logger import logger
 
 
 def _create_llm(temperature: float = 0, model: str | None = None) -> ChatGoogleGenerativeAI:
@@ -104,7 +105,7 @@ def extract_toc_with_gemini(pdf_bytes: bytes) -> List[Dict[str, Any]]:
         toc = json.loads(content)
         return toc
     except Exception as e:
-        print(f"Gemini ToC Extraction Error: {e}")
+        logger.error(f"❌ [AgentService] Gemini ToC Extraction Error: {e}", exc_info=True)
         return []
 
 
@@ -160,18 +161,18 @@ def find_and_extract_toc(
         response = llm.invoke([message])
         find_result = json.loads(_clean_json_response(response.content))
     except Exception as e:
-        print(f"  ⚠️ 목차 위치 파악 실패: {e}")
+        logger.error(f"  ⚠️ 목차 위치 파악 실패: {e}", exc_info=True)
         return []
     
     if not find_result.get("has_toc", False):
-        print("  ❌ 목차 페이지를 찾을 수 없습니다.")
+        logger.info("  ❌ 목차 페이지를 찾을 수 없습니다.")
         return []
     
     toc_pages_found = find_result.get("toc_pages", [])
     extends_beyond = find_result.get("toc_extends_beyond", False)
     estimated_end = find_result.get("estimated_toc_end_page", scan_end + 1)
     
-    print(f"  📍 목차 페이지 발견: {toc_pages_found} (스캔 범위 초과: {extends_beyond})")
+    logger.info(f"  📍 목차 페이지 발견: {toc_pages_found} (스캔 범위 초과: {extends_beyond})")
     
     # ─── Step 2: 목차 페이지 범위 확정 및 읽기 ───
     # 실제 읽을 목차 범위 결정
@@ -189,7 +190,7 @@ def find_and_extract_toc(
     if read_end - read_start > 14:
         read_end = read_start + 14
     
-    print(f"  📖 목차 읽기 범위: p.{read_start + 1}~{read_end + 1}")
+    logger.info(f"  📖 목차 읽기 범위: p.{read_start + 1}~{read_end + 1}")
     
     toc_pdf = extract_pages_as_pdf(doc, read_start, read_end)
     toc_base64 = base64.b64encode(toc_pdf).decode("utf-8")
@@ -224,7 +225,7 @@ def find_and_extract_toc(
         response = llm.invoke([message])
         raw_toc = json.loads(_clean_json_response(response.content))
     except Exception as e:
-        print(f"  ⚠️ 목차 추출 실패: {e}")
+        logger.error(f"  ⚠️ 목차 추출 실패: {e}", exc_info=True)
         return []
     
     # ─── 페이지 번호 정규화 ───
@@ -249,7 +250,7 @@ def find_and_extract_toc(
                 if 1 <= p <= total_pages:
                     normalized.append({"level": level, "title": title, "page": p})
     
-    print(f"  📋 ToC 추출 완료: {len(normalized)}개 항목")
+    logger.info(f"  📋 ToC 추출 완료: {len(normalized)}개 항목")
     return normalized
 
 
@@ -303,7 +304,7 @@ def reason_target_pages(toc: List[Dict[str, Any]], question: str) -> Dict[str, A
         
         return result
     except Exception as e:
-        print(f"Page Reasoning Error: {e}")
+        logger.error(f"❌ [AgentService] Page Reasoning Error: {e}", exc_info=True)
         return {
             "reasoning": f"페이지 추론 중 오류 발생: {str(e)}",
             "target_pages": [1],
@@ -484,7 +485,7 @@ async def extract_document_metadata_with_gemini(pdf_bytes: bytes) -> dict | None
         
         return result
     except Exception as e:
-        print(f"Gemini Metadata Extraction Error: {e}")
+        logger.error(f"❌ [AgentService] Gemini Metadata Extraction Error: {e}", exc_info=True)
         return None
 
 
@@ -529,7 +530,7 @@ def normalize_manufacturer_with_llm(name: str) -> str:
             cleaned = cleaned.split("\n")[0].strip()
         return cleaned
     except Exception as e:
-        print(f"Gemini Manufacturer Normalization Error: {e}")
+        logger.error(f"❌ [AgentService] Gemini Manufacturer Normalization Error: {e}", exc_info=True)
         return name.strip().upper()
 
 
@@ -550,7 +551,7 @@ async def analyze_device_image_with_gemini(image_data_url: str) -> dict | None:
             base64_data = image_data_url
             mime_type = "image/jpeg"
     except Exception as e:
-        print(f"Image parsing error: {e}")
+        logger.error(f"❌ [AgentService] Image parsing error: {e}", exc_info=True)
         return None
 
     llm = _create_flash_llm()
@@ -598,6 +599,6 @@ async def analyze_device_image_with_gemini(image_data_url: str) -> dict | None:
             
         return result
     except Exception as e:
-        print(f"Gemini Device Image Analysis Error: {e}")
+        logger.error(f"❌ [AgentService] Gemini Device Image Analysis Error: {e}", exc_info=True)
         return None
 

@@ -257,12 +257,18 @@ def _select_document_and_pages(
     "document_id": "선택한 문서의 ID",
     "target_pages": [시작페이지, ..., 끝페이지],
     "section_title": "관련 섹션의 제목",
+    "toc_candidates": [
+        {{"title": "질문과 연관성 높은 목차 제목 1", "page": 페이지번호}},
+        {{"title": "질문과 연관성 높은 목차 제목 2", "page": 페이지번호}},
+        {{"title": "질문과 연관성 높은 목차 제목 3", "page": 페이지번호}}
+    ],
     "reasoning": "문서 선택 및 페이지 추론 과정을 한국어로 간략히 설명"
 }}
 
 규칙:
 - 타겟 페이지는 최소 1개, 최대 5개로 제한합니다.
 - 페이지 번호는 목차에 명시된 page 값을 기준으로 합니다.
+- toc_candidates에는 질문 해결에 도움을 줄 수 있는 목차(ToC) 항목을 최대 3개까지 매칭하여 포함하세요.
 - 연속된 페이지라면 사이 페이지도 포함합니다."""
     
     try:
@@ -279,6 +285,17 @@ def _select_document_and_pages(
         raw_pages = result.get("target_pages", [1])
         result["target_pages"] = [_normalize_page(p) for p in raw_pages][:5]
         
+        # toc_candidates 정규화
+        raw_candidates = result.get("toc_candidates", [])
+        normalized_candidates = []
+        for cand in raw_candidates:
+            if isinstance(cand, dict) and "title" in cand:
+                normalized_candidates.append({
+                    "title": str(cand["title"]),
+                    "page": _normalize_page(cand.get("page", 1))
+                })
+        result["toc_candidates"] = normalized_candidates[:3]
+        
         return result
     except Exception as e:
         logger.error(f"❌ [Phase 0+1] Document+Page Selection Error: {e}", exc_info=True)
@@ -286,6 +303,7 @@ def _select_document_and_pages(
             "document_id": documents[0]["document_id"],
             "target_pages": [1],
             "section_title": "알 수 없음",
+            "toc_candidates": [],
             "reasoning": f"추론 중 오류 발생: {str(e)}"
         }
 
@@ -359,12 +377,18 @@ def _classify_and_select(
     "document_id": "선택한 문서의 ID (general이면 null)",
     "target_pages": [타겟 페이지들] (general이면 []),
     "section_title": "관련 섹션의 제목 (general이면 빈 문자열)",
+    "toc_candidates": [
+        {{"title": "질문과 연관성 높은 목차 제목 1", "page": 페이지번호}},
+        {{"title": "질문과 연관성 높은 목차 제목 2", "page": 페이지번호}},
+        {{"title": "질문과 연관성 높은 목차 제목 3", "page": 페이지번호}}
+    ] (general이면 []),
     "reasoning": "판별 및 추론 과정을 한국어로 간략히 설명"
 }}
 
 규칙:
-- classification이 "general"이면 document_id, target_pages, section_title은 null/빈값으로 설정
+- classification이 "general"이면 document_id, target_pages, section_title, toc_candidates는 null/빈값으로 설정
 - classification이 "technical"이면 반드시 문서와 페이지를 선택
+- toc_candidates에는 질문 해결에 도움을 줄 수 있는 목차(ToC) 항목을 최대 3개까지 매칭하여 포함하세요.
 - 타겟 페이지는 최소 1개, 최대 5개
 - 페이지 번호는 목차의 page 값 기준"""
     
@@ -386,6 +410,19 @@ def _classify_and_select(
             # target_pages 정규화
             raw_pages = result.get("target_pages", [1])
             result["target_pages"] = [_normalize_page(p) for p in raw_pages][:5]
+            
+            # toc_candidates 정규화
+            raw_candidates = result.get("toc_candidates", [])
+            normalized_candidates = []
+            for cand in raw_candidates:
+                if isinstance(cand, dict) and "title" in cand:
+                    normalized_candidates.append({
+                        "title": str(cand["title"]),
+                        "page": _normalize_page(cand.get("page", 1))
+                    })
+            result["toc_candidates"] = normalized_candidates[:3]
+        else:
+            result["toc_candidates"] = []
         
         return result
     except Exception as e:
@@ -395,6 +432,7 @@ def _classify_and_select(
             "document_id": documents[0]["document_id"],
             "target_pages": [1],
             "section_title": "알 수 없음",
+            "toc_candidates": [],
             "reasoning": f"판별+추론 중 오류 발생: {str(e)}"
         }
 
@@ -591,6 +629,11 @@ async def run_agentic_pipeline(
                 "reasoning",
                 content=f"📄 '{selected_doc.get('filename', '')}' → '{coarse_title}' (p.{coarse_pages})\n{coarse_reasoning}"
             )
+            
+            # ToC 추천 리스트가 있으면 SSE로 송신
+            toc_cards = combined.get("toc_candidates", []) if quick_result is None else selection.get("toc_candidates", [])
+            if toc_cards:
+                yield _sse_event("toc_cards", cards=toc_cards)
         else:
             # document_id가 지정된 경우: Phase 1만 실행
             meta = get_document(document_id)
@@ -611,6 +654,11 @@ async def run_agentic_pipeline(
                 "reasoning",
                 content=f"'{coarse_title}' 섹션 특정 완료 (p.{coarse_pages})\n{coarse_reasoning}"
             )
+            
+            # ToC 추천 리스트가 있으면 SSE로 송신
+            toc_cards = selection.get("toc_candidates", [])
+            if toc_cards:
+                yield _sse_event("toc_cards", cards=toc_cards)
         
         # ─── Step 1: 문서 검증 및 PDF 열기 ───
         meta = get_document(document_id)
@@ -690,7 +738,7 @@ async def run_agentic_pipeline(
                         image_base64=image_base64,
                     )
                 except Exception as e:
-                    print(f"Thumbnail generation error for page {page_idx}: {e}")
+                    logger.error(f"❌ [Pipeline] Thumbnail generation error for page {page_idx}: {e}")
             
             doc.close()
             

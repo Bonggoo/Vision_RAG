@@ -9,6 +9,12 @@ export interface ReferenceImage {
   imageBase64: string;
 }
 
+/** 추천 ToC 목차 카드 */
+export interface TocCard {
+  title: string;
+  page: number;
+}
+
 /** 채팅 메시지 */
 export interface Message {
   id: string;
@@ -21,6 +27,8 @@ export interface Message {
   reasoningSteps?: string[];
   /** 참조 페이지 썸네일 (reference 이벤트) */
   references?: ReferenceImage[];
+  /** 추천 ToC 목차 후보군 (toc_cards 이벤트) */
+  tocCards?: TocCard[];
 }
 
 export interface ChatSession {
@@ -45,6 +53,8 @@ interface ChatStore {
   appendReasoning: (sessionId: string, text: string) => void;
   /** 참조 이미지를 추가합니다 */
   appendReference: (sessionId: string, ref: ReferenceImage) => void;
+  /** 추천 목차 목록을 추가/설정합니다 */
+  setTocCards: (sessionId: string, cards: TocCard[]) => void;
   /** 스트리밍 완료 처리 */
   finishStreaming: (sessionId: string) => void;
   /** 세션 제목 변경 */
@@ -145,6 +155,14 @@ export const useChatStore = create<ChatStore>()(
           sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => ({
             ...msg,
             references: [...(msg.references || []), ref],
+          })),
+        })),
+
+      setTocCards: (sessionId, cards) =>
+        set((state) => ({
+          sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => ({
+            ...msg,
+            tocCards: cards,
           })),
         })),
 

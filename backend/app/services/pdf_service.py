@@ -151,16 +151,16 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
         # Case A-1: 북마크 ToC가 충분히 상세 → 그대로 사용
         toc = raw_toc
         status = "indexed"
-        print(f"📋 Case A-1: 북마크 ToC 사용 ({len(toc)}개 항목)")
+        logger.info(f"📋 Case A-1: 북마크 ToC 사용 ({len(toc)}개 항목)")
     elif raw_toc:
         # Case A-2: 북마크 존재하지만 부실 → 목차 페이지 탐색
-        print(f"📋 Case A-2: 북마크 ToC 부실 ({len(raw_toc)}개), 목차 페이지 탐색 시작...")
+        logger.info(f"📋 Case A-2: 북마크 ToC 부실 ({len(raw_toc)}개), 목차 페이지 탐색 시작...")
         from app.services.agent_service import find_and_extract_toc
         toc = find_and_extract_toc(doc, total_pages)
         if not toc:
             # 목차 페이지를 못 찾으면 북마크라도 사용
             toc = raw_toc
-            print(f"  ⚠️ 목차 페이지 미발견, 북마크 ToC 유지 ({len(raw_toc)}개)")
+            logger.info(f"  ⚠️ 목차 페이지 미발견, 북마크 ToC 유지 ({len(raw_toc)}개)")
         status = "indexed"
     else:
         # 북마크 없음
@@ -174,10 +174,10 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
         if scanned and total_pages > 50:
             # Case C: 스캔본 & 50페이지 초과 -> 사용자 입력 요청
             status = "toc_required"
-            print(f"📋 Case C: 스캔본 대용량 → 사용자 ToC 범위 입력 필요")
+            logger.info(f"📋 Case C: 스캔본 대용량 → 사용자 ToC 범위 입력 필요")
         else:
             # Case B: 텍스트 있음 or (스캔본 & 50페이지 이하)
-            print(f"📋 Case B: Gemini 앞부분 스캔으로 ToC 추출...")
+            logger.info(f"📋 Case B: Gemini 앞부분 스캔으로 ToC 추출...")
             extract_pages = min(15, total_pages)
             mini_pdf_bytes = extract_pages_as_pdf(doc, 0, extract_pages - 1)
             toc = extract_toc_with_gemini(mini_pdf_bytes)

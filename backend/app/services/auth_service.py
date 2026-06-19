@@ -8,8 +8,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 from app.config import settings
-
-logger = logging.getLogger(__name__)
+from app.utils.logger import logger
 
 # Bearer Token 추출 스키마 (보안)
 security_recipient = HTTPBearer(auto_error=False)
