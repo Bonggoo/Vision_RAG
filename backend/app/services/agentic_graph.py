@@ -454,6 +454,9 @@ async def run_agentic_pipeline(
     """
     logger.info(f"🚀 [Pipeline] Agentic Search 파이프라인 작동 시작 (질문: '{question}')")
     
+    # 추천된 ToC 목록 저장용 변수
+    toc_cards = []
+    
     try:
         # ─── Step -1: 이미지 분석 및 질문/문서 매칭 보강 ───
         analyzed_meta = None
@@ -715,19 +718,33 @@ async def run_agentic_pipeline(
         yield _sse_event("reasoning", content=f"페이지 {target_pages}에서 미니 PDF를 추출하고 있습니다...")
         
         try:
-            valid_pages = [_normalize_page(p) - 1 for p in target_pages if 1 <= _normalize_page(p) <= total_pages]
+            # RAG 코어 타겟 페이지와 ToC 추천 페이지들을 합침 (썸네일 생성용)
+            toc_pages = [_normalize_page(cand.get("page", 1)) for cand in toc_cards]
+            all_target_pages = list(target_pages) + toc_pages
+            
+            # 중복 제거 및 유효 범위 정규화 (1-indexed -> 0-indexed)
+            valid_pages = []
+            for p in all_target_pages:
+                norm = _normalize_page(p) - 1
+                if 0 <= norm < total_pages and norm not in valid_pages:
+                    valid_pages.append(norm)
+            
             if not valid_pages:
                 valid_pages = [0]
             
             # 💡 [버그 패치] 비연속적으로 멀리 떨어진 페이지(예: p.12, p.115)가 잡힐 경우, 
             # min~max 범위의 모든 중간 페이지가 다 삽입되어 PDF가 비정상적으로 비대해지는 현상을 해결합니다.
-            # 필요한 페이지만 콕 집어서(sparse) 미니 PDF를 빌드합니다.
+            # 필요한 페이지만 콕 집어서(sparse) 미니 PDF를 빌드합니다. (토큰 절약을 위해 RAG 타겟페이지만 포함)
             mini_doc = fitz.open()
-            for page_idx in sorted(set(valid_pages)):
+            core_valid_pages = sorted(set([_normalize_page(p) - 1 for p in target_pages if 1 <= _normalize_page(p) <= total_pages]))
+            if not core_valid_pages:
+                core_valid_pages = [0]
+            for page_idx in core_valid_pages:
                 mini_doc.insert_pdf(doc, from_page=page_idx, to_page=page_idx)
             mini_pdf_bytes = mini_doc.tobytes()
             mini_doc.close()
             
+            # RAG 코어 타겟과 ToC 후보 페이지 모두의 썸네일 이미지를 생성해서 프론트로 송출
             for page_idx in valid_pages:
                 try:
                     png_bytes = render_page_thumbnail(doc, page_idx, dpi=150)
