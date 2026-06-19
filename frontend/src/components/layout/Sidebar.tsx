@@ -147,7 +147,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
     }
   }, [isUploading, storeUploadProgress, uploadTotal]);
 
-  // 15초마다 문서 목록 자동 갱신 (기기 간 상태 동기화)
+  // 60초마다 문서 목록 자동 갱신 (기기 간 상태 동기화)
   useEffect(() => {
     const isDesktop = () => typeof window !== "undefined" && window.innerWidth >= 768;
     if (!isDesktop() && !isOpen) return;
@@ -158,7 +158,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
       if (!isUploading) {
         fetchDocuments();
       }
-    }, 15000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [isOpen, fetchDocuments, isUploading]);

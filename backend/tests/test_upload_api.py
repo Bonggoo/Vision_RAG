@@ -12,7 +12,7 @@ def test_upload_endpoint_success(monkeypatch):
     POST /upload 정상 동작 테스트 (TDD Red -> Green)
     """
     # pdf_service의 process_document_upload를 모킹
-    async def mock_process(file_path):
+    async def mock_process(file, owner_email=None):
         import uuid
         return {
             "document_id": uuid.UUID("12345678-1234-5678-1234-567812345678"),

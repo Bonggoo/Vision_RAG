@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Request, Response
+from fastapi.responses import FileResponse, JSONResponse
+import hashlib
 from uuid import UUID
 from typing import Optional
 from pydantic import BaseModel
@@ -103,11 +104,26 @@ async def reclassify_documents(background_tasks: BackgroundTasks, current_user: 
     }
 
 
-@router.get("", response_model=DocumentListResponse)
-async def list_documents(current_user: dict = Depends(get_current_user)):
+@router.get("")
+async def list_documents(request: Request, current_user: dict = Depends(get_current_user)):
     """업로드된 모든 문서 목록을 반환합니다."""
     docs = metadata_service.get_all_documents(owner_email=current_user["email"])
-    return {"documents": docs}
+    
+    # ETag: 문서 ID + status + filename 해시
+    etag_source = "|".join(
+        f'{d.get("document_id","")},{d.get("status","")},{d.get("filename","")}'
+        for d in docs
+    )
+    etag = f'"{hashlib.md5(etag_source.encode()).hexdigest()}"'
+
+    # 304 Not Modified
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304)
+
+    return JSONResponse(
+        content={"documents": docs},
+        headers={"ETag": etag}
+    )
 
 
 @router.get("/{document_id}")

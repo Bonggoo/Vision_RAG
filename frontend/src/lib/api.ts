@@ -117,6 +117,10 @@ function uploadToGCS(file: File, signedUrl: string, onProgress?: (percent: numbe
   });
 }
 
+// 문서 목록 API용 ETag 캐시 변수
+let _lastDocEtag: string | null = null;
+let _lastDocData: any = null;
+
 export const api = {
   /** PDF 문서 업로드 (비동기 GCS Direct 업로드 및 분석 트리거) */
   uploadDocument: async (file: File, onProgress?: (progress: number) => void): Promise<any> => {
@@ -247,9 +251,29 @@ export const api = {
 
   /** 전체 문서 목록 조회 */
   getDocuments: async () => {
-    const res = await authFetch(`${API_BASE_URL}/documents`);
+    const headers: Record<string, string> = {};
+    if (_lastDocEtag) {
+      headers["If-None-Match"] = _lastDocEtag;
+    }
+
+    const res = await authFetch(`${API_BASE_URL}/documents`, { headers });
+
+    // 304 Not Modified 이고 로컬 캐시 데이터가 있으면 캐시 반환
+    if (res.status === 304 && _lastDocData) {
+      return _lastDocData;
+    }
+
     if (!res.ok) throw new Error("Failed to fetch documents");
-    return res.json();
+
+    // ETag 헤더 추출 및 저장
+    const etag = res.headers.get("etag") || res.headers.get("ETag");
+    if (etag) {
+      _lastDocEtag = etag;
+    }
+
+    const data = await res.json();
+    _lastDocData = data;
+    return data;
   },
 
   /** 문서 메타데이터 수정 */

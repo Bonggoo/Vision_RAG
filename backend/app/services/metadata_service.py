@@ -7,16 +7,43 @@ GCS 경로 구조: users/{owner_email}/{document_id}/metadata.json, original.pdf
 import os
 import json
 import shutil
+import threading
 from typing import List, Dict, Any, Optional
+from cachetools import TTLCache
 from google.cloud import storage
 from app.config import settings
 
 from app.utils.logger import logger
 
 
+# GCS 클라이언트 싱글턴 (매 호출마다 재생성 방지)
+_storage_client = None
+_storage_client_lock = threading.Lock()
+
 def _get_bucket():
-    client = storage.Client()
-    return client.bucket(settings.GCS_BUCKET_NAME)
+    global _storage_client
+    if _storage_client is None:
+        with _storage_client_lock:
+            if _storage_client is None:
+                _storage_client = storage.Client()
+    return _storage_client.bucket(settings.GCS_BUCKET_NAME)
+
+
+# ── 사용자별 문서 목록 캐시 (TTL 60초, 최대 500명) ──
+_documents_cache = TTLCache(maxsize=500, ttl=60)
+_cache_lock = threading.Lock()
+
+
+def invalidate_documents_cache(owner_email: Optional[str] = None):
+    """문서 변경 시 해당 사용자의 캐시를 즉시 무효화합니다."""
+    with _cache_lock:
+        if owner_email:
+            key = owner_email.lower()
+            _documents_cache.pop(key, None)
+            logger.info(f"🗑️ 문서 캐시 무효화: {key}")
+        else:
+            _documents_cache.clear()
+            logger.info("🗑️ 문서 캐시 전체 무효화")
 
 
 def gcs_doc_prefix(owner_email: str, document_id: str) -> str:
@@ -62,7 +89,18 @@ def get_all_documents(owner_email: Optional[str] = None) -> List[Dict[str, Any]]
     모든 문서 메타데이터를 조회합니다.
     USE_LOCAL_STORAGE=True인 경우 로컬 파일 시스템에서, 그렇지 않은 경우 GCS에서 조회합니다.
     owner_email이 주어지면 해당 사용자 소유 문서만 반환합니다.
+    
+    성능 최적화: TTL 캐시(60초)를 사용하여 동일 사용자의 반복 조회 시 GCS 호출을 생략합니다.
     """
+    # 캐시 확인
+    if owner_email:
+        cache_key = owner_email.lower()
+        with _cache_lock:
+            cached = _documents_cache.get(cache_key)
+        if cached is not None:
+            logger.info(f"📦 캐시 히트: {cache_key} ({len(cached)}건)")
+            return cached
+
     documents = []
     
     if settings.USE_LOCAL_STORAGE:
@@ -130,6 +168,13 @@ def get_all_documents(owner_email: Optional[str] = None) -> List[Dict[str, Any]]
 
     # 업로드 시간 역순 정렬
     documents.sort(key=lambda d: d.get("uploaded_at", ""), reverse=True)
+
+    # 캐시 저장
+    if owner_email:
+        with _cache_lock:
+            _documents_cache[cache_key] = documents
+        logger.info(f"💾 캐시 저장: {cache_key} ({len(documents)}건)")
+
     return documents
 
 
@@ -344,6 +389,7 @@ def update_document_metadata(document_id: str, updates: Dict[str, Any], owner_em
         try:
             with open(meta_path, "w", encoding="utf-8") as f:
                 json.dump(meta, f, ensure_ascii=False, indent=2)
+            invalidate_documents_cache(owner_email)
             return meta
         except Exception as e:
             logger.error(f"로컬 메타데이터 업데이트 실패: {e}")
@@ -366,6 +412,7 @@ def update_document_metadata(document_id: str, updates: Dict[str, Any], owner_em
             
             blob = bucket.blob(blob_path)
             blob.upload_from_string(json.dumps(meta, ensure_ascii=False, indent=2), content_type="application/json")
+            invalidate_documents_cache(effective_email)
             return meta
         except Exception as e:
             logger.error(f"GCS update error: {e}")
@@ -408,6 +455,7 @@ def delete_document(document_id: str, owner_email: Optional[str] = None) -> bool
             logger.error(f"로컬 디렉토리 삭제 실패 ({doc_dir}): {e}")
             return False
         
+    invalidate_documents_cache(owner_email)
     return True
 
 
@@ -423,6 +471,7 @@ def create_document_metadata(document_id: str, metadata: Dict[str, Any], owner_e
         try:
             with open(meta_path, "w", encoding="utf-8") as f:
                 json.dump(metadata, f, ensure_ascii=False, indent=2)
+            invalidate_documents_cache(owner_email)
             return True
         except Exception as e:
             logger.error(f"로컬 메타데이터 생성 실패: {e}")
@@ -436,6 +485,7 @@ def create_document_metadata(document_id: str, metadata: Dict[str, Any], owner_e
                 json.dumps(metadata, ensure_ascii=False, indent=2),
                 content_type="application/json"
             )
+            invalidate_documents_cache(owner_email)
             logger.info(f"✅ GCS 메타데이터 생성 성공: {blob_path}")
             return True
         except Exception as e:
