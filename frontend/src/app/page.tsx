@@ -15,7 +15,7 @@ export default function Home() {
   // 💡 Hydration 에러 방지: 마운트 상태 추가
   const [isMounted, setIsMounted] = useState(false);
 
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isSessionVerified, verifySession } = useAuthStore();
   const {
     sessions,
     activeSessionId,
@@ -39,6 +39,13 @@ export default function Home() {
     setIsMounted(true);
   }, []);
 
+  // 💡 앱 시작 시 서버에 세션 유효성 검증 (iOS 쿠키 소멸 대응)
+  useEffect(() => {
+    if (isMounted) {
+      verifySession();
+    }
+  }, [isMounted, verifySession]);
+
   // 💡 자동 스크롤 - 반드시 조건부 return 전에 선언 (React Hooks 규칙)
   useEffect(() => {
     if (scrollRef.current) {
@@ -46,9 +53,36 @@ export default function Home() {
     }
   }, [activeSession?.messages]);
 
-  // 마운트 전에는 조건부 렌더링 방어막
-  if (!isMounted) {
-    return null;
+  // 마운트 전이거나 세션 검증 중에는 로딩 표시
+  if (!isMounted || !isSessionVerified) {
+    return (
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100dvh",
+        background: "var(--bg-primary, #0a0a0a)",
+      }}>
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "16px",
+          color: "var(--text-secondary, #888)",
+        }}>
+          <div style={{
+            width: "32px",
+            height: "32px",
+            border: "3px solid rgba(255,255,255,0.1)",
+            borderTopColor: "rgba(255,255,255,0.6)",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+          }} />
+          <span style={{ fontSize: "14px" }}>세션 확인 중...</span>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
   }
 
   // 💡 비로그인 유저는 로그인 화면을 반환

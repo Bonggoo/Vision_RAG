@@ -14,10 +14,14 @@ interface AuthStore {
   isAuthenticated: boolean;
   isLoading: boolean;
   errorMsg: string | null;
+  /** 앱 시작 시 세션 검증 완료 여부 (false면 로딩 스피너 표시) */
+  isSessionVerified: boolean;
   
   loginWithGoogleCredential: (credential: string) => Promise<boolean>;
   logout: () => Promise<void>;
   clearError: () => void;
+  /** 앱 시작 시 호출: 저장된 토큰이 실제로 유효한지 서버에 확인 */
+  verifySession: () => Promise<void>;
 }
 
 // 💡 백엔드 API 기본 주소 (lib/api.ts와 일치시킴)
@@ -25,12 +29,13 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       token: null,
       user: null,
       isAuthenticated: false,
       isLoading: false,
       errorMsg: null,
+      isSessionVerified: false,
 
       loginWithGoogleCredential: async (credential: string) => {
         set({ isLoading: true, errorMsg: null });
@@ -60,6 +65,7 @@ export const useAuthStore = create<AuthStore>()(
             },
             isAuthenticated: true,
             isLoading: false,
+            isSessionVerified: true,
             errorMsg: null,
           });
           return true;
@@ -70,6 +76,7 @@ export const useAuthStore = create<AuthStore>()(
             user: null,
             isAuthenticated: false,
             isLoading: false,
+            isSessionVerified: true,
             errorMsg: error.message || "구글 로그인에 실패했습니다. 다시 시도해 주세요.",
           });
           return false;
@@ -102,9 +109,70 @@ export const useAuthStore = create<AuthStore>()(
       clearError: () => {
         set({ errorMsg: null });
       },
+
+      verifySession: async () => {
+        const { isAuthenticated, token } = get();
+
+        // localStorage에 로그인 상태가 없으면 검증 불필요
+        if (!isAuthenticated || !token) {
+          set({ isSessionVerified: true });
+          return;
+        }
+
+        try {
+          // 1차: 저장된 Access Token으로 서버 확인
+          const res = await fetch(`${API_BASE_URL}/documents`, {
+            headers: { "Authorization": `Bearer ${token}` },
+            credentials: "include",
+          });
+
+          if (res.ok) {
+            // ✅ 토큰 유효 — 정상 진입
+            set({ isSessionVerified: true });
+            return;
+          }
+
+          if (res.status === 401) {
+            // 2차: Access Token 만료 → Refresh Token(쿠키)으로 갱신 시도
+            const refreshRes = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+              method: "POST",
+              credentials: "include",
+            });
+
+            if (refreshRes.ok) {
+              const data = await refreshRes.json();
+              // ✅ 갱신 성공 — 새 토큰 저장
+              set({
+                token: data.access_token,
+                isSessionVerified: true,
+              });
+              return;
+            }
+          }
+
+          // ❌ 둘 다 실패 → 세션 만료, 즉시 로그아웃
+          console.warn("🔒 세션 만료: 로그인 화면으로 이동합니다.");
+          set({
+            token: null,
+            user: null,
+            isAuthenticated: false,
+            isSessionVerified: true,
+          });
+        } catch (error) {
+          // 네트워크 오류 등 — 일단 기존 상태 유지 (오프라인 대비)
+          console.error("🔒 세션 검증 실패 (네트워크 오류):", error);
+          set({ isSessionVerified: true });
+        }
+      },
     }),
     {
       name: "vision-rag-auth-storage",
+      // isSessionVerified는 persist 대상에서 제외 (앱 시작마다 재검증)
+      partialize: (state) => ({
+        token: state.token,
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
       storage: {
         getItem: (name: string) => {
           if (typeof window === "undefined") return null;
