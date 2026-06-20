@@ -442,6 +442,32 @@ async def run_agentic_pipeline(
     collected_references = []
     selected_doc_filename = ""
     
+    # 대화 저장 헬퍼 (모든 종료 경로에서 호출)
+    def _save_conversation():
+        """수집된 메시지를 GCS에 저장합니다."""
+        if not (session_id and user_email and (collected_answer or collected_reasoning)):
+            return
+        try:
+            from app.services.conversation_service import save_message
+            user_msg = {
+                "role": "user",
+                "content": question,
+                "image": image,
+            }
+            assistant_msg = {
+                "role": "assistant",
+                "content": collected_answer,
+                "reasoning_steps": collected_reasoning,
+                "reference_pages": [ref["page_number"] for ref in collected_references],
+                "reference_document_id": str(document_id) if document_id else None,
+                "reference_document_name": selected_doc_filename if document_id else None,
+                "toc_cards": toc_cards,
+            }
+            title_text = question[:25] + "..." if len(question) > 25 else question
+            save_message(user_email, session_id, user_msg, assistant_msg, title=title_text)
+        except Exception as e:
+            logger.error(f"❌ [Pipeline] 대화 저장 실패 (무시): {e}")
+    
     try:
         # ─── Step -1: 이미지 분석 및 질문/문서 매칭 보강 ───
         analyzed_meta = None
@@ -553,6 +579,7 @@ async def run_agentic_pipeline(
                 logger.error(f"Error in general chatbot response: {e}")
                 yield _sse_event("answer", content="안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요? 매뉴얼 PDF를 업로드하신 뒤 관련 질문(예: 특정 에러 코드나 조치 방법)을 입력해 주시면 정확히 분석하여 답변해 드리겠습니다.")
             
+            _save_conversation()
             yield _sse_event("done")
             return
         
@@ -563,6 +590,7 @@ async def run_agentic_pipeline(
             
             if not all_docs:
                 yield _sse_event("error", content="업로드된 문서가 없습니다. 먼저 PDF 매뉴얼을 업로드해 주세요.")
+                _save_conversation()
                 yield _sse_event("done")
                 return
             
@@ -595,6 +623,7 @@ async def run_agentic_pipeline(
                 except Exception as e:
                     logger.error(f"Error in general chatbot response: {e}")
                     yield _sse_event("answer", content="안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요?")
+                _save_conversation()
                 yield _sse_event("done")
                 return
             
@@ -628,6 +657,7 @@ async def run_agentic_pipeline(
                         content="여러 매뉴얼에서 관련 내용을 찾았습니다. 어떤 장비의 매뉴얼을 참조할까요?",
                         candidates=clarification_candidates,
                     )
+                    _save_conversation()
                     yield _sse_event("done")
                     return
                 
@@ -663,6 +693,7 @@ async def run_agentic_pipeline(
             meta = get_document(document_id, owner_email=user_email)
             if meta is None:
                 yield _sse_event("error", content=f"문서를 찾을 수 없습니다: {document_id}")
+                _save_conversation()
                 yield _sse_event("done")
                 return
             
@@ -691,18 +722,21 @@ async def run_agentic_pipeline(
         meta = get_document(document_id)
         if meta is None:
             yield _sse_event("error", content=f"문서를 찾을 수 없습니다: {document_id}")
+            _save_conversation()
             yield _sse_event("done")
             return
         
         pdf_path = get_document_path(document_id)
         if pdf_path is None:
             yield _sse_event("error", content="PDF 파일을 찾을 수 없습니다.")
+            _save_conversation()
             yield _sse_event("done")
             return
         
         toc = meta.get("toc", [])
         if not toc:
             yield _sse_event("error", content="목차(ToC)가 없는 문서입니다. 먼저 ToC를 추출해주세요.")
+            _save_conversation()
             yield _sse_event("done")
             return
         
@@ -712,6 +746,7 @@ async def run_agentic_pipeline(
         except Exception as e:
             logger.error(f"❌ [Pipeline] PDF 파일 열기 실패 ({pdf_path}): {e}", exc_info=True)
             yield _sse_event("error", content=f"PDF 파일 열기 실패: {str(e)}")
+            _save_conversation()
             yield _sse_event("done")
             return
 
@@ -793,6 +828,7 @@ async def run_agentic_pipeline(
             doc.close()
             logger.error(f"❌ [Pipeline] PDF 처리 및 참조 이미지 생성 실패: {e}", exc_info=True)
             yield _sse_event("error", content=f"PDF 처리 중 오류: {str(e)}")
+            _save_conversation()
             yield _sse_event("done")
             return
 
@@ -821,30 +857,7 @@ async def run_agentic_pipeline(
         
         logger.info("🏁 [Pipeline] Agentic Search 파이프라인 처리 완료")
         
-        # 대화 GCS 자동 저장
-        if session_id and user_email:
-            try:
-                from app.services.conversation_service import save_message
-                user_msg = {
-                    "role": "user",
-                    "content": question,
-                    "image": image,
-                }
-                assistant_msg = {
-                    "role": "assistant",
-                    "content": collected_answer,
-                    "reasoning_steps": collected_reasoning,
-                    "reference_pages": [ref["page_number"] for ref in collected_references],
-                    "reference_document_id": str(document_id) if document_id else None,
-                    "reference_document_name": selected_doc_filename if document_id else None,
-                    "toc_cards": toc_cards,
-                }
-                # 대화 제목: 첫 질문 25자
-                title = question[:25] + "..." if len(question) > 25 else question
-                save_message(user_email, session_id, user_msg, assistant_msg, title=title)
-            except Exception as e:
-                logger.error(f"❌ [Pipeline] 대화 저장 실패 (무시): {e}")
-        
+        _save_conversation()
         yield _sse_event("done")
     
     except GeneratorExit:
@@ -853,6 +866,7 @@ async def run_agentic_pipeline(
     except Exception as e:
         logger.error(f"❌ [Pipeline] 예상치 못한 오류: {e}", exc_info=True)
         yield _sse_event("error", content=f"시스템 오류: {str(e)}")
+        _save_conversation()
         yield _sse_event("done")
 
 
