@@ -139,54 +139,63 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         set({ activeSessionId: null });
       }
     } catch (e) {
-      console.error('❌ 대화 목록 로드 실패:', e);
+      // 백엔드 미배포 시 로컬 세션 유지 (기존 세션 유지)
+      console.warn('⚠️ 대화 목록 로드 실패 (백엔드 미배포 가능성). 로컬 세션 유지:', e);
     } finally {
       set({ isLoading: false });
     }
   },
 
   createSession: async (title = '새로운 대화') => {
-    try {
-      const email = useAuthStore.getState().user?.email;
-      if (!email) throw new Error('로그인이 필요합니다.');
+    const email = useAuthStore.getState().user?.email;
+    if (!email) throw new Error('로그인이 필요합니다.');
 
-      // 20개 제한 체크
-      if (get().sessions.length >= 20) {
-        throw new Error('대화 세션은 최대 20개까지 생성할 수 있습니다. 기존 대화를 삭제해주세요.');
-      }
-
-      const res = await api.createConversation(title);
-      const newSession: ChatSession = {
-        id: res.session_id,
-        title: res.title || title,
-        messages: [],
-        createdAt: res.created_at ? new Date(res.created_at).getTime() : Date.now(),
-        ownerEmail: email,
-      };
-
-      set((state) => ({
-        sessions: [newSession, ...state.sessions],
-        activeSessionId: newSession.id,
-      }));
-
-      return newSession.id;
-    } catch (e) {
-      console.error('❌ 대화 생성 실패:', e);
-      throw e;
+    // 20개 제한 체크
+    if (get().sessions.length >= 20) {
+      throw new Error('대화 세션은 최대 20개까지 생성할 수 있습니다. 기존 대화를 삭제해주세요.');
     }
+
+    let sessionId: string;
+    let createdAt: number = Date.now();
+
+    try {
+      // 백엔드 API로 세션 생성 시도
+      const res = await api.createConversation(title);
+      sessionId = res.session_id;
+      createdAt = res.created_at ? new Date(res.created_at).getTime() : Date.now();
+    } catch (e) {
+      // 백엔드 미배포 시 로컬 UUID로 폴백
+      console.warn('⚠️ 백엔드 세션 생성 실패. 로컬 세션으로 폴백:', e);
+      sessionId = uuidv4();
+    }
+
+    const newSession: ChatSession = {
+      id: sessionId,
+      title,
+      messages: [],
+      createdAt,
+      ownerEmail: email,
+    };
+
+    set((state) => ({
+      sessions: [newSession, ...state.sessions],
+      activeSessionId: newSession.id,
+    }));
+
+    return newSession.id;
   },
 
   deleteSession: async (id) => {
     try {
       await api.deleteConversation(id);
-      set((state) => ({
-        sessions: state.sessions.filter((s) => s.id !== id),
-        activeSessionId: state.activeSessionId === id ? null : state.activeSessionId,
-      }));
     } catch (e) {
-      console.error('❌ 대화 삭제 실패:', e);
-      throw e;
+      // 백엔드 삭제 실패해도 로컬에서는 제거 (폴백)
+      console.warn('⚠️ 백엔드 대화 삭제 실패. 로컬에서만 제거:', e);
     }
+    set((state) => ({
+      sessions: state.sessions.filter((s) => s.id !== id),
+      activeSessionId: state.activeSessionId === id ? null : state.activeSessionId,
+    }));
   },
 
   loadConversation: async (id) => {
@@ -237,15 +246,15 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   renameSession: async (sessionId, title) => {
     try {
       await api.renameConversation(sessionId, title);
-      set((state) => ({
-        sessions: state.sessions.map((session) =>
-          session.id === sessionId ? { ...session, title } : session
-        ),
-      }));
     } catch (e) {
-      console.error('❌ 대화 제목 변경 실패:', e);
-      throw e;
+      // 백엔드 실패해도 로컬 제목은 변경
+      console.warn('⚠️ 백엔드 제목 변경 실패. 로컬에서만 변경:', e);
     }
+    set((state) => ({
+      sessions: state.sessions.map((session) =>
+        session.id === sessionId ? { ...session, title } : session
+      ),
+    }));
   },
 
   setActiveSession: (id) => set({ activeSessionId: id }),
