@@ -58,6 +58,7 @@ export default function ChatInput({ onSubmit, disabled, isStreaming, onStop }: C
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
