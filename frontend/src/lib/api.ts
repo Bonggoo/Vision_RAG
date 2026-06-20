@@ -371,14 +371,14 @@ export const api = {
 
   /** 단건 대화 상세 조회 (메시지 포함) */
   getConversation: async (sessionId: string): Promise<any> => {
-    const res = await authFetch(`${API_BASE_URL}/conversations/${sessionId}/`);
+    const res = await authFetch(`${API_BASE_URL}/conversations/${sessionId}`);
     if (!res.ok) throw new Error("대화 내용을 가져오는데 실패했습니다.");
     return res.json();
   },
 
   /** 대화 세션 삭제 */
   deleteConversation: async (sessionId: string): Promise<any> => {
-    const res = await authFetch(`${API_BASE_URL}/conversations/${sessionId}/`, {
+    const res = await authFetch(`${API_BASE_URL}/conversations/${sessionId}`, {
       method: "DELETE",
     });
     if (!res.ok) throw new Error("대화 삭제에 실패했습니다.");
@@ -387,7 +387,7 @@ export const api = {
 
   /** 대화 세션 제목 변경 */
   renameConversation: async (sessionId: string, title: string): Promise<any> => {
-    const res = await authFetch(`${API_BASE_URL}/conversations/${sessionId}/rename/`, {
+    const res = await authFetch(`${API_BASE_URL}/conversations/${sessionId}/rename`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title }),

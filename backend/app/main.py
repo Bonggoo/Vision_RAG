@@ -13,7 +13,7 @@ import traceback
 if not os.path.exists(settings.PDF_UPLOAD_DIR):
     os.makedirs(settings.PDF_UPLOAD_DIR)
 
-app = FastAPI(title="Vision RAG API", version="1.0.0")
+app = FastAPI(title="Vision RAG API", version="1.0.0", redirect_slashes=False)
 
 # API 로깅 및 전역 예외 처리 미들웨어
 @app.middleware("http")
