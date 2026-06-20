@@ -15,7 +15,7 @@ export default function Home() {
   // 💡 Hydration 에러 방지: 마운트 상태 추가
   const [isMounted, setIsMounted] = useState(false);
 
-  const { isAuthenticated, isSessionVerified, verifySession } = useAuthStore();
+  const { isAuthenticated, isSessionVerified, verifySession, token } = useAuthStore();
   const {
     sessions,
     activeSessionId,
@@ -51,12 +51,12 @@ export default function Home() {
     }
   }, [isMounted, verifySession]);
 
-  // 💡 로그인 상태일 때 대화 세션 목록 로드
+  // 💡 로그인 + 세션 검증 완료 후 대화 세션 목록 로드
   useEffect(() => {
-    if (isMounted && isAuthenticated) {
+    if (isMounted && isAuthenticated && isSessionVerified) {
       loadSessions();
     }
-  }, [isMounted, isAuthenticated, loadSessions]);
+  }, [isMounted, isAuthenticated, isSessionVerified, loadSessions]);
 
   // 💡 자동 스크롤 - 반드시 조건부 return 전에 선언 (React Hooks 규칙)
   useEffect(() => {
