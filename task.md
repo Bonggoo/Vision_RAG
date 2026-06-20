@@ -5,6 +5,9 @@
 ## 향후 작업 (Next Tasks)
 
 ## 완료된 작업 (Completed Tasks)
+- [x] 🐛 채팅 기능 잔여 버그 수정 및 안정화 (GCS 저장, IME 중복 방지)
+  - [x] 백엔드: 일상대화(early exit) 시 GCS 세션 데이터에 챗봇 답변과 추론 과정이 저장되지 않아 빈 값으로 보이던 현상 수정 (`agentic_graph.py` early exit 분기에서 `collected_answer`, `collected_reasoning` 업데이트 누락 버그 패치)
+  - [x] 프론트엔드: PC 환경 한글 입력 시 엔터 키(IME 조합 중) 이벤트 중복 발생에 의해 메시지가 두 번 연속 전송되던 버그 수정 (`ChatInput.tsx`의 `isComposing` 상태 체크 추가)
 - [x] 📑 이름순 정렬 시 영어가 한글보다 우선 배치되도록 정렬 알고리즘 수정
   - [x] `Sidebar.tsx` 내에 `isKoreanStart` 판별 함수 추가 및 `sortByName` 수정
   - [x] Next.js 빌드 성공 여부 검증 (Turbopack 빌드 성공 확인)
