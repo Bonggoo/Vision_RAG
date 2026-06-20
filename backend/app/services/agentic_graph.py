@@ -560,7 +560,9 @@ async def run_agentic_pipeline(
         
         if quick_result == "general":
             # 명확한 인사말 → LLM 호출 없이 즉시 Early Exit
-            yield _sse_event("reasoning", content="일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다...")
+            reasoning_msg = "일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다..."
+            yield _sse_event("reasoning", content=reasoning_msg)
+            collected_reasoning.append(reasoning_msg)
             
             llm = _create_flash_llm()
             chat_prompt = f"""당신은 산업용 매뉴얼 분석 비서 'Vision RAG 에이전트'입니다.
@@ -575,9 +577,12 @@ async def run_agentic_pipeline(
                 response = await llm.ainvoke([HumanMessage(content=chat_prompt)])
                 answer = _extract_text_content(response.content)
                 yield _sse_event("answer", content=answer)
+                collected_answer = answer
             except Exception as e:
                 logger.error(f"Error in general chatbot response: {e}")
-                yield _sse_event("answer", content="안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요? 매뉴얼 PDF를 업로드하신 뒤 관련 질문(예: 특정 에러 코드나 조치 방법)을 입력해 주시면 정확히 분석하여 답변해 드리겠습니다.")
+                fallback_ans = "안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요? 매뉴얼 PDF를 업로드하신 뒤 관련 질문(예: 특정 에러 코드나 조치 방법)을 입력해 주시면 정확히 분석하여 답변해 드리겠습니다."
+                yield _sse_event("answer", content=fallback_ans)
+                collected_answer = fallback_ans
             
             _save_conversation()
             yield _sse_event("done")
@@ -606,7 +611,10 @@ async def run_agentic_pipeline(
             
             if doc_result["classification"] == "general":
                 # LLM이 일상대화로 판단 → Early Exit
-                yield _sse_event("reasoning", content="일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다...")
+                reasoning_msg = "일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다..."
+                yield _sse_event("reasoning", content=reasoning_msg)
+                collected_reasoning.append(reasoning_msg)
+                
                 llm = _create_flash_llm()
                 chat_prompt = f"""당신은 산업용 매뉴얼 분석 비서 'Vision RAG 에이전트'입니다.
 사용자가 매뉴얼 검색과 관계없는 일반적인 인사나 일상적 대화를 건넸습니다.
@@ -620,9 +628,13 @@ async def run_agentic_pipeline(
                     response = await llm.ainvoke([HumanMessage(content=chat_prompt)])
                     answer = _extract_text_content(response.content)
                     yield _sse_event("answer", content=answer)
+                    collected_answer = answer
                 except Exception as e:
                     logger.error(f"Error in general chatbot response: {e}")
-                    yield _sse_event("answer", content="안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요?")
+                    fallback_ans = "안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요?"
+                    yield _sse_event("answer", content=fallback_ans)
+                    collected_answer = fallback_ans
+                
                 _save_conversation()
                 yield _sse_event("done")
                 return
