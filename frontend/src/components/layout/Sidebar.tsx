@@ -87,8 +87,14 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
   const [isMounted, setIsMounted] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { sessions, activeSessionId, setActiveSession, createSession, deleteSession } =
-    useChatStore();
+  const { 
+    sessions, 
+    activeSessionId, 
+    setActiveSession, 
+    createSession, 
+    deleteSession,
+    loadConversation 
+  } = useChatStore();
   const { user } = useAuthStore();
 
   // 현재 로그인 사용자의 세션만 필터링 (ownerEmail 미설정 ���거시 세션은 공용으로 포함)
@@ -281,10 +287,25 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
     }
   };
 
-  const handleNewChat = () => {
-    const sessionId = createSession("새로운 대화");
-    setActiveSession(sessionId);
-    onClose?.();
+  const handleNewChat = async () => {
+    try {
+      const sessionId = await createSession("새로운 대화");
+      setActiveSession(sessionId);
+      onClose?.();
+    } catch (err: any) {
+      alert(err.message || "대화 세션 생성에 실패했습니다.");
+    }
+  };
+
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    if (confirm("이 대화를 삭제하시겠습니까?")) {
+      try {
+        await deleteSession(sessionId);
+      } catch (err: any) {
+        alert(err.message || "대화 삭제에 실패했습니다.");
+      }
+    }
   };
 
   const handleDeleteDoc = async (e: React.MouseEvent, docId: string) => {
@@ -980,14 +1001,14 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
                 ? "bg-primary/10 text-foreground font-medium border border-primary/20"
                 : "hover:bg-accent/40 text-muted-foreground hover:text-foreground"
             }`}
-            onClick={() => { setActiveSession(session.id); onClose?.(); }}
+            onClick={() => { loadConversation(session.id); onClose?.(); }}
           >
             <ChevronRight className={`w-3.5 h-3.5 shrink-0 transition-transform ${
               activeSessionId === session.id ? "text-primary rotate-90" : ""
             }`} />
             <span className="truncate flex-1 text-[12px]">{session.title}</span>
             <button
-              onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
+              onClick={(e) => handleDeleteSession(e, session.id)}
               className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
             >
               <Trash2 className="w-3 h-3" />

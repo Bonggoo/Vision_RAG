@@ -85,9 +85,10 @@ async def root():
     return {"message": "Vision RAG API Server is running"}
 
 # 라우터 등록
-from app.routers import upload, documents, chat, auth
+from app.routers import upload, documents, chat, auth, conversations
 app.include_router(auth.router, prefix="/api", tags=["Auth"])
 app.include_router(upload.router, prefix="/upload", tags=["Upload"])
 app.include_router(documents.router, prefix="/documents", tags=["Documents"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
+app.include_router(conversations.router, prefix="/conversations", tags=["Conversations"])
 

@@ -27,6 +27,10 @@ export default function Home() {
     setTocCards,
     finishStreaming,
     renameSession,
+    loadSessions,
+    clarificationState,
+    setClarification,
+    clearClarification,
   } = useChatStore();
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
@@ -47,12 +51,19 @@ export default function Home() {
     }
   }, [isMounted, verifySession]);
 
+  // 💡 로그인 상태일 때 대화 세션 목록 로드
+  useEffect(() => {
+    if (isMounted && isAuthenticated) {
+      loadSessions();
+    }
+  }, [isMounted, isAuthenticated, loadSessions]);
+
   // 💡 자동 스크롤 - 반드시 조건부 return 전에 선언 (React Hooks 규칙)
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
     }
-  }, [activeSession?.messages]);
+  }, [activeSession?.messages, clarificationState]);
 
   // 마운트 전이거나 세션 검증 중에는 로딩 표시
   if (!isMounted || !isSessionVerified) {
@@ -95,7 +106,7 @@ export default function Home() {
     );
   }
 
-  const handleChatSubmit = async (text: string, image?: string) => {
+  const handleChatSubmit = async (text: string, image?: string, selectedDocId?: string) => {
     let targetSessionId = activeSessionId;
 
     const defaultTitle = text.trim() 
@@ -104,16 +115,19 @@ export default function Home() {
 
     // 활성 세션이 없으면 자동으로 새 세션 생성
     if (!targetSessionId) {
-      targetSessionId = createSession(defaultTitle);
+      targetSessionId = await createSession(defaultTitle);
     } else {
       // 기존 세션이 있고 첫 메시지인 경우 제목 변경
       const currentSession = sessions.find((s) => s.id === targetSessionId);
       if (currentSession && currentSession.messages.length === 0) {
-        renameSession(targetSessionId, defaultTitle);
+        await renameSession(targetSessionId, defaultTitle);
       }
     }
 
     if (!targetSessionId) return;
+
+    // 되묻기 시 재질문인 경우, 기존 빈 대화 흐름이 꼬이지 않도록 clarificationState 초기화
+    clearClarification();
 
     addMessage(targetSessionId, { role: "user", content: text, image });
     addMessage(targetSessionId, {
@@ -133,6 +147,8 @@ export default function Home() {
 
     try {
       const currentSession = sessions.find((s) => s.id === targetSessionId);
+      
+      // 대화 히스토리 추출
       const prevMessages = currentSession
         ? currentSession.messages
             .filter((m) => !m.isStreaming && m.content)
@@ -140,13 +156,25 @@ export default function Home() {
             .map((m) => ({ role: m.role, content: m.content.slice(0, 300) }))
         : [];
 
+      // 맥락 유지용 직전 참조 정보 추출 (#3)
+      const lastAssistant = currentSession?.messages.filter((m) => m.role === "assistant").pop();
+      const previousReference = lastAssistant?.referenceDocumentId ? {
+        document_id: lastAssistant.referenceDocumentId,
+        document_name: lastAssistant.referenceDocumentName,
+        manufacturer: null,
+        referenced_pages: lastAssistant.references?.map((r) => r.pageNumber) || [],
+      } : undefined;
+
       const response = await authFetch(`${API_BASE_URL}/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          document_id: selectedDocId || undefined,
           message: text,
           chat_history: prevMessages.length > 0 ? prevMessages : undefined,
           image: image || undefined,
+          session_id: targetSessionId,
+          previous_reference: previousReference,
         }),
         signal: controller.signal,
       });
@@ -181,6 +209,8 @@ export default function Home() {
                   appendReference(targetSessionId, {
                     pageNumber: data.page_number,
                     imageBase64: data.image_base64,
+                    documentId: data.document_id,      // 신규
+                    documentName: data.document_name,   // 신규
                   });
                   break;
                 case "toc_cards":
@@ -188,6 +218,14 @@ export default function Home() {
                   break;
                 case "answer":
                   appendAnswerChunk(targetSessionId, data.content);
+                  break;
+                case "clarification": // 신규 되묻기 이벤트 처리
+                  setClarification({
+                    content: data.content,
+                    candidates: data.candidates,
+                  });
+                  finishStreaming(targetSessionId);
+                  streamDone = true;
                   break;
                 case "error":
                   appendAnswerChunk(targetSessionId, `\n\n> ⚠️ 오류: ${data.content}\n`);
@@ -221,6 +259,33 @@ export default function Home() {
     } finally {
       abortControllerRef.current = null;
     }
+  };
+
+  /** 되묻기 후보 선택 핸들러 */
+  const handleClarificationSelect = async (documentId: string) => {
+    if (!activeSessionId || !activeSession) return;
+    
+    // 마지막 user 메시지 찾기
+    const lastUserMsg = [...activeSession.messages]
+      .reverse()
+      .find((m) => m.role === "user");
+    
+    if (!lastUserMsg) return;
+
+    // 선택된 후보의 장비 정보 추출
+    const selectedCand = clarificationState?.candidates.find(
+      (c) => c.document_id === documentId
+    );
+    
+    // 질문 뒤에 장비 모델명 정보 덧붙임
+    const rewrittenQuestion = selectedCand
+      ? `${lastUserMsg.content} (선택 장비: ${selectedCand.manufacturer} ${selectedCand.model_series})`
+      : lastUserMsg.content;
+
+    clearClarification();
+    
+    // 선택된 document_id와 함께 재전송
+    await handleChatSubmit(rewrittenQuestion, lastUserMsg.image, documentId);
   };
 
   /** 스트리밍 중단 핸들러 */
@@ -374,6 +439,37 @@ export default function Home() {
               {activeSession.messages.map((msg) => (
                 <ChatMessage key={msg.id} message={msg} />
               ))}
+
+              {/* 되묻기 UI (#1) */}
+              {clarificationState && (
+                <div className="flex flex-col gap-3 p-4 md:p-5 rounded-2xl border border-primary/20 bg-primary/5/10 backdrop-blur-md animate-slide-up shadow-lg">
+                  <div className="text-xs md:text-sm font-semibold text-foreground/90 flex items-center gap-2">
+                    <span className="text-base">🤖</span>
+                    <span>{clarificationState.content}</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {clarificationState.candidates.map((cand) => (
+                      <button
+                        key={cand.document_id}
+                        onClick={() => handleClarificationSelect(cand.document_id)}
+                        className="flex items-center justify-between text-left p-3.5 rounded-xl border border-border bg-card hover:bg-primary/5 hover:border-primary/40 transition-all cursor-pointer group shadow-sm"
+                      >
+                        <div className="flex-1 pr-4 min-w-0">
+                          <div className="text-xs md:text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                            {cand.manufacturer} {cand.model_series}
+                          </div>
+                          <div className="text-[10px] md:text-xs text-muted-foreground/80 mt-0.5 truncate">
+                            {cand.title}
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded shrink-0">
+                          일치율: {(cand.confidence * 100).toFixed(0)}%
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </main>

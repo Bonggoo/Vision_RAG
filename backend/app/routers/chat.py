@@ -79,9 +79,21 @@ async def chat_stream(request: ChatRequest, http_request: Request, current_user:
     if request.chat_history:
         history = [{"role": h.role, "content": h.content} for h in request.chat_history]
     
+    # previous_reference를 딕셔너리로 변환
+    prev_ref = None
+    if request.previous_reference:
+        prev_ref = {
+            "document_id": str(request.previous_reference.document_id),
+            "document_name": request.previous_reference.document_name,
+            "manufacturer": request.previous_reference.manufacturer,
+            "referenced_pages": request.previous_reference.referenced_pages,
+        }
+
     pipeline = run_agentic_pipeline(
         doc_id, request.question, chat_history=history, image=request.image,
-        user_email=current_user["email"]
+        user_email=current_user["email"],
+        session_id=request.session_id,
+        previous_reference=prev_ref,
     )
 
     

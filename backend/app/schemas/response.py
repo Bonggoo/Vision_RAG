@@ -33,10 +33,14 @@ class DocumentListResponse(BaseModel):
     documents: List[DocumentInfo]
 
 class StreamEvent(BaseModel):
-    type: str  # "reasoning" | "reference" | "answer" | "error" | "done"
+    type: str  # "reasoning" | "reference" | "answer" | "error" | "done" | "clarification" | "toc_cards"
     content: Optional[str] = None
     page_number: Optional[int] = None
     image_base64: Optional[str] = None
+    document_id: Optional[str] = None  # reference 이벤트에 문서 정보 추가
+    document_name: Optional[str] = None
+    candidates: Optional[List[dict]] = None  # clarification 이벤트용
+    cards: Optional[List[dict]] = None  # toc_cards 이벤트용
 
 
 class PreflightResponse(BaseModel):
@@ -51,4 +55,40 @@ class AnalyzeResponse(BaseModel):
     status: str
     document_id: UUID
     message: str
+
+
+class ConversationMessage(BaseModel):
+    """대화 내 개별 메시지."""
+    role: str
+    content: str
+    image: Optional[str] = None
+    reasoning_steps: Optional[List[str]] = None
+    reference_pages: Optional[List[int]] = None
+    reference_document_id: Optional[str] = None
+    reference_document_name: Optional[str] = None
+    toc_cards: Optional[List[dict]] = None
+    timestamp: Optional[str] = None
+
+
+class ConversationInfo(BaseModel):
+    """대화 목록 조회용 요약 정보."""
+    session_id: str
+    title: str
+    created_at: str
+    updated_at: str
+    message_count: int
+
+
+class ConversationDetail(BaseModel):
+    """대화 상세 조회 응답 (메시지 포함)."""
+    session_id: str
+    title: str
+    created_at: str
+    updated_at: str
+    messages: List[ConversationMessage]
+
+
+class ConversationListResponse(BaseModel):
+    """대화 목록 응답."""
+    conversations: List[ConversationInfo]
 

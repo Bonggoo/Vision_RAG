@@ -181,53 +181,60 @@ async def _refine_pages_with_text(
 
 
 
-def _select_document_and_pages(
+async def _select_document(
     question: str,
     documents: list[dict],
     chat_history: list[dict] | None = None,
+    previous_reference: dict | None = None,
 ) -> dict:
     """
-    Phase 0+1 통합: 문서 선택 + 타겟 페이지 추론을 1회 LLM 호출로 처리합니다.
-    
-    B-2: 제조사/모델 정보 + 대화 이력 활용으로 문서 선택 정확도 향상.
+    1단계: 메타데이터만으로 문서 선택 + 일상대화 판별.
+    ToC를 제외하여 토큰을 절약합니다 (~2,500 토큰).
     
     Returns:
         {
-            "document_id": "선택된 문서 ID",
-            "target_pages": [페이지 번호들],
-            "section_title": "관련 섹션 제목",
-            "reasoning": "추론 과정"
+            "classification": "general" | "technical",
+            "candidates": [
+                {"document_id": "...", "confidence": 0.92, "reason": "..."},
+                ...
+            ],
+            "reasoning": "..."
         }
     """
+    logger.info(f"🔍 [Phase 1] 메타데이터 기반 문서 선택 시작 (질문: {question[:50]}...)")
+    
+    # 문서가 1개면 LLM 호출 없이 바로 반환
+    if len(documents) == 1:
+        return {
+            "classification": "technical",
+            "candidates": [
+                {
+                    "document_id": documents[0]["document_id"],
+                    "confidence": 0.99,
+                    "reason": "유일한 문서",
+                }
+            ],
+            "reasoning": "문서가 1개이므로 해당 문서를 자동 선택합니다.",
+        }
+    
     llm = _create_flash_llm()
-    logger.info(f"🔍 [Phase 0+1] 문서 및 페이지 1차 추론 시작 (질문: {question[:50]}...)")
     
-    single_doc = len(documents) == 1
-
-    
-    # 각 문서의 요약 정보 구성 (B-2: 제조사/모델 정보 추가)
+    # 각 문서의 메타데이터 요약 (ToC 제외하여 토큰 절약)
     doc_summaries = []
     for i, doc in enumerate(documents):
-        toc = doc.get("toc", [])
-        toc_text = json.dumps(toc, ensure_ascii=False)
-        # ToC가 너무 크면 잘라냄 (토큰 절약)
-        if len(toc_text) > 3000:
-            toc_text = json.dumps(toc[:30], ensure_ascii=False) + f" ... (총 {len(toc)}개 항목)"
-        
         doc_summaries.append(
             f"[문서 {i+1}]\n"
             f"  ID: {doc['document_id']}\n"
             f"  제목: {doc.get('filename', '알 수 없음')}\n"
             f"  제조사: {doc.get('manufacturer', '미상')}\n"
             f"  모델 시리즈: {doc.get('model_series', '미상')}\n"
-            f"  원본 파일명: {doc.get('original_filename', '')}\n"
-            f"  페이지 수: {doc.get('total_pages', 0)}\n"
-            f"  목차(ToC):\n{toc_text}"
+            f"  문서 종류: {doc.get('document_type', '미상')}\n"
+            f"  페이지 수: {doc.get('total_pages', 0)}"
         )
     
     docs_text = "\n\n".join(doc_summaries)
     
-    # B-2: 대화 이력 맥락 구성
+    # 대화 이력 맥락 구성
     context_section = ""
     if chat_history:
         recent = chat_history[-4:]
@@ -237,24 +244,129 @@ def _select_document_and_pages(
             pairs.append(f"{role_label}: {item['content'][:200]}")
         context_section = "\n이전 대화 맥락:\n" + "\n".join(pairs) + "\n"
     
-    if single_doc:
-        select_instruction = "문서가 1개이므로 해당 문서를 사용합니다."
-    else:
-        select_instruction = "먼저 질문에 가장 적합한 문서를 선택하세요. 제조사, 모델 시리즈 정보를 참고하세요."
+    # 이전 참조 문서 힌트
+    previous_reference_section = ""
+    if previous_reference:
+        prev_name = previous_reference.get("document_name", "")
+        prev_manuf = previous_reference.get("manufacturer", "")
+        if prev_name:
+            previous_reference_section = f"\n이전에 참조한 문서: {prev_name} (제조사: {prev_manuf})\n"
     
     prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
-아래는 업로드된 문서 목록과 목차입니다:
+
+[Step 1] 사용자의 질문이 매뉴얼 검색이 필요한 기술적 질문인지 판별하세요.
+- 인사말, 잡담, 감사 → "general"
+- 매뉴얼에서 정보를 찾아야 하는 질문 → "technical"
+
+[Step 2] "technical"인 경우, 아래 문서 목록에서 적합한 문서를 선택하세요.
+각 문서에 confidence (0.0~1.0) 점수를 부여하세요.
 
 {docs_text}
 {context_section}
+{previous_reference_section}
 사용자의 질문: "{question}"
-
-{select_instruction}
-그리고 선택한 문서의 목차를 분석하여, 이 질문에 답하기 위해 참조해야 할 타겟 페이지를 추론하세요.
 
 다음 JSON 형식으로만 응답하세요 (마크다운 코드블록 없이):
 {{
-    "document_id": "선택한 문서의 ID",
+    "classification": "general" 또는 "technical",
+    "candidates": [
+        {{"document_id": "...", "confidence": 0.92, "reason": "제조사와 모델이 일치"}},
+        {{"document_id": "...", "confidence": 0.35, "reason": "같은 제조사이나 다른 모델"}}
+    ],
+    "reasoning": "판별 및 추론 과정을 한국어로 간략히 설명"
+}}
+
+규칙:
+- classification이 "general"이면 candidates는 빈 배열 []로 설정
+- classification이 "technical"이면 모든 문서에 confidence 점수를 부여하여 candidates에 포함
+- confidence는 0.0~1.0 범위로 설정 (높을수록 적합)
+- candidates는 confidence 내림차순으로 정렬"""
+    
+    try:
+        response = await llm.ainvoke([HumanMessage(content=prompt)])
+        result = json.loads(_clean_json_response(response.content))
+        
+        # classification 정규화
+        classification = result.get("classification", "technical").lower().strip()
+        result["classification"] = "general" if "general" in classification else "technical"
+        
+        if result["classification"] == "technical":
+            # candidates 검증: 유효한 document_id만 남기기
+            valid_ids = {d["document_id"] for d in documents}
+            raw_candidates = result.get("candidates", [])
+            validated = []
+            for c in raw_candidates:
+                if isinstance(c, dict) and c.get("document_id") in valid_ids:
+                    validated.append({
+                        "document_id": c["document_id"],
+                        "confidence": float(c.get("confidence", 0.5)),
+                        "reason": str(c.get("reason", "")),
+                    })
+            
+            # 후보가 없으면 첫 번째 문서를 기본값으로
+            if not validated:
+                validated = [{"document_id": documents[0]["document_id"], "confidence": 0.5, "reason": "기본 선택"}]
+            
+            # confidence 내림차순 정렬
+            validated.sort(key=lambda x: x["confidence"], reverse=True)
+            result["candidates"] = validated
+        else:
+            result["candidates"] = []
+        
+        return result
+    except Exception as e:
+        logger.error(f"❌ [Phase 1] Document Selection Error: {e}", exc_info=True)
+        return {
+            "classification": "technical",
+            "candidates": [{"document_id": documents[0]["document_id"], "confidence": 0.5, "reason": f"오류 발생 기본 선택: {str(e)}"}],
+            "reasoning": f"문서 선택 중 오류 발생: {str(e)}",
+        }
+
+
+async def _select_pages(
+    question: str,
+    toc: list[dict],
+    total_pages: int,
+    previous_reference: dict | None = None,
+) -> dict:
+    """
+    2단계: 선택된 문서의 ToC 전체로 페이지 선택.
+    ToC 잘림 없이 전체를 전달합니다.
+    
+    Returns:
+        {
+            "target_pages": [페이지 번호들],
+            "section_title": "관련 섹션 제목",
+            "toc_candidates": [{"title": "...", "page": N}, ...],
+            "reasoning": "..."
+        }
+    """
+    llm = _create_flash_llm()
+    logger.info(f"🔍 [Phase 1-2] ToC 기반 페이지 선택 시작 (질문: {question[:50]}...)")
+    
+    # ToC 전체 전달 (잘림 없음)
+    toc_text = json.dumps(toc, ensure_ascii=False)
+    
+    # 이전 참조 페이지 힌트
+    previous_pages_section = ""
+    if previous_reference:
+        ref_pages = previous_reference.get("referenced_pages", [])
+        if ref_pages:
+            previous_pages_section = f"\n이전에 참조한 페이지: {ref_pages} (같은 맥락의 후속 질문일 수 있습니다)\n"
+    
+    prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
+아래는 선택된 문서의 전체 목차(ToC)입니다:
+
+{toc_text}
+
+총 페이지 수: {total_pages}
+{previous_pages_section}
+사용자의 질문: "{question}"
+
+이 목차를 분석하여 질문에 답하기 위해 참조해야 할 타겟 페이지를 추론하세요.
+
+다음 JSON 형식으로만 응답하세요 (마크다운 코드블록 없이):
+{{
     "target_pages": [시작페이지, ..., 끝페이지],
     "section_title": "관련 섹션의 제목",
     "toc_candidates": [
@@ -262,7 +374,7 @@ def _select_document_and_pages(
         {{"title": "질문과 연관성 높은 목차 제목 2", "page": 페이지번호}},
         {{"title": "질문과 연관성 높은 목차 제목 3", "page": 페이지번호}}
     ],
-    "reasoning": "문서 선택 및 페이지 추론 과정을 한국어로 간략히 설명"
+    "reasoning": "페이지 추론 과정을 한국어로 간략히 설명"
 }}
 
 규칙:
@@ -272,14 +384,8 @@ def _select_document_and_pages(
 - 연속된 페이지라면 사이 페이지도 포함합니다."""
     
     try:
-        response = llm.invoke([HumanMessage(content=prompt)])
+        response = await llm.ainvoke([HumanMessage(content=prompt)])
         result = json.loads(_clean_json_response(response.content))
-        
-        # document_id 검증
-        selected_id = result.get("document_id")
-        found = any(d["document_id"] == selected_id for d in documents)
-        if not found:
-            result["document_id"] = documents[0]["document_id"]
         
         # target_pages 정규화
         raw_pages = result.get("target_pages", [1])
@@ -298,142 +404,12 @@ def _select_document_and_pages(
         
         return result
     except Exception as e:
-        logger.error(f"❌ [Phase 0+1] Document+Page Selection Error: {e}", exc_info=True)
+        logger.error(f"❌ [Phase 1-2] Page Selection Error: {e}", exc_info=True)
         return {
-            "document_id": documents[0]["document_id"],
             "target_pages": [1],
             "section_title": "알 수 없음",
             "toc_candidates": [],
-            "reasoning": f"추론 중 오류 발생: {str(e)}"
-        }
-
-
-def _classify_and_select(
-    question: str,
-    documents: list[dict],
-    chat_history: list[dict] | None = None,
-) -> dict:
-    """
-    C-2: Step 0 + Phase 0+1 병합 — 1회 LLM 호출로 일상대화 판별 + 문서/페이지 선택을 동시에 수행합니다.
-    
-    Returns:
-        {
-            "classification": "general" | "technical",
-            "document_id": str | None,
-            "target_pages": list[int],
-            "section_title": str,
-            "reasoning": str
-        }
-    """
-    llm = _create_flash_llm()
-    
-    # 문서 요약 구성 (B-2: 제조사/모델 포함)
-    doc_summaries = []
-    for i, doc in enumerate(documents):
-        toc = doc.get("toc", [])
-        toc_text = json.dumps(toc, ensure_ascii=False)
-        if len(toc_text) > 3000:
-            toc_text = json.dumps(toc[:30], ensure_ascii=False) + f" ... (총 {len(toc)}개 항목)"
-        
-        doc_summaries.append(
-            f"[문서 {i+1}]\n"
-            f"  ID: {doc['document_id']}\n"
-            f"  제목: {doc.get('filename', '알 수 없음')}\n"
-            f"  제조사: {doc.get('manufacturer', '미상')}\n"
-            f"  모델 시리즈: {doc.get('model_series', '미상')}\n"
-            f"  페이지 수: {doc.get('total_pages', 0)}\n"
-            f"  목차(ToC):\n{toc_text}"
-        )
-    
-    docs_text = "\n\n".join(doc_summaries)
-    
-    # 대화 이력
-    context_section = ""
-    if chat_history:
-        recent = chat_history[-4:]
-        pairs = [f"{'사용자' if m['role']=='user' else 'AI'}: {m['content'][:200]}" for m in recent]
-        context_section = "\n이전 대화 맥락:\n" + "\n".join(pairs) + "\n"
-    
-    single_doc = len(documents) == 1
-    select_instruction = "문서가 1개이므로 해당 문서를 사용합니다." if single_doc else "질문에 가장 적합한 문서를 선택하세요. 제조사, 모델 시리즈를 참고하세요."
-    
-    prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
-
-[Step 1] 사용자의 질문이 매뉴얼 검색이 필요한 기술적 질문인지 판별하세요.
-- 인사말, 잡담, 감사 → "general"
-- 매뉴얼에서 정보를 찾아야 하는 질문 → "technical"
-
-[Step 2] "technical"인 경우에만, 아래 문서 목록에서 적합한 문서와 타겟 페이지를 선택하세요.
-
-{docs_text}
-{context_section}
-사용자의 질문: "{question}"
-
-{select_instruction}
-
-다음 JSON 형식으로만 응답하세요 (마크다운 코드블록 없이):
-{{
-    "classification": "general" 또는 "technical",
-    "document_id": "선택한 문서의 ID (general이면 null)",
-    "target_pages": [타겟 페이지들] (general이면 []),
-    "section_title": "관련 섹션의 제목 (general이면 빈 문자열)",
-    "toc_candidates": [
-        {{"title": "질문과 연관성 높은 목차 제목 1", "page": 페이지번호}},
-        {{"title": "질문과 연관성 높은 목차 제목 2", "page": 페이지번호}},
-        {{"title": "질문과 연관성 높은 목차 제목 3", "page": 페이지번호}}
-    ] (general이면 []),
-    "reasoning": "판별 및 추론 과정을 한국어로 간략히 설명"
-}}
-
-규칙:
-- classification이 "general"이면 document_id, target_pages, section_title, toc_candidates는 null/빈값으로 설정
-- classification이 "technical"이면 반드시 문서와 페이지를 선택
-- toc_candidates에는 질문 해결에 도움을 줄 수 있는 목차(ToC) 항목을 최대 3개까지 매칭하여 포함하세요.
-- 타겟 페이지는 최소 1개, 최대 5개
-- 페이지 번호는 목차의 page 값 기준"""
-    
-    try:
-        response = llm.invoke([HumanMessage(content=prompt)])
-        result = json.loads(_clean_json_response(response.content))
-        
-        # classification 정규화
-        classification = result.get("classification", "technical").lower().strip()
-        result["classification"] = "general" if "general" in classification else "technical"
-        
-        if result["classification"] == "technical":
-            # document_id 검증
-            selected_id = result.get("document_id")
-            found = any(d["document_id"] == selected_id for d in documents)
-            if not found:
-                result["document_id"] = documents[0]["document_id"]
-            
-            # target_pages 정규화
-            raw_pages = result.get("target_pages", [1])
-            result["target_pages"] = [_normalize_page(p) for p in raw_pages][:5]
-            
-            # toc_candidates 정규화
-            raw_candidates = result.get("toc_candidates", [])
-            normalized_candidates = []
-            for cand in raw_candidates:
-                if isinstance(cand, dict) and "title" in cand:
-                    normalized_candidates.append({
-                        "title": str(cand["title"]),
-                        "page": _normalize_page(cand.get("page", 1))
-                    })
-            result["toc_candidates"] = normalized_candidates[:3]
-        else:
-            result["toc_candidates"] = []
-        
-        return result
-    except Exception as e:
-        logger.error(f"❌ [Classify+Select] Error: {e}", exc_info=True)
-        return {
-            "classification": "technical",
-            "document_id": documents[0]["document_id"],
-            "target_pages": [1],
-            "section_title": "알 수 없음",
-            "toc_candidates": [],
-            "reasoning": f"판별+추론 중 오류 발생: {str(e)}"
+            "reasoning": f"페이지 추론 중 오류 발생: {str(e)}"
         }
 
 
@@ -443,12 +419,15 @@ async def run_agentic_pipeline(
     chat_history: list[dict] | None = None,
     image: str | None = None,
     user_email: str | None = None,
+    session_id: str | None = None,
+    previous_reference: dict | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Agentic Search 파이프라인을 실행합니다.
     
     3단계 하이브리드 구조:
-    Phase 0+1: 문서 선택 + ToC 기반 타겟 섹션 추론 (Flash-Lite, 텍스트)
+    Phase 1: 메타데이터 기반 문서 선택 (Flash-Lite, ToC 제외)
+    Phase 1-2: ToC 전체 기반 타겟 페이지 추론 (Flash-Lite, 텍스트)
     Phase 2: 섹션 전체 텍스트 분석 → 정확한 타겟 페이지 특정 (Flash-Lite, 텍스트)
     Phase 3: 타겟 페이지 미니 PDF 분석 → 답변 스트리밍 (Flash-Lite, PDF)
     """
@@ -457,11 +436,18 @@ async def run_agentic_pipeline(
     # 추천된 ToC 목록 저장용 변수
     toc_cards = []
     
+    # SSE 이벤트 수집 변수 (GCS 저장용)
+    collected_answer = ""
+    collected_reasoning = []
+    collected_references = []
+    selected_doc_filename = ""
+    
     try:
         # ─── Step -1: 이미지 분석 및 질문/문서 매칭 보강 ───
         analyzed_meta = None
         if image:
             yield _sse_event("reasoning", content="📸 업로드하신 장비 이미지를 분석하고 있습니다...")
+            collected_reasoning.append("📸 업로드하신 장비 이미지를 분석하고 있습니다...")
             try:
                 from app.services.agent_service import analyze_device_image_with_gemini
                 analyzed_meta = await analyze_device_image_with_gemini(image)
@@ -478,10 +464,9 @@ async def run_agentic_pipeline(
                     if err_code: info_parts.append(f"인식된 알람: {err_code}")
                     if symptom: info_parts.append(f"증상: {symptom}")
                     
-                    yield _sse_event(
-                        "reasoning",
-                        content="🔍 이미지 인식 성공!\n- " + "\n- ".join(info_parts)
-                    )
+                    reasoning_content = "🔍 이미지 인식 성공!\n- " + "\n- ".join(info_parts)
+                    yield _sse_event("reasoning", content=reasoning_content)
+                    collected_reasoning.append(reasoning_content)
                     
                     # 문서 매칭: document_id가 지정되지 않은 경우, 분석된 제조사/모델과 일치하는 문서 검색
                     if document_id is None:
@@ -515,10 +500,9 @@ async def run_agentic_pipeline(
                                     
                         if matched_doc:
                             document_id = matched_doc["document_id"]
-                            yield _sse_event(
-                                "reasoning",
-                                content=f"📂 분석 정보를 기반으로 매칭된 매뉴얼을 자동으로 선택했습니다:\n- 파일명: {matched_doc.get('filename')}"
-                            )
+                            reasoning_content = f"📂 분석 정보를 기반으로 매칭된 매뉴얼을 자동으로 선택했습니다:\n- 파일명: {matched_doc.get('filename')}"
+                            yield _sse_event("reasoning", content=reasoning_content)
+                            collected_reasoning.append(reasoning_content)
                     
                     # 질문 보강 (리라이팅)
                     rewritten_parts = []
@@ -534,15 +518,16 @@ async def run_agentic_pipeline(
                         else:
                             question = f"{' '.join(rewritten_parts)} 에러 상황: {question}"
                         
-                        yield _sse_event(
-                            "reasoning",
-                            content=f"⚙️ 질문 보강 완료: '{question}'"
-                        )
+                        reasoning_content = f"⚙️ 질문 보강 완료: '{question}'"
+                        yield _sse_event("reasoning", content=reasoning_content)
+                        collected_reasoning.append(reasoning_content)
                 else:
                     yield _sse_event("reasoning", content="⚠️ 이미지에서 명확한 장비 브랜드나 알람코드를 파악하지 못해 일반 RAG 모드로 계속합니다.")
+                    collected_reasoning.append("⚠️ 이미지에서 명확한 장비 브랜드나 알람코드를 파악하지 못해 일반 RAG 모드로 계속합니다.")
             except Exception as e:
                 logger.error(f"Error in image preprocessing: {e}")
                 yield _sse_event("reasoning", content=f"⚠️ 이미지 분석 중 오류 발생, 일반 RAG 모드로 진행합니다. (오류: {e})")
+                collected_reasoning.append(f"⚠️ 이미지 분석 중 오류 발생, 일반 RAG 모드로 진행합니다. (오류: {e})")
 
         # ─── C-1: 규칙 기반 빠른 분류 ───
         quick_result = _quick_classify(question)
@@ -571,7 +556,7 @@ async def run_agentic_pipeline(
             yield _sse_event("done")
             return
         
-        # ─── C-2: Step 0 + Phase 0+1 통합 (1회 LLM 호출) ───
+        # ─── 2단계 구조: 문서 선택 → 페이지 선택 ───
 
         if document_id is None:
             all_docs = get_all_documents(owner_email=user_email)
@@ -583,19 +568,19 @@ async def run_agentic_pipeline(
             
             if len(all_docs) == 1:
                 yield _sse_event("reasoning", content=f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
+                collected_reasoning.append(f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
             else:
                 yield _sse_event("reasoning", content=f"📚 {len(all_docs)}개 문서 중 적합한 문서와 페이지를 찾고 있습니다...")
+                collected_reasoning.append(f"📚 {len(all_docs)}개 문서 중 적합한 문서와 페이지를 찾고 있습니다...")
             
-            # C-2: 애매한 질문은 분류+문서선택을 1회 LLM으로 통합
-            if quick_result is None:
-                # 규칙으로 분류 안 된 경우 → 통합 LLM 호출
-                combined = _classify_and_select(question, all_docs, chat_history)
-                
-                if combined["classification"] == "general":
-                    # LLM이 일상대화로 판단 → Early Exit
-                    yield _sse_event("reasoning", content="일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다...")
-                    llm = _create_flash_llm()
-                    chat_prompt = f"""당신은 산업용 매뉴얼 분석 비서 'Vision RAG 에이전트'입니다.
+            # 1단계: 메타데이터로 문서 선택 (ToC 제외)
+            doc_result = await _select_document(question, all_docs, chat_history, previous_reference)
+            
+            if doc_result["classification"] == "general":
+                # LLM이 일상대화로 판단 → Early Exit
+                yield _sse_event("reasoning", content="일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다...")
+                llm = _create_flash_llm()
+                chat_prompt = f"""당신은 산업용 매뉴얼 분석 비서 'Vision RAG 에이전트'입니다.
 사용자가 매뉴얼 검색과 관계없는 일반적인 인사나 일상적 대화를 건넸습니다.
 친절하고 자연스럽게 인사하고, 매뉴얼 PDF를 업로드하여 질문하면 해당 매뉴얼(알람코드, 도면, 표 등)을 원본 레이아웃 그대로 분석하여 정확하게 답변할 수 있는 도구임을 알려주세요.
 
@@ -603,63 +588,102 @@ async def run_agentic_pipeline(
 
 친절하고 자연스럽게 한국어로 답변을 생성해 주세요.
 """
-                    try:
-                        response = await llm.ainvoke([HumanMessage(content=chat_prompt)])
-                        answer = _extract_text_content(response.content)
-                        yield _sse_event("answer", content=answer)
-                    except Exception as e:
-                        logger.error(f"Error in general chatbot response: {e}")
-                        yield _sse_event("answer", content="안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요?")
+                try:
+                    response = await llm.ainvoke([HumanMessage(content=chat_prompt)])
+                    answer = _extract_text_content(response.content)
+                    yield _sse_event("answer", content=answer)
+                except Exception as e:
+                    logger.error(f"Error in general chatbot response: {e}")
+                    yield _sse_event("answer", content="안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요?")
+                yield _sse_event("done")
+                return
+            
+            # 되묻기 판단
+            candidates = doc_result.get("candidates", [])
+            if candidates:
+                top = candidates[0]
+                second = candidates[1] if len(candidates) > 1 else None
+                
+                needs_clarification = (
+                    top["confidence"] < 0.7 or
+                    (second and top["confidence"] - second["confidence"] < 0.2)
+                )
+                
+                if needs_clarification and len(candidates) > 1:
+                    # 되묻기 이벤트 발행
+                    clarification_candidates = []
+                    for c in candidates[:5]:  # 최대 5개 선택지
+                        doc_meta = next((d for d in all_docs if d["document_id"] == c["document_id"]), None)
+                        if doc_meta:
+                            clarification_candidates.append({
+                                "document_id": c["document_id"],
+                                "title": doc_meta.get("filename", "알 수 없음"),
+                                "manufacturer": doc_meta.get("manufacturer", "미상"),
+                                "model_series": doc_meta.get("model_series", "미상"),
+                                "confidence": c["confidence"],
+                            })
+                    
+                    yield _sse_event(
+                        "clarification",
+                        content="여러 매뉴얼에서 관련 내용을 찾았습니다. 어떤 장비의 매뉴얼을 참조할까요?",
+                        candidates=clarification_candidates,
+                    )
                     yield _sse_event("done")
                     return
                 
-                # technical → 이미 문서+페이지 선택 완료
-                document_id = combined["document_id"]
-                coarse_pages = combined["target_pages"]
-                coarse_title = combined.get("section_title", "")
-                coarse_reasoning = combined.get("reasoning", "")
+                document_id = top["document_id"]
             else:
-                # quick_result == "technical" → 문서선택만 수행
-                selection = _select_document_and_pages(question, all_docs, chat_history)
-                document_id = selection["document_id"]
-                coarse_pages = selection["target_pages"]
-                coarse_title = selection.get("section_title", "")
-                coarse_reasoning = selection.get("reasoning", "")
+                document_id = all_docs[0]["document_id"]
             
-            # 선택된 문서 메타 찾기
+            # 2단계: 선택된 문서의 ToC 전체로 페이지 선택
             selected_doc = next((d for d in all_docs if d["document_id"] == document_id), all_docs[0])
-            yield _sse_event(
-                "reasoning",
-                content=f"📄 '{selected_doc.get('filename', '')}' → '{coarse_title}' (p.{coarse_pages})\n{coarse_reasoning}"
-            )
+            selected_doc_filename = selected_doc.get('filename', '')
             
-            # ToC 추천 리스트가 있으면 SSE로 송신
-            toc_cards = combined.get("toc_candidates", []) if quick_result is None else selection.get("toc_candidates", [])
+            reasoning_content = f"📄 '{selected_doc_filename}' 문서에서 관련 페이지를 찾고 있습니다..."
+            yield _sse_event("reasoning", content=reasoning_content)
+            collected_reasoning.append(reasoning_content)
+            
+            toc = selected_doc.get("toc", [])
+            total_pages = selected_doc.get("total_pages", 0)
+            page_result = await _select_pages(question, toc, total_pages, previous_reference)
+            
+            coarse_pages = page_result.get("target_pages", [1])
+            coarse_title = page_result.get("section_title", "")
+            coarse_reasoning = page_result.get("reasoning", "")
+            
+            reasoning_content = f"📄 '{selected_doc_filename}' → '{coarse_title}' (p.{coarse_pages})\n{coarse_reasoning}"
+            yield _sse_event("reasoning", content=reasoning_content)
+            collected_reasoning.append(reasoning_content)
+            
+            toc_cards = page_result.get("toc_candidates", [])
             if toc_cards:
                 yield _sse_event("toc_cards", cards=toc_cards)
         else:
-            # document_id가 지정된 경우: Phase 1만 실행
-            meta = get_document(document_id)
+            # document_id가 지정된 경우: _select_pages()만 실행
+            meta = get_document(document_id, owner_email=user_email)
             if meta is None:
                 yield _sse_event("error", content=f"문서를 찾을 수 없습니다: {document_id}")
                 yield _sse_event("done")
                 return
             
             toc = meta.get("toc", [])
-            yield _sse_event("reasoning", content=f"📄 '{meta.get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
+            total_pages = meta.get("total_pages", 0)
+            selected_doc_filename = meta.get('filename', '')
             
-            selection = _select_document_and_pages(question, [meta], chat_history)
-            coarse_pages = selection["target_pages"]
-            coarse_title = selection.get("section_title", "")
-            coarse_reasoning = selection.get("reasoning", "")
+            reasoning_content = f"📄 '{selected_doc_filename}' 문서에서 관련 페이지를 찾고 있습니다..."
+            yield _sse_event("reasoning", content=reasoning_content)
+            collected_reasoning.append(reasoning_content)
             
-            yield _sse_event(
-                "reasoning",
-                content=f"'{coarse_title}' 섹션 특정 완료 (p.{coarse_pages})\n{coarse_reasoning}"
-            )
+            page_result = await _select_pages(question, toc, total_pages, previous_reference)
+            coarse_pages = page_result.get("target_pages", [1])
+            coarse_title = page_result.get("section_title", "")
+            coarse_reasoning = page_result.get("reasoning", "")
             
-            # ToC 추천 리스트가 있으면 SSE로 송신
-            toc_cards = selection.get("toc_candidates", [])
+            reasoning_content = f"📄 → '{coarse_title}' (p.{coarse_pages})\n{coarse_reasoning}"
+            yield _sse_event("reasoning", content=reasoning_content)
+            collected_reasoning.append(reasoning_content)
+            
+            toc_cards = page_result.get("toc_candidates", [])
             if toc_cards:
                 yield _sse_event("toc_cards", cards=toc_cards)
         
@@ -698,7 +722,9 @@ async def run_agentic_pipeline(
         
         # ─── Step 2: 텍스트 기반 정밀 탐색 (Phase 2) ───
         if section_size > 3:
-            yield _sse_event("reasoning", content=f"[세부 탐색] '{coarse_title}' 섹션(p.{section_start}~{section_end})의 텍스트를 분석하여 정확한 페이지를 찾고 있습니다...")
+            reasoning_content = f"[세부 탐색] '{coarse_title}' 섹션(p.{section_start}~{section_end})의 텍스트를 분석하여 정확한 페이지를 찾고 있습니다..."
+            yield _sse_event("reasoning", content=reasoning_content)
+            collected_reasoning.append(reasoning_content)
             
             # C-3: 비동기 호출
             phase2_result = await _refine_pages_with_text(doc, section_start, section_end, question)
@@ -706,16 +732,16 @@ async def run_agentic_pipeline(
             refined_title = phase2_result.get("section_title", coarse_title)
             refined_reasoning = phase2_result.get("reasoning", "")
             
-            yield _sse_event(
-                "reasoning",
-                content=f"[세부 탐색] '{refined_title}' → 타겟 페이지 {target_pages}\n{refined_reasoning}"
-            )
+            reasoning_content = f"[세부 탐색] '{refined_title}' → 타겟 페이지 {target_pages}\n{refined_reasoning}"
+            yield _sse_event("reasoning", content=reasoning_content)
+            collected_reasoning.append(reasoning_content)
         else:
             # 섹션이 작으면 Phase 1 결과를 그대로 사용
             target_pages = coarse_pages
         
         # ─── Step 4: 미니 PDF 추출 + 참조 이미지 생성 ───
         yield _sse_event("reasoning", content=f"페이지 {target_pages}에서 미니 PDF를 추출하고 있습니다...")
+        collected_reasoning.append(f"페이지 {target_pages}에서 미니 PDF를 추출하고 있습니다...")
         
         try:
             # RAG 코어 타겟 페이지와 ToC 추천 페이지들을 합침 (썸네일 생성용)
@@ -749,11 +775,15 @@ async def run_agentic_pipeline(
                 try:
                     png_bytes = render_page_thumbnail(doc, page_idx, dpi=150)
                     image_base64 = f"data:image/png;base64,{base64.b64encode(png_bytes).decode('utf-8')}"
+                    page_num = page_idx + 1
                     yield _sse_event(
                         "reference",
-                        page_number=page_idx + 1,
+                        page_number=page_num,
                         image_base64=image_base64,
+                        document_id=str(document_id),
+                        document_name=selected_doc_filename,
                     )
+                    collected_references.append({"page_number": page_num})
                 except Exception as e:
                     logger.error(f"❌ [Pipeline] Thumbnail generation error for page {page_idx}: {e}")
             
@@ -769,23 +799,52 @@ async def run_agentic_pipeline(
         
         # ─── Step 5: Vision LLM 분석 (스트리밍) + B-1 Fallback ───
         yield _sse_event("reasoning", content="Gemini Vision으로 페이지를 분석하고 있습니다...")
+        collected_reasoning.append("Gemini Vision으로 페이지를 분석하고 있습니다...")
         
         try:
             async for chunk in analyze_pages_with_vision(mini_pdf_bytes, question, chat_history=chat_history):
                 yield _sse_event("answer", content=chunk)
+                collected_answer += chunk
         except Exception as e:
             logger.error(f"❌ [Pipeline] Vision 분석 3회 재시도 모두 실패: {e}", exc_info=True)
             
             # B-1 Fallback: Vision 실패 시 텍스트 기반 답변 생성
             yield _sse_event("reasoning", content="⚠️ Vision 분석이 실패하여 텍스트 기반으로 답변을 생성합니다...")
+            collected_reasoning.append("⚠️ Vision 분석이 실패하여 텍스트 기반으로 답변을 생성합니다...")
             try:
                 fallback_answer = await _generate_text_fallback(pdf_path, target_pages, question, chat_history)
                 yield _sse_event("answer", content=fallback_answer)
+                collected_answer += fallback_answer
             except Exception as fb_err:
                 logger.error(f"❌ [Pipeline] 텍스트 Fallback도 실패: {fb_err}", exc_info=True)
                 yield _sse_event("error", content=f"Vision 분석 및 텍스트 분석 모두 실패: {str(e)}")
         
         logger.info("🏁 [Pipeline] Agentic Search 파이프라인 처리 완료")
+        
+        # 대화 GCS 자동 저장
+        if session_id and user_email:
+            try:
+                from app.services.conversation_service import save_message
+                user_msg = {
+                    "role": "user",
+                    "content": question,
+                    "image": image,
+                }
+                assistant_msg = {
+                    "role": "assistant",
+                    "content": collected_answer,
+                    "reasoning_steps": collected_reasoning,
+                    "reference_pages": [ref["page_number"] for ref in collected_references],
+                    "reference_document_id": str(document_id) if document_id else None,
+                    "reference_document_name": selected_doc_filename if document_id else None,
+                    "toc_cards": toc_cards,
+                }
+                # 대화 제목: 첫 질문 25자
+                title = question[:25] + "..." if len(question) > 25 else question
+                save_message(user_email, session_id, user_msg, assistant_msg, title=title)
+            except Exception as e:
+                logger.error(f"❌ [Pipeline] 대화 저장 실패 (무시): {e}")
+        
         yield _sse_event("done")
     
     except GeneratorExit:

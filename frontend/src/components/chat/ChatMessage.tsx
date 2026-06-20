@@ -204,6 +204,17 @@ export default function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
   const [activePage, setActivePage] = useState<number | null>(null);
 
+  // assistant 메시지가 완전히 비어있는 경우 렌더링하지 않음 (되묻기 시 빈 말풍선 노출 방지)
+  const hasContent = (message.content && message.content.trim().length > 0) ||
+                     (message.reasoningSteps && message.reasoningSteps.length > 0) ||
+                     (message.references && message.references.length > 0) ||
+                     (message.tocCards && message.tocCards.length > 0) ||
+                     message.isStreaming;
+
+  if (!isUser && !hasContent) {
+    return null;
+  }
+
   if (isUser) {
     return (
       <div className="flex justify-end animate-slide-up">

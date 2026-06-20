@@ -9,12 +9,22 @@ class ChatHistoryItem(BaseModel):
     content: str
 
 
+class PreviousReference(BaseModel):
+    """이전 대화에서 참조한 문서 맥락 정보."""
+    document_id: UUID
+    document_name: Optional[str] = None
+    manufacturer: Optional[str] = None
+    referenced_pages: Optional[List[int]] = None
+
+
 class ChatRequest(BaseModel):
     """질의·응답 요청 스키마. document_id가 없으면 자동 선택합니다."""
     document_id: Optional[UUID] = None
     question: str = Field(..., alias="message")
     chat_history: Optional[List[ChatHistoryItem]] = None
     image: Optional[str] = None  # Base64 이미지 데이터 URL (선택 사항)
+    session_id: Optional[str] = None  # 대화 GCS 저장용
+    previous_reference: Optional[PreviousReference] = None  # 맥락 유지용
     
     model_config = {"populate_by_name": True}
 
@@ -39,4 +49,13 @@ class AnalyzeRequest(BaseModel):
     filename: str
     file_hash: str
 
+
+class CreateConversationRequest(BaseModel):
+    """새 대화 세션 생성 요청 스키마."""
+    title: str = "새로운 대화"
+
+
+class RenameConversationRequest(BaseModel):
+    """대화 제목 변경 요청 스키마."""
+    title: str
 

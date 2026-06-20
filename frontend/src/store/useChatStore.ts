@@ -1,12 +1,14 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuthStore } from '@/store/useAuthStore';
+import { api } from '@/lib/api';
 
 /** 참조 페이지 이미지 */
 export interface ReferenceImage {
   pageNumber: number;
-  imageBase64: string;
+  imageBase64?: string; // GCS 미저장 대비 선택적 필드로 변경
+  documentId?: string;
+  documentName?: string;
 }
 
 /** 추천 ToC 목차 카드 */
@@ -29,6 +31,10 @@ export interface Message {
   references?: ReferenceImage[];
   /** 추천 ToC 목차 후보군 (toc_cards 이벤트) */
   tocCards?: TocCard[];
+  /** 이 답변이 참조한 문서 ID/명 (맥락 강화용) */
+  referenceDocumentId?: string;
+  referenceDocumentName?: string;
+  timestamp?: string;
 }
 
 export interface ChatSession {
@@ -36,32 +42,49 @@ export interface ChatSession {
   title: string;
   messages: Message[];
   createdAt: number;
-  /** 세션 소유자 이메일 (멀티테넌시 격리용, 미설정 시 공용 레거시 세션) */
+  /** 세션 소유자 이메일 (멀티테넌시 격리용, GCS 저장 기준) */
   ownerEmail?: string;
+}
+
+export interface ClarificationCandidate {
+  document_id: string;
+  title: string;
+  manufacturer: string;
+  model_series: string;
+  confidence: number;
+}
+
+export interface ClarificationState {
+  content: string;
+  candidates: ClarificationCandidate[];
 }
 
 interface ChatStore {
   sessions: ChatSession[];
   activeSessionId: string | null;
-  createSession: (title?: string) => string;
+  isLoading: boolean;
+  clarificationState: ClarificationState | null;
+
+  // 되묻기 액션
+  setClarification: (state: ClarificationState | null) => void;
+  clearClarification: () => void;
+
+  // GCS 비동기 API 연동
+  loadSessions: () => Promise<void>;
+  createSession: (title?: string) => Promise<string>;
+  deleteSession: (id: string) => Promise<void>;
+  loadConversation: (id: string) => Promise<void>;
+  renameSession: (sessionId: string, title: string) => Promise<void>;
+
+  // 로컬 상태 동기화 액션
   setActiveSession: (id: string) => void;
-  deleteSession: (id: string) => void;
   addMessage: (sessionId: string, message: Omit<Message, 'id'>) => void;
-  /** 스트리밍 답변 청크를 추가합니다 */
   appendAnswerChunk: (sessionId: string, chunk: string) => void;
-  /** 추론 과정 텍스트를 추가합니다 */
   appendReasoning: (sessionId: string, text: string) => void;
-  /** 참조 이미지를 추가합니다 */
   appendReference: (sessionId: string, ref: ReferenceImage) => void;
-  /** 추천 목차 목록을 추가/설정합니다 */
   setTocCards: (sessionId: string, cards: TocCard[]) => void;
-  /** 스트리밍 완료 처리 */
   finishStreaming: (sessionId: string) => void;
-  /** 세션 제목 변경 */
-  renameSession: (sessionId: string, title: string) => void;
-  /** 활성 세션 초기화 (로그아웃 시 사용) */
   resetActiveSession: () => void;
-  /** 전체 세션 삭제 (로그아웃 시 채팅 기록 완전 초기화) */
   clearAllSessions: () => void;
 }
 
@@ -82,122 +105,228 @@ function updateLastAssistantMessage(
   });
 }
 
-export const useChatStore = create<ChatStore>()(
-  persist(
-    (set) => ({
-      sessions: [],
-      activeSessionId: null,
+export const useChatStore = create<ChatStore>()((set, get) => ({
+  sessions: [],
+  activeSessionId: null,
+  isLoading: false,
+  clarificationState: null,
 
-      createSession: (title = '새로운 대화') => {
-        // 현재 로그인 사용자의 이메일을 세션 소유자로 바인딩
-        const email = useAuthStore.getState().user?.email;
-        const newSession: ChatSession = {
-          id: uuidv4(),
-          title,
-          messages: [],
-          createdAt: Date.now(),
-          ownerEmail: email || undefined,
-        };
+  setClarification: (clarificationState) => set({ clarificationState }),
+  
+  clearClarification: () => set({ clarificationState: null }),
 
-        set((state) => {
-          let updatedSessions = [newSession, ...state.sessions];
-          if (updatedSessions.length > 20) {
-            updatedSessions = updatedSessions.slice(0, 20);
-          }
+  loadSessions: async () => {
+    set({ isLoading: true });
+    try {
+      const email = useAuthStore.getState().user?.email;
+      if (!email) return;
+
+      const data = await api.getConversations();
+      // 백엔드 응답 ConversationInfo 리스트 매핑
+      const GCSsessions: ChatSession[] = (data.conversations || []).map((c: any) => ({
+        id: c.session_id,
+        title: c.title || '제목 없음',
+        messages: [], // 목록 조회 시에는 메시지는 비워둠 (상세 조회 시 로드)
+        createdAt: c.created_at ? new Date(c.created_at).getTime() : Date.now(),
+        ownerEmail: email,
+      }));
+
+      set({ sessions: GCSsessions });
+      
+      // 만약 활성화된 세션이 세션 목록에 없고 세션 목록이 비어있지 않다면 첫 번째 세션 로드
+      const activeId = get().activeSessionId;
+      if (activeId && !GCSsessions.some((s) => s.id === activeId)) {
+        set({ activeSessionId: null });
+      }
+    } catch (e) {
+      console.error('❌ 대화 목록 로드 실패:', e);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  createSession: async (title = '새로운 대화') => {
+    try {
+      const email = useAuthStore.getState().user?.email;
+      if (!email) throw new Error('로그인이 필요합니다.');
+
+      // 20개 제한 체크
+      if (get().sessions.length >= 20) {
+        throw new Error('대화 세션은 최대 20개까지 생성할 수 있습니다. 기존 대화를 삭제해주세요.');
+      }
+
+      const res = await api.createConversation(title);
+      const newSession: ChatSession = {
+        id: res.session_id,
+        title: res.title || title,
+        messages: [],
+        createdAt: res.created_at ? new Date(res.created_at).getTime() : Date.now(),
+        ownerEmail: email,
+      };
+
+      set((state) => ({
+        sessions: [newSession, ...state.sessions],
+        activeSessionId: newSession.id,
+      }));
+
+      return newSession.id;
+    } catch (e) {
+      console.error('❌ 대화 생성 실패:', e);
+      throw e;
+    }
+  },
+
+  deleteSession: async (id) => {
+    try {
+      await api.deleteConversation(id);
+      set((state) => ({
+        sessions: state.sessions.filter((s) => s.id !== id),
+        activeSessionId: state.activeSessionId === id ? null : state.activeSessionId,
+      }));
+    } catch (e) {
+      console.error('❌ 대화 삭제 실패:', e);
+      throw e;
+    }
+  },
+
+  loadConversation: async (id) => {
+    set({ isLoading: true });
+    try {
+      const email = useAuthStore.getState().user?.email;
+      if (!email) return;
+
+      const data = await api.getConversation(id);
+      if (!data) return;
+
+      // 백엔드 메시지 리스트를 프론트엔드 포맷으로 변환
+      const parsedMessages: Message[] = (data.messages || []).map((msg: any) => ({
+        id: uuidv4(),
+        role: msg.role,
+        content: msg.content,
+        image: msg.image || undefined,
+        reasoningSteps: msg.reasoning_steps || undefined,
+        // GCS에는 imageBase64가 저장되지 않으므로 빈 썸네일 구조로 복원
+        references: msg.reference_pages ? msg.reference_pages.map((pNum: number) => ({
+          pageNumber: pNum,
+          imageBase64: '', 
+          documentId: msg.reference_document_id || undefined,
+          documentName: msg.reference_document_name || undefined,
+        })) : undefined,
+        tocCards: msg.toc_cards ? msg.toc_cards.map((c: any) => ({
+          title: c.title,
+          page: c.page,
+        })) : undefined,
+        referenceDocumentId: msg.reference_document_id || undefined,
+        referenceDocumentName: msg.reference_document_name || undefined,
+        timestamp: msg.timestamp,
+      }));
+
+      set((state) => ({
+        sessions: state.sessions.map((s) =>
+          s.id === id ? { ...s, messages: parsedMessages, title: data.title || s.title } : s
+        ),
+        activeSessionId: id,
+      }));
+    } catch (e) {
+      console.error('❌ 대화 상세 로드 실패:', e);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  renameSession: async (sessionId, title) => {
+    try {
+      await api.renameConversation(sessionId, title);
+      set((state) => ({
+        sessions: state.sessions.map((session) =>
+          session.id === sessionId ? { ...session, title } : session
+        ),
+      }));
+    } catch (e) {
+      console.error('❌ 대화 제목 변경 실패:', e);
+      throw e;
+    }
+  },
+
+  setActiveSession: (id) => set({ activeSessionId: id }),
+
+  addMessage: (sessionId, message) =>
+    set((state) => ({
+      sessions: state.sessions.map((session) => {
+        if (session.id === sessionId) {
           return {
-            sessions: updatedSessions,
-            activeSessionId: newSession.id,
-          };
-        });
-
-        return newSession.id;
-      },
-
-      setActiveSession: (id) => set({ activeSessionId: id }),
-
-      deleteSession: (id) =>
-        set((state) => ({
-          sessions: state.sessions.filter((s) => s.id !== id),
-          activeSessionId: state.activeSessionId === id ? null : state.activeSessionId,
-        })),
-
-      addMessage: (sessionId, message) =>
-        set((state) => ({
-          sessions: state.sessions.map((session) => {
-            if (session.id === sessionId) {
-              return {
-                ...session,
-                messages: [...session.messages, { ...message, id: uuidv4() }],
-              };
-            }
-            return session;
-          }),
-        })),
-
-      appendAnswerChunk: (sessionId, chunk) =>
-        set((state) => ({
-          sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => ({
-            ...msg,
-            content: msg.content + chunk,
-          })),
-        })),
-
-      appendReasoning: (sessionId, text) =>
-        set((state) => ({
-          sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => ({
-            ...msg,
-            reasoningSteps: [...(msg.reasoningSteps || []), text],
-          })),
-        })),
-
-      appendReference: (sessionId, ref) =>
-        set((state) => ({
-          sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => ({
-            ...msg,
-            references: [...(msg.references || []), ref],
-          })),
-        })),
-
-      setTocCards: (sessionId, cards) =>
-        set((state) => ({
-          sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => ({
-            ...msg,
-            tocCards: cards,
-          })),
-        })),
-
-      finishStreaming: (sessionId) =>
-        set((state) => ({
-          sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => ({
-            ...msg,
-            isStreaming: false,
-          })),
-        })),
-
-      renameSession: (sessionId, title) =>
-        set((state) => ({
-          sessions: state.sessions.map((session) =>
-            session.id === sessionId ? { ...session, title } : session
-          ),
-        })),
-
-      resetActiveSession: () => set({ activeSessionId: null }),
-
-      clearAllSessions: () => set({ sessions: [], activeSessionId: null }),
-    }),
-    {
-      name: 'vision-rag-chat-storage',
-      onRehydrateStorage: () => (state) => {
-        // PWA 재실행 시 좀비 스트리밍 상태 정리
-        if (state) {
-          state.sessions = state.sessions.map((session) => ({
             ...session,
-            messages: session.messages.map((msg) =>
-              msg.isStreaming ? { ...msg, isStreaming: false } : msg
-            ),
-          }));
+            messages: [...session.messages, { ...message, id: uuidv4() }],
+          };
         }
-      },
-    },
-  ),
-);
+        return session;
+      }),
+    })),
+
+  appendAnswerChunk: (sessionId, chunk) =>
+    set((state) => ({
+      sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => ({
+        ...msg,
+        content: msg.content + chunk,
+      })),
+    })),
+
+  appendReasoning: (sessionId, text) =>
+    set((state) => ({
+      sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => ({
+        ...msg,
+        reasoningSteps: [...(msg.reasoningSteps || []), text],
+      })),
+    })),
+
+  appendReference: (sessionId, ref) =>
+    set((state) => ({
+      sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => {
+        const currentReferences = msg.references || [];
+        
+        // 중복 방지 (동일 문서 + 동일 페이지 번호)
+        const isDuplicate = currentReferences.some(
+          (r) => r.pageNumber === ref.pageNumber && r.documentId === ref.documentId
+        );
+        
+        if (isDuplicate) {
+          // 중복이지만 썸네일(imageBase64)이 업데이트 되었으면 해당 항목 업데이트
+          return {
+            ...msg,
+            references: currentReferences.map((r) =>
+              (r.pageNumber === ref.pageNumber && r.documentId === ref.documentId)
+                ? { ...r, imageBase64: ref.imageBase64 || r.imageBase64 }
+                : r
+            ),
+          };
+        }
+
+        return {
+          ...msg,
+          references: [...currentReferences, ref],
+          referenceDocumentId: ref.documentId || msg.referenceDocumentId,
+          referenceDocumentName: ref.documentName || msg.referenceDocumentName,
+        };
+      }),
+    })),
+
+  setTocCards: (sessionId, cards) =>
+    set((state) => ({
+      sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => ({
+        ...msg,
+        tocCards: cards,
+      })),
+    })),
+
+  finishStreaming: (sessionId) =>
+    set((state) => ({
+      sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => ({
+        ...msg,
+        isStreaming: false,
+      })),
+    })),
+
+  resetActiveSession: () => set({ activeSessionId: null }),
+
+  clearAllSessions: () => set({ sessions: [], activeSessionId: null }),
+}));
