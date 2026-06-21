@@ -219,10 +219,11 @@ export default function Home() {
                 case "answer":
                   appendAnswerChunk(targetSessionId, data.content);
                   break;
-                case "clarification": // 신규 되묻기 이벤트 처리
+                case "clarification": // 되묻기 이벤트 처리 (문서 후보 + 보강 질문)
                   setClarification({
                     content: data.content,
-                    candidates: data.candidates,
+                    candidates: data.candidates || [],
+                    suggested_questions: data.suggested_questions,
                   });
                   finishStreaming(targetSessionId);
                   streamDone = true;
@@ -418,34 +419,69 @@ export default function Home() {
                 <ChatMessage key={msg.id} message={msg} />
               ))}
 
-              {/* 되묻기 UI (#1) */}
+              {/* 되묻기 UI — 보강 질문 + 문서 후보 */}
               {clarificationState && (
                 <div className="flex flex-col gap-3 p-4 md:p-5 rounded-2xl border border-primary/20 bg-primary/5/10 backdrop-blur-md animate-slide-up shadow-lg">
                   <div className="text-xs md:text-sm font-semibold text-foreground/90 flex items-center gap-2">
                     <span className="text-base">🤖</span>
                     <span>{clarificationState.content}</span>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    {clarificationState.candidates.map((cand) => (
-                      <button
-                        key={cand.document_id}
-                        onClick={() => handleClarificationSelect(cand.document_id)}
-                        className="flex items-center justify-between text-left p-3.5 rounded-xl border border-border bg-card hover:bg-primary/5 hover:border-primary/40 transition-all cursor-pointer group shadow-sm"
-                      >
-                        <div className="flex-1 pr-4 min-w-0">
-                          <div className="text-xs md:text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate">
-                            {cand.manufacturer} {cand.model_series}
-                          </div>
-                          <div className="text-[10px] md:text-xs text-muted-foreground/80 mt-0.5 truncate">
-                            {cand.title}
-                          </div>
+
+                  {/* 보강 질문 카드 */}
+                  {clarificationState.suggested_questions && clarificationState.suggested_questions.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="text-[10px] text-muted-foreground/60 font-medium flex items-center gap-1 px-1">
+                        <span>💡</span>
+                        <span>이렇게 질문을 보강해 보세요</span>
+                      </div>
+                      {clarificationState.suggested_questions.map((q, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            clearClarification();
+                            handleChatSubmit(q);
+                          }}
+                          className="flex items-center gap-2.5 text-left p-3 rounded-xl border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 hover:border-violet-500/40 transition-all cursor-pointer group shadow-sm"
+                        >
+                          <span className="text-sm text-violet-400 group-hover:text-violet-300 transition-colors shrink-0">→</span>
+                          <span className="text-xs md:text-sm text-foreground/90 group-hover:text-foreground transition-colors">
+                            {q}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 문서 후보 카드 */}
+                  {clarificationState.candidates.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      {clarificationState.suggested_questions && clarificationState.suggested_questions.length > 0 && (
+                        <div className="text-[10px] text-muted-foreground/60 font-medium flex items-center gap-1 px-1 mt-1">
+                          <span>📂</span>
+                          <span>또는 아래 매뉴얼에서 직접 검색</span>
                         </div>
-                        <div className="text-[10px] text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded shrink-0">
-                          일치율: {(cand.confidence * 100).toFixed(0)}%
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                      )}
+                      {clarificationState.candidates.map((cand) => (
+                        <button
+                          key={cand.document_id}
+                          onClick={() => handleClarificationSelect(cand.document_id)}
+                          className="flex items-center justify-between text-left p-3.5 rounded-xl border border-border bg-card hover:bg-primary/5 hover:border-primary/40 transition-all cursor-pointer group shadow-sm"
+                        >
+                          <div className="flex-1 pr-4 min-w-0">
+                            <div className="text-xs md:text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                              {cand.manufacturer} {cand.model_series}
+                            </div>
+                            <div className="text-[10px] md:text-xs text-muted-foreground/80 mt-0.5 truncate">
+                              {cand.title}
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded shrink-0">
+                            일치율: {(cand.confidence * 100).toFixed(0)}%
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

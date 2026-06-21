@@ -57,6 +57,7 @@ export interface ClarificationCandidate {
 export interface ClarificationState {
   content: string;
   candidates: ClarificationCandidate[];
+  suggested_questions?: string[];
 }
 
 interface ChatStore {

@@ -44,6 +44,37 @@ def _quick_classify(question: str) -> str | None:
     return None
 
 
+def _generate_default_clarification_questions(question: str, documents: list[dict]) -> list[str]:
+    """
+    LLM이 보강 질문을 생성하지 못했을 때 기본 보강 질문을 생성합니다.
+    사용자의 문서 목록에서 제조사/모델을 추출하여 구체적인 선택지를 만듭니다.
+    """
+    # 문서에서 고유한 제조사/모델 수집
+    manufacturers = set()
+    models = set()
+    for d in documents:
+        m = str(d.get("manufacturer", "")).strip()
+        s = str(d.get("model_series", "")).strip()
+        if m and m != "미상":
+            manufacturers.add(m)
+        if s and s != "미상":
+            models.add(s)
+    
+    questions = []
+    
+    if manufacturers:
+        manuf_list = ", ".join(list(manufacturers)[:5])
+        questions.append(f"어떤 제조사의 장비인가요? (보유 매뉴얼: {manuf_list})")
+    
+    if models:
+        model_list = ", ".join(list(models)[:5])
+        questions.append(f"장비의 모델명을 알고 계신가요? (보유 매뉴얼: {model_list})")
+    
+    questions.append("알람이 표시된 장비 화면을 사진으로 찍어 첨부해 주시겠어요?")
+    
+    return questions[:3]
+
+
 def _sse_event(event_type: str, **kwargs) -> str:
     """SSE 이벤트 문자열을 생성합니다."""
     data = {"type": event_type, **kwargs}
@@ -261,6 +292,14 @@ async def _select_document(
 [Step 2] "technical"인 경우, 아래 문서 목록에서 적합한 문서를 선택하세요.
 각 문서에 confidence (0.0~1.0) 점수를 부여하세요.
 
+[Step 3] 되묻기 판단: 아래 상황이면 needs_clarification을 true로 설정하세요.
+- 질문에 구체적인 제조사명이나 장비 모델명이 없는 경우
+- 여러 문서가 비슷한 수준으로 해당될 수 있는 경우
+- 어떤 문서에서도 명확하게 해당 내용을 다루는지 확신하기 어려운 경우
+
+[Step 4] needs_clarification이 true일 때, 사용자가 선택할 수 있는 보강 질문 3개를 생성하세요.
+보강 질문은 질문을 구체화할 수 있도록 제조사, 모델, 장비 종류 등을 특정하는 질문이어야 합니다.
+
 {docs_text}
 {context_section}
 {previous_reference_section}
@@ -269,18 +308,27 @@ async def _select_document(
 다음 JSON 형식으로만 응답하세요 (마크다운 코드블록 없이):
 {{
     "classification": "general" 또는 "technical",
+    "needs_clarification": true 또는 false,
     "candidates": [
         {{"document_id": "...", "confidence": 0.92, "reason": "제조사와 모델이 일치"}},
         {{"document_id": "...", "confidence": 0.35, "reason": "같은 제조사이나 다른 모델"}}
+    ],
+    "suggested_questions": [
+        "어떤 제조사의 서보 드라이브인가요? (예: 미쓰비시, 야스카와)",
+        "장비의 모델명을 알고 계신가요?",
+        "알람이 표시된 화면을 사진으로 첨부해 주시겠어요?"
     ],
     "reasoning": "판별 및 추론 과정을 한국어로 간략히 설명"
 }}
 
 규칙:
-- classification이 "general"이면 candidates는 빈 배열 []로 설정
+- classification이 "general"이면 candidates와 suggested_questions는 빈 배열 []로 설정
 - classification이 "technical"이면 모든 문서에 confidence 점수를 부여하여 candidates에 포함
 - confidence는 0.0~1.0 범위로 설정 (높을수록 적합)
-- candidates는 confidence 내림차순으로 정렬"""
+- candidates는 confidence 내림차순으로 정렬
+- 질문에 제조사/모델 정보가 없고 적합한 문서가 불명확하면 반드시 needs_clarification을 true로
+- needs_clarification이 true일 때만 suggested_questions를 생성 (3개), false이면 빈 배열 []
+- suggested_questions는 사용자 문서 목록에 존재하는 제조사/모델을 구체적으로 언급하세요"""
     
     try:
         response = await llm.ainvoke([HumanMessage(content=prompt)])
@@ -310,8 +358,23 @@ async def _select_document(
             # confidence 내림차순 정렬
             validated.sort(key=lambda x: x["confidence"], reverse=True)
             result["candidates"] = validated
+            
+            # needs_clarification 및 suggested_questions 정규화
+            result["needs_clarification"] = bool(result.get("needs_clarification", False))
+            raw_questions = result.get("suggested_questions", [])
+            if isinstance(raw_questions, list):
+                result["suggested_questions"] = [str(q) for q in raw_questions[:5]]
+            else:
+                result["suggested_questions"] = []
         else:
             result["candidates"] = []
+            result["needs_clarification"] = False
+            result["suggested_questions"] = []
+        
+        logger.info(f"📊 [Phase 1] 문서 선택 결과: classification={result['classification']}, "
+                    f"needs_clarification={result.get('needs_clarification')}, "
+                    f"top_confidence={result['candidates'][0]['confidence'] if result['candidates'] else 'N/A'}, "
+                    f"suggested_questions={len(result.get('suggested_questions', []))}개")
         
         return result
     except Exception as e:
@@ -320,6 +383,8 @@ async def _select_document(
             "classification": "technical",
             "candidates": [{"document_id": documents[0]["document_id"], "confidence": 0.5, "reason": f"오류 발생 기본 선택: {str(e)}"}],
             "reasoning": f"문서 선택 중 오류 발생: {str(e)}",
+            "needs_clarification": False,
+            "suggested_questions": [],
         }
 
 
@@ -603,11 +668,36 @@ async def run_agentic_pipeline(
                 yield _sse_event("reasoning", content=f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
                 collected_reasoning.append(f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
             else:
-                yield _sse_event("reasoning", content=f"📚 {len(all_docs)}개 문서 중 적합한 문서와 페이지를 찾고 있습니다...")
-                collected_reasoning.append(f"📚 {len(all_docs)}개 문서 중 적합한 문서와 페이지를 찾고 있습니다...")
+                # ─── ToC 키워드 매칭 1차 필터링 ───
+                # 질문의 키워드가 ToC에 포함된 문서만 우선 후보로 좁힘
+                question_keywords = set(re.findall(r'[가-힣a-zA-Z0-9]{2,}', question.lower()))
+                toc_matched_docs = []
+                for d in all_docs:
+                    toc_entries = d.get("toc", [])
+                    toc_text = " ".join(
+                        str(entry.get("title", "")).lower() for entry in toc_entries
+                    ).lower()
+                    match_count = sum(1 for kw in question_keywords if kw in toc_text)
+                    if match_count > 0:
+                        toc_matched_docs.append((d, match_count))
+                
+                if toc_matched_docs:
+                    # 매칭 수 내림차순 정렬
+                    toc_matched_docs.sort(key=lambda x: x[1], reverse=True)
+                    filtered_docs = [d for d, _ in toc_matched_docs]
+                    logger.info(f"🔎 [ToC 키워드 필터] {len(all_docs)}개 → {len(filtered_docs)}개 문서로 필터링 (키워드: {question_keywords})")
+                    reasoning_content = f"📚 {len(all_docs)}개 문서 중 목차 키워드 매칭으로 {len(filtered_docs)}개 후보를 좁혔습니다..."
+                else:
+                    filtered_docs = all_docs
+                    reasoning_content = f"📚 {len(all_docs)}개 문서 중 적합한 문서와 페이지를 찾고 있습니다..."
+                
+                yield _sse_event("reasoning", content=reasoning_content)
+                collected_reasoning.append(reasoning_content)
             
             # 1단계: 메타데이터로 문서 선택 (ToC 제외)
-            doc_result = await _select_document(question, all_docs, chat_history, previous_reference)
+            # ToC 매칭 필터링된 문서가 있으면 그것을, 없으면 전체 문서를 LLM에 전달
+            docs_for_selection = filtered_docs if len(all_docs) > 1 and toc_matched_docs else all_docs
+            doc_result = await _select_document(question, docs_for_selection, chat_history, previous_reference)
             
             if doc_result["classification"] == "general":
                 # LLM이 일상대화로 판단 → Early Exit
@@ -639,19 +729,53 @@ async def run_agentic_pipeline(
                 yield _sse_event("done")
                 return
             
-            # 되묻기 판단
+            # 되묻기 판단 — 3중 체크
             candidates = doc_result.get("candidates", [])
             if candidates:
                 top = candidates[0]
                 second = candidates[1] if len(candidates) > 1 else None
                 
-                needs_clarification = (
+                # 체크 1: confidence 기반 (기존)
+                confidence_unclear = (
                     top["confidence"] < 0.7 or
                     (second and top["confidence"] - second["confidence"] < 0.2)
                 )
                 
+                # 체크 2: LLM이 직접 판단한 되묻기 필요 여부 (신규)
+                llm_says_clarify = doc_result.get("needs_clarification", False)
+                
+                # 체크 3: 질문에 제조사/모델 키워드가 없는 경우 (신규)
+                known_identifiers = set()
+                for d in all_docs:
+                    m = str(d.get("manufacturer", "")).strip()
+                    s = str(d.get("model_series", "")).strip()
+                    if m and m != "미상":
+                        known_identifiers.add(m.upper())
+                        # 제조사명의 주요 부분도 추가 (예: "Mitsubishi Electric" → "MITSUBISHI")
+                        for part in m.split():
+                            if len(part) >= 2:
+                                known_identifiers.add(part.upper())
+                    if s and s != "미상":
+                        known_identifiers.add(s.upper())
+                        for part in s.split():
+                            if len(part) >= 2:
+                                known_identifiers.add(part.upper())
+                
+                q_upper = question.upper()
+                has_identifier = any(ident in q_upper for ident in known_identifiers) if known_identifiers else False
+                no_identifier_in_question = not has_identifier and len(all_docs) > 1
+                
+                needs_clarification = confidence_unclear or llm_says_clarify or no_identifier_in_question
+                
+                logger.info(
+                    f"🔍 [되묻기 판단] confidence_unclear={confidence_unclear}, "
+                    f"llm_says_clarify={llm_says_clarify}, "
+                    f"no_identifier={no_identifier_in_question}, "
+                    f"→ needs_clarification={needs_clarification}"
+                )
+                
                 if needs_clarification and len(candidates) > 1:
-                    # 되묻기 이벤트 발행
+                    # 되묻기 이벤트 발행 — 문서 후보 + 보강 질문 동시 전달
                     clarification_candidates = []
                     for c in candidates[:5]:  # 최대 5개 선택지
                         doc_meta = next((d for d in all_docs if d["document_id"] == c["document_id"]), None)
@@ -664,10 +788,23 @@ async def run_agentic_pipeline(
                                 "confidence": c["confidence"],
                             })
                     
+                    # 보강 질문 가져오기 (LLM이 생성한 것)
+                    suggested_questions = doc_result.get("suggested_questions", [])
+                    
+                    # LLM이 보강 질문을 생성하지 않았으면 기본 보강 질문 생성
+                    if not suggested_questions:
+                        suggested_questions = _generate_default_clarification_questions(question, all_docs)
+                    
+                    clarification_content = (
+                        "질문을 좀 더 구체화하면 정확한 답변을 드릴 수 있어요. "
+                        "아래에서 질문을 선택하거나, 해당 매뉴얼을 직접 선택해 주세요."
+                    )
+                    
                     yield _sse_event(
                         "clarification",
-                        content="여러 매뉴얼에서 관련 내용을 찾았습니다. 어떤 장비의 매뉴얼을 참조할까요?",
+                        content=clarification_content,
                         candidates=clarification_candidates,
+                        suggested_questions=suggested_questions,
                     )
                     _save_conversation()
                     yield _sse_event("done")
