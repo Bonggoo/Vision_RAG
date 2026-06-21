@@ -9,7 +9,7 @@ import LoginView from "@/components/layout/LoginView";
 import { useChatStore } from "@/store/useChatStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { authFetch, API_BASE_URL } from "@/lib/api";
-import { Search, BookOpen, Cpu, Zap, MessageCircleQuestion } from "lucide-react";
+import { MessageCircleQuestion } from "lucide-react";
 
 export default function Home() {
   // 💡 Hydration 에러 방지: 마운트 상태 추가
@@ -299,12 +299,6 @@ export default function Home() {
     }
   };
 
-  const features = [
-    { icon: Search, title: "Agentic 탐색", desc: "AI가 목차를 분석해 정확한 페이지를 찾습니다" },
-    { icon: BookOpen, title: "Vision 분석", desc: "도면과 표를 원본 그대로 분석합니다" },
-    { icon: Cpu, title: "Vectorless", desc: "벡터 DB 없이 실시간으로 처리합니다" },
-    { icon: Zap, title: "즉시 답변", desc: "구조화된 트러블슈팅 가이드를 제공합니다" },
-  ];
 
   const examplePrompts = [
     { emoji: "🔧", text: "에러 코드 AL.E6이 뭔가요?" },
@@ -349,22 +343,6 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* 기능 카드 그리드 - 세련된 마이크로 호버 추가 */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-4 md:mt-8 w-full">
-                  {features.map((f, i) => (
-                    <div
-                      key={i}
-                      className="glass-subtle rounded-xl p-3 md:p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/40 group"
-                      style={{ animationDelay: `${i * 100}ms` }}
-                    >
-                      <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2 md:mb-3 group-hover:bg-primary/20 transition-colors">
-                        <f.icon className="w-4 h-4 md:w-4.5 md:h-4.5 text-primary/70 group-hover:text-primary transition-colors" />
-                      </div>
-                      <p className="text-[11px] md:text-xs font-bold text-foreground/90 mb-0.5">{f.title}</p>
-                      <p className="text-[10px] md:text-[11px] text-muted-foreground/70 leading-relaxed">{f.desc}</p>
-                    </div>
-                  ))}
-                </div>
 
                 {/* 💡 예시 질문 카드 */}
                 <div className="w-full mt-4 md:mt-6">
