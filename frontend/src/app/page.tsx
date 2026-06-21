@@ -301,10 +301,10 @@ export default function Home() {
 
 
   const examplePrompts = [
-    { emoji: "🔧", text: "에러 코드 AL.E6이 뭔가요?" },
-    { emoji: "🌡️", text: "모터 과열 시 조치 방법" },
-    { emoji: "⚙️", text: "파라미터 초기화 방법" },
-    { emoji: "📋", text: "정기 점검 체크리스트" },
+    { emoji: "🚨", text: "서보 2051 알람 설명" },
+    { emoji: "🔋", text: "배터리 교체 주기와 방법" },
+    { emoji: "⚙️", text: "원점 복귀(Homing) 설정 절차" },
+    { emoji: "🔌", text: "통신 에러 타임아웃 해결법" },
   ];
 
   return (
