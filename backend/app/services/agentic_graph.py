@@ -656,17 +656,11 @@ async def run_agentic_pipeline(
         
         # ─── 2단계 구조: 문서 선택 → 페이지 선택 ───
 
+        # [Shortcut] document_id가 지정되지 않았고, 이전 참조 문서(previous_reference)가 있으며,
+        # 사용자의 새 질문에 다른 제조사/모델 식별자가 없는 경우 맥락 유지
         if document_id is None:
             all_docs = get_all_documents(owner_email=user_email)
-            
-            if not all_docs:
-                yield _sse_event("error", content="업로드된 문서가 없습니다. 먼저 PDF 매뉴얼을 업로드해 주세요.")
-                _save_conversation()
-                yield _sse_event("done")
-                return
-
-            # [Shortcut] 이전 참조 문서(previous_reference)가 있고, 질문에 다른 제조사/모델 식별자가 없는 경우 맥락 유지
-            if previous_reference and previous_reference.get("document_id") and len(all_docs) > 1:
+            if all_docs and previous_reference and previous_reference.get("document_id") and len(all_docs) > 1:
                 prev_doc_id = str(previous_reference["document_id"])
                 
                 # 다른 문서들의 제조사/모델 식별자 수집
@@ -695,48 +689,55 @@ async def run_agentic_pipeline(
                         reasoning_content = f"🔄 이전 대화 맥락을 이어받아 '{prev_doc.get('filename')}' 문서에서 검색을 계속합니다."
                         yield _sse_event("reasoning", content=reasoning_content)
                         collected_reasoning.append(reasoning_content)
+
+        if document_id is None:
+            all_docs = get_all_documents(owner_email=user_email)
             
-            # document_id가 여전히 지정되지 않은 경우에만 전체 문서 중에서 분석 진행
-            if document_id is None:
-                if len(all_docs) == 1:
-                    yield _sse_event("reasoning", content=f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
-                    collected_reasoning.append(f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
+            if not all_docs:
+                yield _sse_event("error", content="업로드된 문서가 없습니다. 먼저 PDF 매뉴얼을 업로드해 주세요.")
+                _save_conversation()
+                yield _sse_event("done")
+                return
+            
+            if len(all_docs) == 1:
+                yield _sse_event("reasoning", content=f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
+                collected_reasoning.append(f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
+            else:
+                # ─── ToC 키워드 매칭 1차 필터링 ───
+                # 질문의 키워드가 ToC에 포함된 문서만 우선 후보로 좁힘
+                question_keywords = set(re.findall(r'[가-힣a-zA-Z0-9]{2,}', question.lower()))
+                toc_matched_docs = []
+                for d in all_docs:
+                    toc_entries = d.get("toc", [])
+                    toc_text = " ".join(
+                        str(entry.get("title", "")).lower() for entry in toc_entries
+                    ).lower()
+                    match_count = sum(1 for kw in question_keywords if kw in toc_text)
+                    if match_count > 0:
+                        toc_matched_docs.append((d, match_count))
+                
+                if toc_matched_docs:
+                    # 매칭 수 내림차순 정렬
+                    toc_matched_docs.sort(key=lambda x: x[1], reverse=True)
+                    filtered_docs = [d for d, _ in toc_matched_docs]
+                    
+                    # 이전 참조 문서가 있으면 필터링 후보군에 강제 포함 (소실 방지)
+                    if previous_reference and previous_reference.get("document_id"):
+                        prev_doc_id = str(previous_reference["document_id"])
+                        if not any(str(d["document_id"]) == prev_doc_id for d in filtered_docs):
+                            prev_doc = next((d for d in all_docs if str(d["document_id"]) == prev_doc_id), None)
+                            if prev_doc:
+                                filtered_docs.append(prev_doc)
+                                logger.info(f"🔎 [ToC 키워드 필터] 이전 참조 문서를 후보군에 강제 포함시켰습니다: {prev_doc.get('filename')}")
+                    
+                    logger.info(f"🔎 [ToC 키워드 필터] {len(all_docs)}개 → {len(filtered_docs)}개 문서로 필터링 (키워드: {question_keywords})")
+                    reasoning_content = f"📚 {len(all_docs)}개 문서 중 목차 키워드 매칭으로 {len(filtered_docs)}개 후보를 좁혔습니다..."
                 else:
-                    # ─── ToC 키워드 매칭 1차 필터링 ───
-                    # 질문의 키워드가 ToC에 포함된 문서만 우선 후보로 좁힘
-                    question_keywords = set(re.findall(r'[가-힣a-zA-Z0-9]{2,}', question.lower()))
-                    toc_matched_docs = []
-                    for d in all_docs:
-                        toc_entries = d.get("toc", [])
-                        toc_text = " ".join(
-                            str(entry.get("title", "")).lower() for entry in toc_entries
-                        ).lower()
-                        match_count = sum(1 for kw in question_keywords if kw in toc_text)
-                        if match_count > 0:
-                            toc_matched_docs.append((d, match_count))
-                    
-                    if toc_matched_docs:
-                        # 매칭 수 내림차순 정렬
-                        toc_matched_docs.sort(key=lambda x: x[1], reverse=True)
-                        filtered_docs = [d for d, _ in toc_matched_docs]
-                        
-                        # 이전 참조 문서가 있으면 필터링 후보군에 강제 포함 (소실 방지)
-                        if previous_reference and previous_reference.get("document_id"):
-                            prev_doc_id = str(previous_reference["document_id"])
-                            if not any(str(d["document_id"]) == prev_doc_id for d in filtered_docs):
-                                prev_doc = next((d for d in all_docs if str(d["document_id"]) == prev_doc_id), None)
-                                if prev_doc:
-                                    filtered_docs.append(prev_doc)
-                                    logger.info(f"🔎 [ToC 키워드 필터] 이전 참조 문서를 후보군에 강제 포함시켰습니다: {prev_doc.get('filename')}")
-                        
-                        logger.info(f"🔎 [ToC 키워드 필터] {len(all_docs)}개 → {len(filtered_docs)}개 문서로 필터링 (키워드: {question_keywords})")
-                        reasoning_content = f"📚 {len(all_docs)}개 문서 중 목차 키워드 매칭으로 {len(filtered_docs)}개 후보를 좁혔습니다..."
-                    else:
-                        filtered_docs = all_docs
-                        reasoning_content = f"📚 {len(all_docs)}개 문서 중 적합한 문서와 페이지를 찾고 있습니다..."
-                    
-                    yield _sse_event("reasoning", content=reasoning_content)
-                    collected_reasoning.append(reasoning_content)
+                    filtered_docs = all_docs
+                    reasoning_content = f"📚 {len(all_docs)}개 문서 중 적합한 문서와 페이지를 찾고 있습니다..."
+                
+                yield _sse_event("reasoning", content=reasoning_content)
+                collected_reasoning.append(reasoning_content)
             
             # 1단계: 메타데이터로 문서 선택 (ToC 제외)
             # ToC 매칭 필터링된 문서가 있으면 그것을, 없으면 전체 문서를 LLM에 전달
