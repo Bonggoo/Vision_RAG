@@ -231,7 +231,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
               </div>
             )}
             <div className="chat-bubble-user rounded-2xl rounded-tr-sm px-4 py-3 shadow-md hover:shadow-lg transition-shadow duration-350">
-              <p className="whitespace-pre-wrap leading-relaxed text-[13.5px] text-slate-900 dark:text-white font-medium">
+              <p className="whitespace-pre-wrap leading-relaxed text-[13.5px] text-white font-medium">
                 {message.content}
               </p>
             </div>
