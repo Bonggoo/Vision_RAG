@@ -476,7 +476,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
           className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-full text-sm font-medium relative overflow-hidden transition-all ${
-            isUploading ? "bg-primary/5 border border-primary/20 text-primary cursor-not-allowed" : "btn-secondary"
+            isUploading ? "bg-primary/5 border border-primary/20 text-primary cursor-not-allowed" : "btn-primary"
           }`}
         >
           {isUploading && <div className="absolute left-0 top-0 bottom-0 bg-primary/10 transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />}
