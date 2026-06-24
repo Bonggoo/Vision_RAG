@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Menu, Sun, Moon } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
 import ExportButton from "@/components/chat/ExportButton";
+import SparkleLogo from "./SparkleLogo";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -63,9 +64,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </button>
 
           <div className="hidden md:flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
-              <span className="text-white text-[10px] font-bold">T</span>
-            </div>
+            <SparkleLogo className="w-6 h-6 filter drop-shadow-[0_1.5px_5px_rgba(139,92,246,0.3)]" />
             <h1 className="font-semibold font-display text-[16px] tracking-tight text-foreground">TechNote</h1>
           </div>
 

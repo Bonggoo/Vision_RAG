@@ -6,6 +6,7 @@ import Header from "@/components/layout/Header";
 import ChatInput from "@/components/layout/ChatInput";
 import ChatMessage from "@/components/chat/ChatMessage";
 import LoginView from "@/components/layout/LoginView";
+import SparkleLogo from "@/components/layout/SparkleLogo";
 import { useChatStore } from "@/store/useChatStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { authFetch, API_BASE_URL } from "@/lib/api";
@@ -331,7 +332,7 @@ export default function Home() {
                 <div className="relative w-16 h-16 md:w-24 md:h-24 mx-auto mb-2 animate-float">
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 blur-xl opacity-80" />
                   <div className="hero-icon w-16 h-16 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border border-primary/20 bg-card/40 backdrop-blur-md shadow-2xl relative z-10">
-                    <span className="text-3xl md:text-5xl drop-shadow-md">✦</span>
+                    <SparkleLogo className="w-10 h-10 md:w-16 md:h-16 filter drop-shadow-[0_4px_16px_rgba(139,92,246,0.45)]" />
                   </div>
                 </div>
 
@@ -377,7 +378,7 @@ export default function Home() {
                 <div className="relative w-16 h-16 mx-auto mb-2 animate-float">
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 blur-lg opacity-70" />
                   <div className="hero-icon w-16 h-16 rounded-2xl flex items-center justify-center border border-primary/15 bg-card/40 backdrop-blur-md shadow-xl relative z-10">
-                    <span className="text-3xl">✦</span>
+                    <SparkleLogo className="w-10 h-10 filter drop-shadow-[0_4px_16px_rgba(139,92,246,0.4)]" />
                   </div>
                 </div>
                 <div>

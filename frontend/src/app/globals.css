@@ -66,33 +66,33 @@
 }
 
 .dark {
-  /* ─── Stitch Dark Theme: 웜 퍼플-블랙 & 소프트 라벤더 ─── */
-  --background: #151218;
+  /* ─── Stitch Dark Theme: 딥 옵시디언 & 리프티드 차콜 ─── */
+  --background: #131314;
   --foreground: #e6e0e9;
-  --card: rgba(33, 30, 38, 0.85);
+  --card: rgba(30, 31, 32, 0.85);
   --card-foreground: #e6e0e9;
-  --popover: #2b2930;
+  --popover: #1e1f20;
   --popover-foreground: #e6e0e9;
   --primary: #d9baff;
   --primary-foreground: #3b0092;
-  --secondary: #4a4458;
+  --secondary: #2d2c30;
   --secondary-foreground: #e8def8;
-  --muted: #49454f;
+  --muted: #1e1f20;
   --muted-foreground: #cac4d0;
-  --accent: #4a4458;
+  --accent: #2d2c30;
   --accent-foreground: #e8def8;
   --destructive: #ffb4ab;
   --destructive-foreground: #690005;
-  --border: rgba(217, 186, 255, 0.2);
-  --input: #49454f;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: #1e1f20;
   --ring: #d9baff;
 
   /* 커스텀 그래디언트 & 글로우 컬러 (다크) */
-  --glow-primary: rgba(217, 186, 255, 0.18);
-  --glow-accent: rgba(217, 186, 255, 0.12);
-  --sidebar-bg: #1d1b20;
-  --sidebar-border: rgba(217, 186, 255, 0.15);
-  --hero-gradient-color: rgba(217, 186, 255, 0.15);
+  --glow-primary: rgba(217, 186, 255, 0.15);
+  --glow-accent: rgba(217, 186, 255, 0.08);
+  --sidebar-bg: #1e1f20;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --hero-gradient-color: rgba(139, 92, 246, 0.08);
 }
 
 @layer base {
@@ -239,9 +239,9 @@ button,
 
 /* ─── AI 버블의 라이트/다크 전용 광채 테두리 (Edge Light) ─── */
 .dark .chat-bubble-ai {
-  background: #211e26;
+  background: #1e1f20;
   box-shadow: 0 4px 30px -10px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.05);
-  border-color: rgba(217, 186, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .chat-bubble-ai {

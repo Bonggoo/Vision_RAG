@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { KeyRound } from "lucide-react";
+import SparkleLogo from "./SparkleLogo";
 
 declare global {
   interface Window {
@@ -86,9 +87,9 @@ export default function LoginView() {
       {/* 🖼️ 글래스모피즘 로그인 카드 */}
       <div className="relative z-10 w-full max-w-md backdrop-blur-3xl bg-card/40 border border-border/40 shadow-2xl rounded-[2rem] p-8 md:p-10 text-center flex flex-col items-center">
         {/* 아이콘 헤더 */}
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-violet-500/25 mb-6 relative">
-          <div className="absolute inset-0 bg-white/20 rounded-2xl animate-pulse" style={{ animationDuration: "2s" }} />
-          <KeyRound className="w-8 h-8 text-white relative z-10" />
+        <div className="w-16 h-16 rounded-2xl bg-card border border-border/40 flex items-center justify-center shadow-lg mb-6 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-indigo-500/5" />
+          <SparkleLogo className="w-9 h-9 filter drop-shadow-[0_4px_12px_rgba(139,92,246,0.4)] relative z-10" />
         </div>
 
         {/* 로고 */}

@@ -29,6 +29,7 @@ import { useChatStore } from "@/store/useChatStore";
 import { useDocumentStore, Document } from "@/store/useDocumentStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { api } from "@/lib/api";
+import SparkleLogo from "./SparkleLogo";
 
 // 💡 PDF 메타데이터 찌꺼기 등을 제외하고 가독성 있는 파일명을 결정하는 헬퍼 함수
 export const getDisplayFilename = (doc: any): string => {
@@ -538,9 +539,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
       <div className="p-4 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg">
-              <span className="text-white text-sm font-bold font-display">T</span>
-            </div>
+            <SparkleLogo className="w-8 h-8 filter drop-shadow-[0_2px_8px_rgba(139,92,246,0.35)]" />
             <span className="text-[17px] font-semibold tracking-tight font-display">TechNote</span>
           </div>
           <div className="flex items-center gap-1">
@@ -607,8 +606,8 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
       <aside className={`sidebar h-full flex-col z-50 hidden md:flex transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-[280px]'}`}>
         {isCollapsed ? (
           <div className="flex flex-col h-full items-center py-4 gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg cursor-pointer" onClick={onToggleCollapse}>
-              <span className="text-white text-xs font-bold font-display">T</span>
+            <div className="cursor-pointer" onClick={onToggleCollapse}>
+              <SparkleLogo className="w-8 h-8 filter drop-shadow-[0_2px_8px_rgba(139,92,246,0.35)] hover:scale-105 transition-transform" />
             </div>
             <button onClick={onToggleCollapse} title="사이드바 펼치기" className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all mt-2">
               <PanelLeftOpen className="w-4 h-4" />
