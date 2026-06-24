@@ -331,8 +331,8 @@ export default function Home() {
                 {/* 3D 플로팅 로고 및 야광 링 */}
                 <div className="relative w-16 h-16 md:w-24 md:h-24 mx-auto mb-2 animate-float">
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 blur-xl opacity-80" />
-                  <div className="hero-icon w-16 h-16 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border border-primary/20 bg-card/40 backdrop-blur-md shadow-2xl relative z-10">
-                    <SparkleLogo className="w-10 h-10 md:w-16 md:h-16 filter drop-shadow-[0_4px_16px_rgba(139,92,246,0.45)]" />
+                  <div className="hero-icon w-16 h-16 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border border-white/60 dark:border-primary/20 bg-white/80 dark:bg-card/40 backdrop-blur-md shadow-[0_12px_40px_rgba(115,73,170,0.06)] dark:shadow-2xl relative z-10">
+                    <SparkleLogo className="w-10 h-10 md:w-16 md:h-16 filter drop-shadow-[0_4px_12px_rgba(115,73,170,0.12)] dark:drop-shadow-[0_4px_16px_rgba(139,92,246,0.45)]" />
                   </div>
                 </div>
 
@@ -377,8 +377,8 @@ export default function Home() {
               <div className="relative z-10 text-center space-y-5 animate-slide-up max-w-lg w-full">
                 <div className="relative w-16 h-16 mx-auto mb-2 animate-float">
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 blur-lg opacity-70" />
-                  <div className="hero-icon w-16 h-16 rounded-2xl flex items-center justify-center border border-primary/15 bg-card/40 backdrop-blur-md shadow-xl relative z-10">
-                    <SparkleLogo className="w-10 h-10 filter drop-shadow-[0_4px_16px_rgba(139,92,246,0.4)]" />
+                  <div className="hero-icon w-16 h-16 rounded-2xl flex items-center justify-center border border-white/60 dark:border-primary/15 bg-white/80 dark:bg-card/40 backdrop-blur-md shadow-[0_12px_40px_rgba(115,73,170,0.06)] dark:shadow-xl relative z-10">
+                    <SparkleLogo className="w-10 h-10 filter drop-shadow-[0_4px_12px_rgba(115,73,170,0.12)] dark:drop-shadow-[0_4px_16px_rgba(139,92,246,0.45)]" />
                   </div>
                 </div>
                 <div>
