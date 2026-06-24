@@ -81,7 +81,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent/40 rounded-full border border-border/20 transition-all duration-300 hover:scale-105 active:scale-95"
           >
             {theme === "dark" ? (
-              <Sun className="w-4 h-4 text-amber-400 rotate-0 transition-transform duration-500" />
+              <Sun className="w-4 h-4 text-white rotate-0 transition-transform duration-500" />
             ) : (
               <Moon className="w-4 h-4 text-primary -rotate-12 transition-transform duration-500" />
             )}
