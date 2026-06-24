@@ -224,12 +224,16 @@ button,
 
 /* ─────────────────────── 채팅 버블 리디자인 ─────────────────────── */
 .chat-bubble-user {
-  background: linear-gradient(135deg, var(--primary), #a5c8ff);
+  background: linear-gradient(135deg, #eedcff, #d4e3ff);
+  color: #21005d;
   box-shadow: 0 4px 16px var(--glow-primary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(115, 73, 170, 0.1);
+  border-radius: 20px;
 }
 .dark .chat-bubble-user {
-    background: linear-gradient(135deg, var(--primary), #9a82ce);
+  background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 .chat-bubble-ai {
   background: var(--card);
@@ -270,14 +274,17 @@ button,
 
 /* ─────────────────────── 버튼 디자인 ─────────────────────── */
 .btn-primary {
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: linear-gradient(135deg, #7349aa, #2563eb);
+  color: #ffffff;
   box-shadow: 0 4px 14px var(--glow-primary);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
+.dark .btn-primary {
+  background: linear-gradient(135deg, #a78bfa, #0073d1);
+  color: #ffffff;
+}
 .btn-primary:hover:not(:disabled) {
-  background: var(--primary);
-  opacity: 0.9;
+  opacity: 0.92;
   box-shadow: 0 6px 20px var(--glow-primary);
   transform: translateY(-1.5px);
 }
