@@ -63,13 +63,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="hidden md:flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <SparkleLogo className="w-6 h-6 filter drop-shadow-[0_1.5px_5px_rgba(139,92,246,0.3)]" />
             <h1 className="font-semibold font-display text-[16px] tracking-tight text-foreground">TechNote</h1>
           </div>
-
-          {/* 모바일에서 제목 표시 */}
-          <h1 className="md:hidden font-semibold font-display text-[16px] tracking-tight text-foreground">TechNote</h1>
         </div>
 
         {/* 우측 제어 */}

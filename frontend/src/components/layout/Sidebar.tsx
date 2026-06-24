@@ -603,30 +603,30 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
   return (
     <>
       {isOpen && <div className="sidebar-overlay fixed inset-0 z-40 md:hidden animate-fade" onClick={onClose} />}
-      <aside className={`sidebar h-full flex-col z-50 hidden md:flex transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-[280px]'}`}>
+      <aside className={`sidebar h-full flex-col z-50 hidden md:flex transition-all duration-300 ease-in-out ${isCollapsed ? 'w-[72px]' : 'w-[280px]'}`}>
         {isCollapsed ? (
-          <div className="flex flex-col h-full items-center py-4 gap-3">
-            <div className="cursor-pointer" onClick={onToggleCollapse}>
-              <SparkleLogo className="w-8 h-8 filter drop-shadow-[0_2px_8px_rgba(139,92,246,0.35)] hover:scale-105 transition-transform" />
+          <div className="flex flex-col h-full items-center py-5 gap-4">
+            <div className="cursor-pointer mb-2" onClick={onToggleCollapse}>
+              <SparkleLogo className="w-9 h-9 filter drop-shadow-[0_2px_8px_rgba(139,92,246,0.35)] hover:scale-105 transition-transform" />
             </div>
-            <button onClick={onToggleCollapse} title="사이드바 펼치기" className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all mt-2">
-              <PanelLeftOpen className="w-4 h-4" />
+            <button onClick={onToggleCollapse} title="사이드바 펼치기" className="p-2.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all">
+              <PanelLeftOpen className="w-5 h-5" />
             </button>
-            <div className="h-px w-8 bg-border/50" />
-            <button onClick={() => { setActiveTab("chat"); onToggleCollapse?.(); handleNewChat(); }} title="새 대화 시작" className="p-2 rounded-full text-primary hover:bg-primary/10 transition-all">
-              <PlusCircle className="w-4 h-4" />
+            <div className="h-px w-10 bg-border/50 my-1" />
+            <button onClick={() => { setActiveTab("chat"); onToggleCollapse?.(); handleNewChat(); }} title="새 대화 시작" className="p-2.5 rounded-full text-primary hover:bg-primary/10 transition-all">
+              <PlusCircle className="w-5 h-5" />
             </button>
-            <div className="h-px w-8 bg-border/50" />
-            <button onClick={() => { setActiveTab("docs"); onToggleCollapse?.(); }} title={`문서 ${documents.filter(d => d.status !== 'analyzing').length}개`} className={`p-2 rounded-full transition-all ${activeTab === 'docs' ? 'text-primary bg-primary/10' : 'text-muted-foreground/60 hover:bg-accent/50'}`}>
-              <FileText className="w-4 h-4" />
+            <div className="h-px w-10 bg-border/50 my-1" />
+            <button onClick={() => { setActiveTab("docs"); onToggleCollapse?.(); }} title={`문서 ${documents.filter(d => d.status !== 'analyzing').length}개`} className={`p-2.5 rounded-full transition-all ${activeTab === 'docs' ? 'text-primary bg-primary/10' : 'text-muted-foreground/60 hover:bg-accent/50'}`}>
+              <FileText className="w-5 h-5" />
             </button>
-            <button onClick={() => { setActiveTab("chat"); onToggleCollapse?.(); }} title={`대화 ${mySessions.length}개`} className={`p-2 rounded-full transition-all ${activeTab === 'chat' ? 'text-primary bg-primary/10' : 'text-muted-foreground/60 hover:bg-accent/50'}`}>
-              <MessageSquare className="w-4 h-4" />
+            <button onClick={() => { setActiveTab("chat"); onToggleCollapse?.(); }} title={`대화 ${mySessions.length}개`} className={`p-2.5 rounded-full transition-all ${activeTab === 'chat' ? 'text-primary bg-primary/10' : 'text-muted-foreground/60 hover:bg-accent/50'}`}>
+              <MessageSquare className="w-5 h-5" />
             </button>
             <div className="mt-auto flex flex-col items-center gap-3">
               {user && (
-                <button title="로그아웃" onClick={() => { useChatStore.getState().resetActiveSession(); logout(); }} className="w-8 h-8 rounded-full overflow-hidden border border-border/40 hover:opacity-80 shrink-0">
-                  {user.picture ? <img src={user.picture} alt="profile" /> : <div className="w-full h-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">{user.name.slice(0, 1)}</div>}
+                <button title="로그아웃" onClick={() => { useChatStore.getState().resetActiveSession(); logout(); }} className="w-10 h-10 rounded-full overflow-hidden border border-border/40 hover:opacity-80 shrink-0 flex items-center justify-center bg-accent/20">
+                  {user.picture ? <img src={user.picture} alt="profile" className="w-full h-full object-cover" /> : <div className="w-full h-full text-primary flex items-center justify-center text-sm font-bold">{user.name.slice(0, 1)}</div>}
                 </button>
               )}
             </div>

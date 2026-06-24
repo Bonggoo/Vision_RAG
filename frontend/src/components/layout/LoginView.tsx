@@ -94,7 +94,7 @@ export default function LoginView() {
 
         {/* 로고 */}
         <h1 className="text-3xl md:text-4xl font-extrabold font-display text-transparent bg-clip-text bg-gradient-to-r from-violet-500 via-indigo-500 to-blue-500 tracking-tight mb-2">
-          Lumina TechNote
+          TechNote
         </h1>
         <p className="text-xs md:text-[13px] text-muted-foreground/80 font-mono tracking-widest uppercase mb-8 font-medium">
           AI-Powered Industrial Assistant

@@ -338,7 +338,7 @@ export default function Home() {
 
                 <div>
                   <h2 className="text-2xl md:text-4xl font-extrabold font-display tracking-tight mb-2 bg-gradient-to-r from-foreground via-foreground to-primary/80 bg-clip-text text-transparent">
-                    Lumina TechNote
+                    TechNote
                   </h2>
                   <p className="text-[12px] md:text-[14px] text-muted-foreground/80 leading-relaxed max-w-md mx-auto px-2 font-medium">
                     산업용 매뉴얼을 AI가 분석하여 현장에서 바로 활용 가능한 답변을 제공합니다.
