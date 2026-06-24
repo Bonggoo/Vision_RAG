@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Noto_Sans_KR } from "next/font/google";
+import { Inter, Noto_Sans_KR, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
@@ -12,6 +12,18 @@ const notoSansKr = Noto_Sans_KR({
   subsets: ["latin"],
   weight: ["400", "500", "700"],
   variable: "--font-pretendard", // CSS 변수명은 유지 (Pretendard 대체용)
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+  variable: "--font-display",
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-mono-util",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +42,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1a1f36",
+  themeColor: "#151218",
   viewportFit: "cover",            // iOS 노치 safe area 대응
   interactiveWidget: "resizes-visual", // 모바일 키보드 올라올 때 레이아웃 유지
 };
@@ -61,7 +73,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.variable} ${notoSansKr.variable} font-sans bg-background text-foreground`}>
+      <body className={`${inter.variable} ${notoSansKr.variable} ${plusJakartaSans.variable} ${jetBrainsMono.variable} font-sans bg-background text-foreground`}>
         <ServiceWorkerRegister />
         {children}
       </body>

@@ -7,6 +7,8 @@
 
 @theme {
   --font-sans: var(--font-inter), var(--font-pretendard), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), var(--font-inter), sans-serif;
+  --font-mono-util: var(--font-mono-util), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -33,64 +35,64 @@
 }
 
 :root {
-  /* ─── 프리미엄 라이트 테마: 눈이 편안한 프로스트 화이트 & 로얄 블루 ─── */
-  --background: oklch(0.98 0.005 240);
-  --foreground: oklch(0.20 0.02 245);
-  --card: oklch(0.99 0.003 240 / 0.85);
-  --card-foreground: oklch(0.20 0.02 245);
-  --popover: oklch(0.99 0.003 240);
-  --popover-foreground: oklch(0.20 0.02 245);
-  --primary: oklch(0.55 0.18 250); /* 세련된 로얄 블루/바이올렛 */
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.93 0.008 240);
-  --secondary-foreground: oklch(0.25 0.02 245);
-  --muted: oklch(0.94 0.006 240);
-  --muted-foreground: oklch(0.48 0.015 245);
-  --accent: oklch(0.91 0.02 250);
-  --accent-foreground: oklch(0.20 0.02 245);
-  --destructive: oklch(0.60 0.18 25);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.86 0.01 240 / 0.8);
-  --input: oklch(0.95 0.006 240);
-  --ring: oklch(0.55 0.18 250);
+  /* ─── Stitch Light Theme: 페이퍼 화이트 & 딥 바이올렛 ─── */
+  --background: #f8f9fa;
+  --foreground: #1c1b1f;
+  --card: rgba(255, 255, 255, 0.75);
+  --card-foreground: #1c1b1f;
+  --popover: #ffffff;
+  --popover-foreground: #1c1b1f;
+  --primary: #7349aa;
+  --primary-foreground: #ffffff;
+  --secondary: #eaddff;
+  --secondary-foreground: #21005d;
+  --muted: #f4eff4;
+  --muted-foreground: #49454f;
+  --accent: #eaddff;
+  --accent-foreground: #21005d;
+  --destructive: #ba1a1a;
+  --destructive-foreground: #ffffff;
+  --border: rgba(115, 73, 170, 0.2);
+  --input: #f4eff4;
+  --ring: #7349aa;
   --radius: 0.75rem;
 
   /* 커스텀 그래디언트 & 글로우 컬러 (라이트) */
-  --glow-primary: oklch(0.55 0.18 250 / 0.12);
-  --glow-accent: oklch(0.60 0.15 290 / 0.08);
-  --sidebar-bg: oklch(0.95 0.007 240);
-  --sidebar-border: oklch(0.88 0.01 240 / 0.7);
-  --hero-gradient-color: oklch(0.55 0.18 250 / 0.08);
+  --glow-primary: rgba(115, 73, 170, 0.12);
+  --glow-accent: rgba(115, 73, 170, 0.08);
+  --sidebar-bg: #f8f9fa;
+  --sidebar-border: rgba(115, 73, 170, 0.15);
+  --hero-gradient-color: rgba(115, 73, 170, 0.06);
 }
 
 .dark {
-  /* ─── 프리미엄 다크 테마: 깊고 몰입감 있는 스페이스 블랙 & 네온 바이올렛 ─── */
-  --background: oklch(0.10 0.012 260);
-  --foreground: oklch(0.98 0.003 260);
-  --card: oklch(0.13 0.015 260 / 0.85);
-  --card-foreground: oklch(0.98 0.003 260);
-  --popover: oklch(0.14 0.017 260);
-  --popover-foreground: oklch(0.98 0.003 260);
-  --primary: oklch(0.64 0.22 285); /* 빛나는 네온 바이올렛 */
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.16 0.016 260);
-  --secondary-foreground: oklch(0.92 0.003 260);
-  --muted: oklch(0.15 0.014 260);
-  --muted-foreground: oklch(0.68 0.012 260);
-  --accent: oklch(0.18 0.02 260);
-  --accent-foreground: oklch(0.98 0.003 260);
-  --destructive: oklch(0.55 0.20 25);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.22 0.015 260 / 0.6);
-  --input: oklch(0.15 0.014 260);
-  --ring: oklch(0.64 0.22 285);
+  /* ─── Stitch Dark Theme: 웜 퍼플-블랙 & 소프트 라벤더 ─── */
+  --background: #151218;
+  --foreground: #e6e0e9;
+  --card: rgba(33, 30, 38, 0.85);
+  --card-foreground: #e6e0e9;
+  --popover: #2b2930;
+  --popover-foreground: #e6e0e9;
+  --primary: #d9baff;
+  --primary-foreground: #3b0092;
+  --secondary: #4a4458;
+  --secondary-foreground: #e8def8;
+  --muted: #49454f;
+  --muted-foreground: #cac4d0;
+  --accent: #4a4458;
+  --accent-foreground: #e8def8;
+  --destructive: #ffb4ab;
+  --destructive-foreground: #690005;
+  --border: rgba(217, 186, 255, 0.2);
+  --input: #49454f;
+  --ring: #d9baff;
 
   /* 커스텀 그래디언트 & 글로우 컬러 (다크) */
-  --glow-primary: oklch(0.64 0.22 285 / 0.18);
-  --glow-accent: oklch(0.76 0.15 195 / 0.12);
-  --sidebar-bg: oklch(0.07 0.01 260);
-  --sidebar-border: oklch(0.18 0.015 260 / 0.7);
-  --hero-gradient-color: oklch(0.64 0.22 285 / 0.15);
+  --glow-primary: rgba(217, 186, 255, 0.18);
+  --glow-accent: rgba(217, 186, 255, 0.12);
+  --sidebar-bg: #1d1b20;
+  --sidebar-border: rgba(217, 186, 255, 0.15);
+  --hero-gradient-color: rgba(217, 186, 255, 0.15);
 }
 
 @layer base {
@@ -128,7 +130,7 @@ button,
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(from var(--border) l c h / 0.9);
+  background: var(--primary);
 }
 
 .scrollbar-thin::-webkit-scrollbar {
@@ -178,14 +180,15 @@ button,
   backdrop-filter: blur(20px) saturate(1.6);
   -webkit-backdrop-filter: blur(20px) saturate(1.6);
   border: 1px solid var(--border);
-  box-shadow: 0 10px 30px -10px oklch(0 0 0 / 0.12);
+  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.12);
 }
 .glass-subtle {
-  background: oklch(from var(--card) l c h / 0.4);
+  background: var(--background);
+  opacity: 0.85;
   backdrop-filter: blur(12px) saturate(1.4);
   -webkit-backdrop-filter: blur(12px) saturate(1.4);
-  border: 1px solid oklch(from var(--border) l c h / 0.6);
-  box-shadow: 0 8px 20px -8px oklch(0 0 0 / 0.08);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 20px -8px rgba(0,0,0,0.08);
 }
 
 /* ─────────────────────── 사이드바 리디자인 ─────────────────────── */
@@ -197,7 +200,8 @@ button,
 
 /* ─────────────────────── 헤더 블러 ─────────────────────── */
 .header-blur {
-  background: oklch(from var(--background) l c h / 0.8);
+  background: var(--background);
+  opacity: 0.9;
   backdrop-filter: blur(20px) saturate(1.6);
   -webkit-backdrop-filter: blur(20px) saturate(1.6);
   border-bottom: 1px solid var(--sidebar-border);
@@ -207,28 +211,47 @@ button,
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+/* ─────────────────────── 헤더 그라데이션 라인 ─────────────────────── */
+.header-gradient-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--primary), #0073d1, #49a9a9);
+  opacity: 0.8;
+}
+
 /* ─────────────────────── 채팅 버블 리디자인 ─────────────────────── */
 .chat-bubble-user {
-  background: linear-gradient(135deg, var(--primary), oklch(from var(--primary) l c h + 15));
+  background: linear-gradient(135deg, var(--primary), #a5c8ff);
   box-shadow: 0 4px 16px var(--glow-primary);
-  border: 1px solid oklch(from var(--primary) l c h / 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.dark .chat-bubble-user {
+    background: linear-gradient(135deg, var(--primary), #9a82ce);
 }
 .chat-bubble-ai {
   background: var(--card);
   border: 1px solid var(--border);
-  box-shadow: 0 4px 20px -8px oklch(0 0 0 / 0.15);
+  box-shadow: 0 4px 20px -8px rgba(0,0,0,0.15);
 }
 
-/* ─── AI 버블의 라이트/다크 전용 광채 테두리 ─── */
+/* ─── AI 버블의 라이트/다크 전용 광채 테두리 (Edge Light) ─── */
 .dark .chat-bubble-ai {
-  background: oklch(0.12 0.012 260 / 0.85);
-  box-shadow: 0 4px 30px -10px oklch(0 0 0 / 0.5), inset 0 1px 1px oklch(1 0 0 / 0.05);
-  border-color: oklch(0.24 0.02 260 / 0.7);
+  background: #211e26;
+  box-shadow: 0 4px 30px -10px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.05);
+  border-color: rgba(217, 186, 255, 0.15);
+}
+
+.chat-bubble-ai {
+  box-shadow: 0 8px 30px rgba(115, 73, 170, 0.08), inset 0 1px 1px rgba(255,255,255,0.5);
 }
 
 /* ─────────────────────── 인풋 영역 ─────────────────────── */
 .chat-input-wrapper {
-  background: oklch(from var(--background) l c h / 0.85);
+  background: var(--background);
+  opacity: 0.9;
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
   border-top: 1px solid var(--sidebar-border);
@@ -242,18 +265,19 @@ button,
 .chat-input:focus,
 .chat-input:focus-within {
   border-color: var(--primary);
-  box-shadow: 0 0 0 4px var(--glow-primary);
+  /* 다크/라이트 광원 효과 분기 적용을 위해 유틸리티 클래스 glow-effect 사용 권장 */
 }
 
 /* ─────────────────────── 버튼 디자인 ─────────────────────── */
 .btn-primary {
   background: var(--primary);
-  color: white;
+  color: var(--primary-foreground);
   box-shadow: 0 4px 14px var(--glow-primary);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .btn-primary:hover:not(:disabled) {
-  background: oklch(from var(--primary) calc(l + 0.05) c h);
+  background: var(--primary);
+  opacity: 0.9;
   box-shadow: 0 6px 20px var(--glow-primary);
   transform: translateY(-1.5px);
 }
@@ -264,11 +288,11 @@ button,
   background: var(--card);
   border: 1px solid var(--border);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 8px oklch(0 0 0 / 0.04);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 .btn-secondary:hover:not(:disabled) {
   background: var(--secondary);
-  border-color: oklch(from var(--border) l c h / 0.8);
+  border-color: var(--primary);
   transform: translateY(-1px);
 }
 
@@ -278,8 +302,11 @@ button,
   border-radius: 10px;
 }
 .doc-item:hover {
-  background: oklch(from var(--primary) l c h / 0.08);
+  background: rgba(115, 73, 170, 0.08);
   transform: translateX(2px);
+}
+.dark .doc-item:hover {
+    background: rgba(217, 186, 255, 0.08);
 }
 
 /* ─────────────────────── 오로라 백그라운드 광원 ─────────────────────── */
@@ -292,9 +319,39 @@ button,
   filter: blur(60px);
 }
 
+/* ─────────────────────── 광원 효과 유틸리티 (Glow & Glow Border) ─────────────────────── */
+.glow-effect {
+  box-shadow: 0 8px 30px rgba(115, 73, 170, 0.12),
+              0 0 60px rgba(115, 73, 170, 0.06);
+}
+.dark .glow-effect {
+  box-shadow: 0 0 40px rgba(217, 186, 255, 0.18);
+}
+
+.gradient-border-glow {
+  position: relative;
+}
+.gradient-border-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(90deg, var(--primary), #0073d1, #49a9a9);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.gradient-border-glow:focus-within::before,
+.gradient-border-glow:focus::before {
+  opacity: 1;
+}
+
 /* ─────────────────────── 모바일 오버레이 ─────────────────────── */
 .sidebar-overlay {
-  background: oklch(0 0 0 / 0.4);
+  background: rgba(0,0,0,0.4);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }

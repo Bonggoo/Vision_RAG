@@ -90,7 +90,7 @@ export default function ChatInput({ onSubmit, disabled, isStreaming, onStop }: C
           </div>
         )}
 
-        <div className="chat-input relative flex items-end rounded-xl p-1.5 transition-all">
+        <div className="chat-input relative flex items-end rounded-3xl p-1.5 transition-all border border-border/40 bg-accent/10 focus-within:border-primary/50 focus-within:shadow-[0_0_20px_rgba(139,92,246,0.15)] focus-within:bg-background/90 backdrop-blur-sm">
           {/* 숨겨진 이미지 파일 선택기 */}
           <input
             type="file"
@@ -100,19 +100,15 @@ export default function ChatInput({ onSubmit, disabled, isStreaming, onStop }: C
             className="hidden"
           />
 
-
-          
           {/* 카메라 촬영/앨범 선택 버튼 */}
           <button
             onClick={() => imageInputRef.current?.click()}
             disabled={disabled}
-            className="relative z-30 btn-ghost p-3.5 sm:p-2.5 rounded-lg flex-shrink-0 mr-0.5 hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors cursor-pointer disabled:opacity-40"
+            className="relative z-30 btn-ghost p-3.5 sm:p-2.5 rounded-full flex-shrink-0 mr-0.5 hover:bg-primary/10 transition-colors cursor-pointer disabled:opacity-40"
             title="장비 알람 사진 찍기/첨부"
           >
             <Camera className="w-5 h-5 sm:w-4.5 sm:h-4.5 text-muted-foreground/75 hover:text-primary transition-colors" />
           </button>
-
-
 
           <textarea
             ref={textareaRef}
@@ -121,9 +117,9 @@ export default function ChatInput({ onSubmit, disabled, isStreaming, onStop }: C
             onKeyDown={handleKeyDown}
             disabled={disabled}
             placeholder={image ? "알람 코드에 대해 질문해 보세요..." : "등록된 매뉴얼에 대해 질문하거나 사진을 첨부하세요..."}
-            className="w-full bg-transparent pl-1 sm:pl-1.5 pr-12 py-2 sm:py-2.5 text-base md:text-[13px] leading-relaxed
-              resize-none overflow-hidden min-h-[40px] max-h-[160px]
-              placeholder:text-muted-foreground/40
+            className="w-full bg-transparent pl-1 sm:pl-1.5 pr-12 py-2.5 text-base md:text-[14px] leading-relaxed
+              resize-none overflow-hidden min-h-[44px] max-h-[160px]
+              placeholder:text-muted-foreground/50 font-medium
               focus:outline-none
               disabled:opacity-40"
             rows={1}
@@ -131,7 +127,7 @@ export default function ChatInput({ onSubmit, disabled, isStreaming, onStop }: C
           {isStreaming ? (
             <button
               onClick={onStop}
-              className="absolute right-2 bottom-1.5 p-2.5 rounded-lg flex-shrink-0 transition-all bg-red-500/90 hover:bg-red-500 shadow-lg shadow-red-500/20 animate-pulse"
+              className="absolute right-2.5 bottom-2 p-2.5 rounded-full flex-shrink-0 transition-all bg-destructive/90 hover:bg-destructive shadow-lg shadow-destructive/20 animate-pulse"
               title="응답 중단"
             >
               <Square className="w-4 h-4 text-white fill-white" />
@@ -140,7 +136,7 @@ export default function ChatInput({ onSubmit, disabled, isStreaming, onStop }: C
             <button
               onClick={handleSubmit}
               disabled={(!text.trim() && !image) || disabled}
-              className="absolute right-2 bottom-1.5 btn-primary p-2.5 rounded-lg disabled:opacity-30 disabled:cursor-default disabled:transform-none disabled:shadow-none flex-shrink-0 transition-all"
+              className="absolute right-2.5 bottom-2 btn-primary p-2.5 rounded-full disabled:opacity-30 disabled:cursor-default disabled:transform-none disabled:shadow-none flex-shrink-0 transition-all shadow-md shadow-primary/20"
             >
               <SendHorizontal className="w-4 h-4" />
             </button>

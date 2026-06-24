@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Menu, Sun, Moon, LogOut } from "lucide-react";
+import { Menu, Sun, Moon } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
-import { useAuthStore } from "@/store/useAuthStore";
 import ExportButton from "@/components/chat/ExportButton";
 
 interface HeaderProps {
@@ -15,7 +14,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const [isMounted, setIsMounted] = useState(false);
 
   const { activeSessionId } = useChatStore();
-  const { user, logout } = useAuthStore();
 
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
@@ -54,7 +52,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   }
 
   return (
-    <header className="header-blur header-safe-area sticky top-0 z-30 w-full">
+    <header className="header-blur header-safe-area sticky top-0 z-30 w-full relative">
       <div className="h-14 w-full flex items-center justify-between px-4">
         <div className="flex items-center gap-3">
           <button
@@ -68,11 +66,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
               <span className="text-white text-[10px] font-bold">T</span>
             </div>
-            <h1 className="font-semibold text-[15px] tracking-tight">TechNote</h1>
+            <h1 className="font-semibold font-display text-[16px] tracking-tight text-foreground">TechNote</h1>
           </div>
 
           {/* 모바일에서 제목 표시 */}
-          <h1 className="md:hidden font-semibold text-[15px] tracking-tight">TechNote</h1>
+          <h1 className="md:hidden font-semibold font-display text-[16px] tracking-tight text-foreground">TechNote</h1>
         </div>
 
         {/* 우측 제어 */}
@@ -84,45 +82,18 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <button
             onClick={toggleTheme}
             aria-label="테마 전환"
-            className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent/40 rounded-lg border border-border/20 transition-all duration-300 hover:scale-105 active:scale-95"
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent/40 rounded-full border border-border/20 transition-all duration-300 hover:scale-105 active:scale-95"
           >
             {theme === "dark" ? (
               <Sun className="w-4 h-4 text-amber-400 rotate-0 transition-transform duration-500" />
             ) : (
-              <Moon className="w-4 h-4 text-violet-600 -rotate-12 transition-transform duration-500" />
+              <Moon className="w-4 h-4 text-primary -rotate-12 transition-transform duration-500" />
             )}
           </button>
-
-          {/* 💡 구글 프로필 & 로그아웃 버튼 */}
-          {user && (
-            <div className="flex items-center gap-2 border-l border-border/20 pl-2">
-              {user.picture ? (
-                <img
-                  src={user.picture}
-                  alt={user.name}
-                  className="w-6 h-6 rounded-full border border-border/40 object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center text-[10px] font-bold">
-                  {user.name.slice(0, 1)}
-                </div>
-              )}
-              <button
-                onClick={() => {
-                  // 활성 세션 초기화 후 로그아웃 (순환 참조 방지를 위해 여기서 순차 호출)
-                  useChatStore.getState().resetActiveSession();
-                  logout();
-                }}
-                title="로그아웃"
-                className="p-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg border border-border/20 transition-all duration-300 hover:scale-105 active:scale-95"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          )}
         </div>
       </div>
+      {/* 헤더 하단 그라데이션 라인 */}
+      <div className="header-gradient-line" />
     </header>
   );
 }

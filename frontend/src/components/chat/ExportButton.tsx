@@ -81,7 +81,7 @@ export default function ExportButton() {
     <button
       onClick={handleExport}
       title="대화 내보내기"
-      className="btn-secondary flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground transition-all shadow-sm border border-border/40 bg-accent/25 hover:bg-accent/45"
+      className="btn-secondary flex items-center gap-1.5 py-1.5 px-3.5 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground transition-all shadow-sm border border-border/40 bg-accent/25 hover:bg-accent/45"
     >
       <Share className="w-3.5 h-3.5 shrink-0" />
       <span>대화 내보내기</span>

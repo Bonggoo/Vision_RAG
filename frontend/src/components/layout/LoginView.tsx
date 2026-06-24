@@ -78,24 +78,25 @@ export default function LoginView() {
   }
 
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-[#0a0f1d] px-4">
-      {/* 🌌 다이내믹 오로라 네온 배경 효과 */}
-      <div className="absolute top-[-10%] left-[-20%] w-[60vw] h-[60vw] rounded-full bg-violet-600/10 blur-[120px] animate-pulse" style={{ animationDuration: "8s" }} />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-blue-500/10 blur-[120px] animate-pulse" style={{ animationDuration: "12s" }} />
+    <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-background px-4">
+      {/* 🌌 다이내믹 오로라 네온 배경 효과 (라이트/다크 모두 은은하게 적용) */}
+      <div className="absolute top-[-10%] left-[-20%] w-[60vw] h-[60vw] rounded-full bg-violet-500/15 dark:bg-violet-600/10 blur-[120px] animate-pulse" style={{ animationDuration: "8s" }} />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-blue-500/15 dark:bg-blue-500/10 blur-[120px] animate-pulse" style={{ animationDuration: "12s" }} />
       
       {/* 🖼️ 글래스모피즘 로그인 카드 */}
-      <div className="relative z-10 w-full max-w-md backdrop-blur-2xl bg-white/5 border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.4)] rounded-3xl p-8 text-center flex flex-col items-center">
+      <div className="relative z-10 w-full max-w-md backdrop-blur-3xl bg-card/40 border border-border/40 shadow-2xl rounded-[2rem] p-8 md:p-10 text-center flex flex-col items-center">
         {/* 아이콘 헤더 */}
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-violet-600 to-blue-500 flex items-center justify-center shadow-lg shadow-violet-600/30 mb-6">
-          <KeyRound className="w-8 h-8 text-white animate-bounce" style={{ animationDuration: "3s" }} />
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-violet-500/25 mb-6 relative">
+          <div className="absolute inset-0 bg-white/20 rounded-2xl animate-pulse" style={{ animationDuration: "2s" }} />
+          <KeyRound className="w-8 h-8 text-white relative z-10" />
         </div>
 
         {/* 로고 */}
-        <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-pink-400 to-blue-400 tracking-tight mb-2">
-          📑 TechNote
+        <h1 className="text-3xl md:text-4xl font-extrabold font-display text-transparent bg-clip-text bg-gradient-to-r from-violet-500 via-indigo-500 to-blue-500 tracking-tight mb-2">
+          Lumina TechNote
         </h1>
-        <p className="text-xs text-white/40 font-mono tracking-widest uppercase mb-6">
-          AI-Powered Industrial Manual Assistant
+        <p className="text-xs md:text-[13px] text-muted-foreground/80 font-mono tracking-widest uppercase mb-8 font-medium">
+          AI-Powered Industrial Assistant
         </p>
 
 
@@ -103,21 +104,21 @@ export default function LoginView() {
         {/* 로딩 표시 */}
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-4">
-            <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-2" />
-            <span className="text-xs text-white/50">사용자 권한 검증 요청 중...</span>
+            <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-3 shadow-lg shadow-violet-500/20" />
+            <span className="text-xs font-medium text-muted-foreground/80">사용자 권한 검증 요청 중...</span>
           </div>
         ) : (
           /* 구글 로그인 버튼 컨테이너 */
-          <div className="my-4 transition-all duration-300 hover:scale-105" id="google-login-btn" />
+          <div className="my-4 transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98] drop-shadow-sm" id="google-login-btn" />
         )}
 
         {/* ❌ 정중한 에러 표시 영역 */}
         {errorMsg && (
-          <div className="mt-6 w-full p-4 rounded-xl border border-red-500/20 bg-red-950/20 text-center animate-shake">
-            <p className="text-xs font-semibold text-red-400 mb-1.5">
-              ⚠️ 접근 권한 승인 실패
+          <div className="mt-6 w-full p-4 rounded-2xl border border-destructive/20 bg-destructive/5 text-center animate-shake backdrop-blur-md">
+            <p className="text-xs font-bold text-destructive mb-1.5 flex items-center justify-center gap-1.5">
+              <span className="text-sm">⚠️</span> 접근 권한 승인 실패
             </p>
-            <p className="text-[11px] text-white/60 leading-relaxed">
+            <p className="text-[11px] text-destructive/80 leading-relaxed font-medium">
               본 시스템에 등록되지 않은 구글 계정입니다. 서비스 이용 및 접근 권한 활성화가 필요하신 경우, <strong>시스템 관리자</strong>에게 계정 등록을 요청해 주세요.
             </p>
           </div>

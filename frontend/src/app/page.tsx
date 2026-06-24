@@ -331,37 +331,36 @@ export default function Home() {
                 <div className="relative w-16 h-16 md:w-24 md:h-24 mx-auto mb-2 animate-float">
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 blur-xl opacity-80" />
                   <div className="hero-icon w-16 h-16 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border border-primary/20 bg-card/40 backdrop-blur-md shadow-2xl relative z-10">
-                    <span className="text-3xl md:text-5xl drop-shadow-md">📑</span>
+                    <span className="text-3xl md:text-5xl drop-shadow-md">✦</span>
                   </div>
                 </div>
 
                 <div>
-                  <h2 className="text-xl md:text-3xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-foreground via-foreground to-primary/80 bg-clip-text text-transparent">
-                    TechNote
+                  <h2 className="text-2xl md:text-4xl font-extrabold font-display tracking-tight mb-2 bg-gradient-to-r from-foreground via-foreground to-primary/80 bg-clip-text text-transparent">
+                    Lumina TechNote
                   </h2>
-                  <p className="text-[11px] md:text-sm text-muted-foreground/80 leading-relaxed max-w-md mx-auto px-2">
-                    산업용 매뉴얼(PDF)을 AI가 인간처럼 목차를 읽고 원본 레이아웃 그대로 분석하여, 현장에서 활용 가능한 조치법을 제공합니다.
+                  <p className="text-[12px] md:text-[14px] text-muted-foreground/80 leading-relaxed max-w-md mx-auto px-2 font-medium">
+                    산업용 매뉴얼을 AI가 분석하여 현장에서 바로 활용 가능한 답변을 제공합니다.
                   </p>
                 </div>
 
-
                 {/* 💡 예시 질문 카드 */}
-                <div className="w-full mt-4 md:mt-6">
-                  <div className="flex items-center justify-center gap-1.5 mb-3 text-[10px] text-muted-foreground/50 font-medium">
-                    <MessageCircleQuestion className="w-3 h-3" />
+                <div className="w-full mt-4 md:mt-8">
+                  <div className="flex items-center justify-center gap-1.5 mb-4 text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-widest">
+                    <MessageCircleQuestion className="w-3.5 h-3.5" />
                     <span>이런 질문을 해보세요</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 w-full">
+                  <div className="grid grid-cols-2 gap-3 w-full">
                     {examplePrompts.map((p, i) => (
                       <button
                         key={i}
                         onClick={() => handleChatSubmit(p.text)}
-                        className="glass-subtle rounded-xl px-3 py-2.5 text-left transition-all duration-200
-                          hover:-translate-y-0.5 hover:shadow-md hover:shadow-primary/5 hover:border-primary/30
-                          active:scale-[0.98] cursor-pointer group"
+                        className="glass-subtle rounded-2xl px-4 py-3.5 text-left transition-all duration-300
+                          hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/10 border border-border/40 hover:border-primary/40
+                          active:scale-[0.98] cursor-pointer group flex flex-col gap-1.5"
                       >
-                        <span className="text-sm block mb-0.5">{p.emoji}</span>
-                        <span className="text-[11px] md:text-xs text-muted-foreground/80 group-hover:text-foreground transition-colors leading-snug">
+                        <span className="text-lg block">{p.emoji}</span>
+                        <span className="text-[12px] md:text-[13px] font-medium text-muted-foreground/90 group-hover:text-foreground transition-colors leading-snug">
                           {p.text}
                         </span>
                       </button>
@@ -378,33 +377,33 @@ export default function Home() {
                 <div className="relative w-16 h-16 mx-auto mb-2 animate-float">
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 blur-lg opacity-70" />
                   <div className="hero-icon w-16 h-16 rounded-2xl flex items-center justify-center border border-primary/15 bg-card/40 backdrop-blur-md shadow-xl relative z-10">
-                    <span className="text-3xl">💬</span>
+                    <span className="text-3xl">✦</span>
                   </div>
                 </div>
                 <div>
-                  <h2 className="text-lg md:text-xl font-bold tracking-tight mb-1">
-                    &apos;{activeSession.title}&apos; 대화 시작
+                  <h2 className="text-lg md:text-xl font-bold font-display tracking-tight mb-2">
+                    &apos;{activeSession.title}&apos;
                   </h2>
-                  <p className="text-xs md:text-sm text-muted-foreground/70 max-w-sm mx-auto">
-                    아래 예시를 클릭하거나, 입력창에 질문을 입력해 주세요.
-                    <span className="block mt-2.5 text-primary/60 text-xs bg-primary/5 border border-primary/10 rounded-full px-3 py-1 font-medium inline-block">
-                      💡 AI가 업로드된 문서 중 적합한 문서를 자동 판별합니다.
+                  <p className="text-[13px] text-muted-foreground/70 max-w-sm mx-auto font-medium">
+                    아래 예시를 클릭하거나, 질문을 입력해 주세요.
+                    <span className="block mt-3 text-primary/80 text-[11px] bg-primary/10 border border-primary/20 rounded-full px-3 py-1.5 font-semibold inline-flex items-center gap-1.5">
+                      <span className="text-[10px]">✨</span> AI가 업로드된 문서 중 적합한 문서를 판별합니다.
                     </span>
                   </p>
                 </div>
 
                 {/* 💡 예시 질문 카드 (빈 대화) */}
-                <div className="grid grid-cols-2 gap-2 w-full mt-4">
+                <div className="grid grid-cols-2 gap-3 w-full mt-6">
                   {examplePrompts.map((p, i) => (
                     <button
                       key={i}
                       onClick={() => handleChatSubmit(p.text)}
-                      className="glass-subtle rounded-xl px-3 py-2.5 text-left transition-all duration-200
-                        hover:-translate-y-0.5 hover:shadow-md hover:shadow-primary/5 hover:border-primary/30
-                        active:scale-[0.98] cursor-pointer group"
+                      className="glass-subtle rounded-2xl px-4 py-3 text-left transition-all duration-300
+                        hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/10 border border-border/40 hover:border-primary/40
+                        active:scale-[0.98] cursor-pointer group flex flex-col gap-1.5"
                     >
-                      <span className="text-sm block mb-0.5">{p.emoji}</span>
-                      <span className="text-[11px] md:text-xs text-muted-foreground/80 group-hover:text-foreground transition-colors leading-snug">
+                      <span className="text-lg block">{p.emoji}</span>
+                      <span className="text-[12px] md:text-[13px] font-medium text-muted-foreground/90 group-hover:text-foreground transition-colors leading-snug">
                         {p.text}
                       </span>
                     </button>
@@ -414,25 +413,26 @@ export default function Home() {
             </div>
           ) : (
             /* ── 메시지 목록 ── */
-            <div className="max-w-3xl lg:max-w-4xl w-full mx-auto space-y-4 md:space-y-5 p-3 sm:p-4 md:p-6 pb-6">
+            <div className="max-w-3xl lg:max-w-4xl w-full mx-auto space-y-4 md:space-y-6 p-3 sm:p-4 md:p-6 pb-6">
               {activeSession.messages.map((msg) => (
                 <ChatMessage key={msg.id} message={msg} />
               ))}
 
               {/* 되묻기 UI — 보강 질문 + 문서 후보 */}
               {clarificationState && (
-                <div className="flex flex-col gap-3 p-4 md:p-5 rounded-2xl border border-primary/20 bg-primary/5/10 backdrop-blur-md animate-slide-up shadow-lg">
-                  <div className="text-xs md:text-sm font-semibold text-foreground/90 flex items-center gap-2">
-                    <span className="text-base">🤖</span>
+                <div className="flex flex-col gap-4 p-5 md:p-6 rounded-3xl border border-primary/20 bg-card/60 backdrop-blur-xl animate-slide-up shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/40 via-blue-500/40 to-primary/40" />
+                  <div className="text-[13px] md:text-[14px] font-bold text-foreground/90 flex items-center gap-2.5">
+                    <span className="text-lg">🤖</span>
                     <span>{clarificationState.content}</span>
                   </div>
 
                   {/* 보강 질문 카드 */}
                   {clarificationState.suggested_questions && clarificationState.suggested_questions.length > 0 && (
-                    <div className="flex flex-col gap-1.5">
-                      <div className="text-[10px] text-muted-foreground/60 font-medium flex items-center gap-1 px-1">
-                        <span>💡</span>
-                        <span>이렇게 질문을 보강해 보세요</span>
+                    <div className="flex flex-col gap-2 mt-1">
+                      <div className="text-[11px] text-primary/80 font-semibold uppercase tracking-widest flex items-center gap-1.5 px-1 mb-1">
+                        <span>✨</span>
+                        <span>추천 질문</span>
                       </div>
                       {clarificationState.suggested_questions.map((q, idx) => (
                         <button
@@ -441,10 +441,10 @@ export default function Home() {
                             clearClarification();
                             handleChatSubmit(q);
                           }}
-                          className="flex items-center gap-2.5 text-left p-3 rounded-xl border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 hover:border-violet-500/40 transition-all cursor-pointer group shadow-sm"
+                          className="flex items-center gap-3 text-left p-3.5 md:p-4 rounded-2xl border border-primary/20 bg-background/50 hover:bg-primary/10 hover:border-primary/40 transition-all cursor-pointer group shadow-sm"
                         >
-                          <span className="text-sm text-violet-400 group-hover:text-violet-300 transition-colors shrink-0">→</span>
-                          <span className="text-xs md:text-sm text-foreground/90 group-hover:text-foreground transition-colors">
+                          <span className="text-sm text-primary/60 group-hover:text-primary transition-colors shrink-0">→</span>
+                          <span className="text-[13px] md:text-[14px] font-medium text-foreground/90 group-hover:text-foreground transition-colors">
                             {q}
                           </span>
                         </button>
@@ -454,29 +454,29 @@ export default function Home() {
 
                   {/* 문서 후보 카드 */}
                   {clarificationState.candidates.length > 0 && (
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-2 mt-2">
                       {clarificationState.suggested_questions && clarificationState.suggested_questions.length > 0 && (
-                        <div className="text-[10px] text-muted-foreground/60 font-medium flex items-center gap-1 px-1 mt-1">
+                        <div className="text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-widest flex items-center gap-1.5 px-1 mt-2 mb-1">
                           <span>📂</span>
-                          <span>또는 아래 매뉴얼에서 직접 검색</span>
+                          <span>직접 문서 선택</span>
                         </div>
                       )}
                       {clarificationState.candidates.map((cand) => (
                         <button
                           key={cand.document_id}
                           onClick={() => handleClarificationSelect(cand.document_id)}
-                          className="flex items-center justify-between text-left p-3.5 rounded-xl border border-border bg-card hover:bg-primary/5 hover:border-primary/40 transition-all cursor-pointer group shadow-sm"
+                          className="flex items-center justify-between text-left p-4 rounded-2xl border border-border/60 bg-background/50 hover:bg-primary/5 hover:border-primary/40 transition-all cursor-pointer group shadow-sm"
                         >
                           <div className="flex-1 pr-4 min-w-0">
-                            <div className="text-xs md:text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                            <div className="text-[13px] md:text-[14px] font-bold text-foreground group-hover:text-primary transition-colors truncate font-display">
                               {cand.manufacturer} {cand.model_series}
                             </div>
-                            <div className="text-[10px] md:text-xs text-muted-foreground/80 mt-0.5 truncate">
+                            <div className="text-[11px] md:text-[12px] text-muted-foreground/80 mt-1 truncate">
                               {cand.title}
                             </div>
                           </div>
-                          <div className="text-[10px] text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded shrink-0">
-                            일치율: {(cand.confidence * 100).toFixed(0)}%
+                          <div className="text-[11px] font-bold text-primary/80 bg-primary/10 px-2.5 py-1 rounded-full shrink-0">
+                            {(cand.confidence * 100).toFixed(0)}% 일치
                           </div>
                         </button>
                       ))}

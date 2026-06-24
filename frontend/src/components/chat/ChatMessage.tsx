@@ -277,15 +277,15 @@ export default function ChatMessage({ message }: ChatMessageProps) {
             <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed break-words
               [overflow-wrap:anywhere]
               prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight
-              prose-h2:text-[14.5px] prose-h2:mt-5 prose-h2:mb-2 prose-h2:pb-1.5 prose-h2:border-b prose-h2:border-border/30
-              prose-h3:text-[13px] prose-h3:mt-4 prose-h3:mb-1.5 prose-h3:text-foreground/90
-              prose-p:text-[13px] prose-p:text-foreground/85 prose-p:leading-[1.8]
-              prose-li:text-[13px] prose-li:text-foreground/85 prose-li:leading-[1.8]
+              prose-h2:text-[15px] md:prose-h2:text-[16px] prose-h2:mt-5 prose-h2:mb-2 prose-h2:pb-1.5 prose-h2:border-b prose-h2:border-border/30
+              prose-h3:text-[14px] md:prose-h3:text-[15px] prose-h3:mt-4 prose-h3:mb-1.5 prose-h3:text-foreground/90
+              prose-p:text-[13.5px] md:prose-p:text-[14px] prose-p:text-foreground/90 prose-p:leading-[1.7]
+              prose-li:text-[13.5px] md:prose-li:text-[14px] prose-li:text-foreground/90 prose-li:leading-[1.7]
               prose-strong:text-foreground prose-strong:font-bold
               prose-blockquote:border-l-4 prose-blockquote:border-primary/40 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:py-2.5 prose-blockquote:pl-4 prose-blockquote:pr-3
-              prose-blockquote:text-muted-foreground prose-blockquote:text-xs prose-blockquote:not-italic
-              prose-code:text-violet-600 dark:prose-code:text-violet-300 prose-code:bg-violet-500/5 dark:prose-code:bg-violet-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-mono
-              prose-table:text-xs prose-table:my-4
+              prose-blockquote:text-muted-foreground prose-blockquote:text-[13px] prose-blockquote:not-italic
+              prose-code:text-violet-600 dark:prose-code:text-violet-300 prose-code:bg-violet-500/5 dark:prose-code:bg-violet-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[12.5px] md:prose-code:text-[13px] prose-code:font-mono
+              prose-table:text-[13px] prose-table:my-4
               prose-th:text-foreground/90 prose-th:border-border/40 prose-th:bg-secondary/60 prose-th:px-3 prose-th:py-2 prose-th:font-semibold
               prose-td:border-border/20 prose-td:px-3 prose-td:py-2
               prose-a:text-primary prose-a:no-underline hover:prose-a:underline
