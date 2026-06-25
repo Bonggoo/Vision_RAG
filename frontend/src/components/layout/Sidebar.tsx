@@ -206,9 +206,20 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
 
   const handleNewChat = async () => {
     try {
-      const sessionId = await createSession("새로운 대화");
-      setActiveSession(sessionId);
+      // 이미 메시지가 없는 빈 세션이 있다면 해당 세션으로 이동 (중복 생성 방지)
+      const emptySession = mySessions.find(s => s.messages.length === 0);
+      
+      if (emptySession) {
+        setActiveSession(emptySession.id);
+      } else {
+        const sessionId = await createSession("새로운 대화");
+        setActiveSession(sessionId);
+      }
+      
       onClose?.();
+      if (!isCollapsed && onToggleCollapse) {
+        onToggleCollapse();
+      }
       setActiveTab("chat");
     } catch (err: any) { alert(err.message || "대화 세션 생성에 실패했습니다."); }
   };
