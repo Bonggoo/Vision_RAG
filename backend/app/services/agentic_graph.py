@@ -703,16 +703,52 @@ async def run_agentic_pipeline(
                 yield _sse_event("reasoning", content=f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
                 collected_reasoning.append(f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
             else:
-                # ─── ToC 키워드 매칭 1차 필터링 ───
-                # 질문의 키워드가 ToC에 포함된 문서만 우선 후보로 좁힘
+                # ─── 1차 필터링 (메타데이터 및 ToC 키워드 매칭) ───
+                # 질문의 키워드가 파일명, 제조사, 모델명 또는 ToC에 포함된 문서만 후보로 좁힘
                 question_keywords = set(re.findall(r'[가-힣a-zA-Z0-9]{2,}', question.lower()))
+                
+                # 주요 산업 도메인 동의어 매핑 (한글 키워드가 들어왔을 때 영문 ToC와 매칭 지원)
+                SYNONYMS = {
+                    "위치결정": ["positioning"],
+                    "알람": ["alarm", "error", "warning", "err", "al"],
+                    "에러": ["error", "err", "alarm"],
+                    "경고": ["warning", "warn"],
+                    "모듈": ["module"],
+                    "서보": ["servo"],
+                    "설명서": ["manual"],
+                    "매뉴얼": ["manual"],
+                }
+                
+                # 질문 키워드 확장 (동의어 포함)
+                extended_keywords = set(question_keywords)
+                for kw in question_keywords:
+                    for kor_key, eng_vals in SYNONYMS.items():
+                        if kor_key in kw:
+                            extended_keywords.update(eng_vals)
+                
                 toc_matched_docs = []
                 for d in all_docs:
+                    # 검색 대상 텍스트 구성 (파일명 + 제조사 + 모델명 + ToC)
+                    meta_parts = [
+                        d.get("filename", ""),
+                        d.get("manufacturer", ""),
+                        d.get("model_series", ""),
+                    ]
                     toc_entries = d.get("toc", [])
-                    toc_text = " ".join(
-                        str(entry.get("title", "")).lower() for entry in toc_entries
-                    ).lower()
-                    match_count = sum(1 for kw in question_keywords if kw in toc_text)
+                    toc_titles = [str(entry.get("title", "")) for entry in toc_entries]
+                    
+                    # 공백 포함 텍스트
+                    full_text = " ".join(meta_parts + toc_titles).lower()
+                    # 공백 제거 텍스트 (띄어쓰기 불일치 대응)
+                    full_text_no_space = full_text.replace(" ", "")
+                    
+                    match_count = 0
+                    for kw in extended_keywords:
+                        kw_lower = kw.lower()
+                        kw_no_space = kw_lower.replace(" ", "")
+                        if kw_lower in full_text or kw_no_space in full_text_no_space:
+                            match_count += 1
+                            
                     if match_count > 0:
                         toc_matched_docs.append((d, match_count))
                 
