@@ -323,7 +323,7 @@ export default function Home() {
 
         {/* Chat Area */}
         <main ref={scrollRef} className="flex-1 overflow-y-auto flex flex-col relative">
-          {!activeSession ? (
+          {!activeSession || activeSession.messages.length === 0 ? (
             /* ── 프리미엄 웰컴 화면 ── */
             <div className="flex-1 flex flex-col justify-start md:justify-center items-center px-6 py-8 md:py-0 relative overflow-y-auto scrollbar-thin">
               <div className="hero-gradient absolute inset-0 pointer-events-none" />
@@ -337,7 +337,7 @@ export default function Home() {
                 </div>
 
                 <div>
-                  <h2 className="text-2xl md:text-4xl font-extrabold font-display tracking-tight mb-2 bg-gradient-to-r from-foreground via-foreground to-primary/80 bg-clip-text text-transparent">
+                  <h2 className="text-[22px] md:text-[32px] font-extrabold font-display tracking-tight mb-2 bg-gradient-to-r from-foreground via-foreground to-primary/80 bg-clip-text text-transparent">
                     TechNote
                   </h2>
                   <p className="text-[12px] md:text-[14px] text-muted-foreground/80 leading-relaxed max-w-md mx-auto px-2 font-medium">
@@ -367,48 +367,6 @@ export default function Home() {
                       </button>
                     ))}
                   </div>
-                </div>
-              </div>
-            </div>
-          ) : activeSession.messages.length === 0 ? (
-            /* ── 빈 대화 ── */
-            <div className="flex-1 flex flex-col justify-center items-center px-6 relative overflow-hidden">
-              <div className="hero-gradient absolute inset-0 pointer-events-none" />
-              <div className="relative z-10 text-center space-y-5 animate-slide-up max-w-lg w-full">
-                <div className="relative w-16 h-16 mx-auto mb-2 animate-float">
-                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 blur-lg opacity-70" />
-                  <div className="hero-icon w-16 h-16 rounded-2xl flex items-center justify-center border border-white/60 dark:border-primary/15 bg-white/80 dark:bg-card/40 backdrop-blur-md shadow-[0_12px_40px_rgba(115,73,170,0.06)] dark:shadow-xl relative z-10">
-                    <SparkleLogo className="w-10 h-10 filter drop-shadow-[0_4px_12px_rgba(115,73,170,0.12)] dark:drop-shadow-[0_4px_16px_rgba(139,92,246,0.45)]" />
-                  </div>
-                </div>
-                <div>
-                  <h2 className="text-lg md:text-xl font-bold font-display tracking-tight mb-2">
-                    &apos;{activeSession.title}&apos;
-                  </h2>
-                  <p className="text-[13px] text-muted-foreground/70 max-w-sm mx-auto font-medium">
-                    아래 예시를 클릭하거나, 질문을 입력해 주세요.
-                    <span className="block mt-3 text-primary/80 text-[11px] bg-primary/10 border border-primary/20 rounded-full px-3 py-1.5 font-semibold inline-flex items-center gap-1.5">
-                      <span className="text-[10px]">✨</span> AI가 업로드된 문서 중 적합한 문서를 판별합니다.
-                    </span>
-                  </p>
-                </div>
-
-                {/* 💡 예시 질문 카드 (빈 대화) */}
-                <div className="grid grid-cols-2 gap-3 w-full mt-6">
-                  {examplePrompts.map((p, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleChatSubmit(p.text)}
-                      className="glass-subtle rounded-2xl px-4 py-3 text-left transition-all duration-300
-                        hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/10 border border-border/40 hover:border-primary/40
-                        active:scale-[0.98] cursor-pointer group flex flex-col gap-1.5"
-                    >
-                      <span className="text-lg block">{p.emoji}</span>
-                      <span className="text-[12px] md:text-[13px] font-medium text-muted-foreground/90 group-hover:text-foreground transition-colors leading-snug">
-                        {p.text}
-                      </span>
-                    </button>
-                  ))}
                 </div>
               </div>
             </div>
