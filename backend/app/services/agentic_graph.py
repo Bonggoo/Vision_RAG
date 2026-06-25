@@ -499,8 +499,7 @@ async def run_agentic_pipeline(
     """
     logger.info(f"🚀 [Pipeline] Agentic Search 파이프라인 작동 시작 (질문: '{question}')")
     
-    # 추천된 ToC 목록 저장용 변수
-    toc_cards = []
+
     
     # SSE 이벤트 수집 변수 (GCS 저장용)
     collected_answer = ""
@@ -527,7 +526,7 @@ async def run_agentic_pipeline(
                 "reference_pages": [ref["page_number"] for ref in collected_references],
                 "reference_document_id": str(document_id) if document_id else None,
                 "reference_document_name": selected_doc_filename if document_id else None,
-                "toc_cards": toc_cards,
+
             }
             title_text = question[:25] + "..." if len(question) > 25 else question
             save_message(user_email, session_id, user_msg, assistant_msg, title=title_text)
@@ -879,9 +878,6 @@ async def run_agentic_pipeline(
             yield _sse_event("reasoning", content=reasoning_content)
             collected_reasoning.append(reasoning_content)
             
-            toc_cards = page_result.get("toc_candidates", [])
-            if toc_cards:
-                yield _sse_event("toc_cards", cards=toc_cards)
         else:
             # document_id가 지정된 경우: _select_pages()만 실행
             meta = get_document(document_id, owner_email=user_email)
@@ -908,9 +904,7 @@ async def run_agentic_pipeline(
             yield _sse_event("reasoning", content=reasoning_content)
             collected_reasoning.append(reasoning_content)
             
-            toc_cards = page_result.get("toc_candidates", [])
-            if toc_cards:
-                yield _sse_event("toc_cards", cards=toc_cards)
+
         
         # ─── Step 1: 문서 검증 및 PDF 열기 ───
         meta = get_document(document_id)
@@ -973,13 +967,9 @@ async def run_agentic_pipeline(
         collected_reasoning.append(f"페이지 {target_pages}에서 미니 PDF를 추출하고 있습니다...")
         
         try:
-            # RAG 코어 타겟 페이지와 ToC 추천 페이지들을 합침 (썸네일 생성용)
-            toc_pages = [_normalize_page(cand.get("page", 1)) for cand in toc_cards]
-            all_target_pages = list(target_pages) + toc_pages
-            
             # 중복 제거 및 유효 범위 정규화 (1-indexed -> 0-indexed)
             valid_pages = []
-            for p in all_target_pages:
+            for p in target_pages:
                 norm = _normalize_page(p) - 1
                 if 0 <= norm < total_pages and norm not in valid_pages:
                     valid_pages.append(norm)

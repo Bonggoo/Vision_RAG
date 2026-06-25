@@ -25,7 +25,6 @@ export default function Home() {
     appendAnswerChunk,
     appendReasoning,
     appendReference,
-    setTocCards,
     finishStreaming,
     renameSession,
     loadSessions,
@@ -214,9 +213,7 @@ export default function Home() {
                     documentName: data.document_name,   // 신규
                   });
                   break;
-                case "toc_cards":
-                  setTocCards(targetSessionId, data.cards);
-                  break;
+
                 case "answer":
                   appendAnswerChunk(targetSessionId, data.content);
                   break;

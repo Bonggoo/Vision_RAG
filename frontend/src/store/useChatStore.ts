@@ -11,11 +11,7 @@ export interface ReferenceImage {
   documentName?: string;
 }
 
-/** 추천 ToC 목차 카드 */
-export interface TocCard {
-  title: string;
-  page: number;
-}
+
 
 /** 채팅 메시지 */
 export interface Message {
@@ -29,8 +25,7 @@ export interface Message {
   reasoningSteps?: string[];
   /** 참조 페이지 썸네일 (reference 이벤트) */
   references?: ReferenceImage[];
-  /** 추천 ToC 목차 후보군 (toc_cards 이벤트) */
-  tocCards?: TocCard[];
+
   /** 이 답변이 참조한 문서 ID/명 (맥락 강화용) */
   referenceDocumentId?: string;
   referenceDocumentName?: string;
@@ -83,7 +78,6 @@ interface ChatStore {
   appendAnswerChunk: (sessionId: string, chunk: string) => void;
   appendReasoning: (sessionId: string, text: string) => void;
   appendReference: (sessionId: string, ref: ReferenceImage) => void;
-  setTocCards: (sessionId: string, cards: TocCard[]) => void;
   finishStreaming: (sessionId: string) => void;
   resetActiveSession: () => void;
   clearAllSessions: () => void;
@@ -222,10 +216,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           documentId: msg.reference_document_id || undefined,
           documentName: msg.reference_document_name || undefined,
         })) : undefined,
-        tocCards: msg.toc_cards ? msg.toc_cards.map((c: any) => ({
-          title: c.title,
-          page: c.page,
-        })) : undefined,
         referenceDocumentId: msg.reference_document_id || undefined,
         referenceDocumentName: msg.reference_document_name || undefined,
         timestamp: msg.timestamp,
@@ -320,13 +310,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       }),
     })),
 
-  setTocCards: (sessionId, cards) =>
-    set((state) => ({
-      sessions: updateLastAssistantMessage(state.sessions, sessionId, (msg) => ({
-        ...msg,
-        tocCards: cards,
-      })),
-    })),
+
 
   finishStreaming: (sessionId) =>
     set((state) => ({
