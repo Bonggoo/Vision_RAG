@@ -730,12 +730,12 @@ async def run_agentic_pipeline(
                 for d in all_docs:
                     # 검색 대상 텍스트 구성 (파일명 + 제조사 + 모델명 + ToC)
                     meta_parts = [
-                        d.get("filename", ""),
-                        d.get("manufacturer", ""),
-                        d.get("model_series", ""),
+                        str(d.get("filename") or ""),
+                        str(d.get("manufacturer") or ""),
+                        str(d.get("model_series") or ""),
                     ]
                     toc_entries = d.get("toc", [])
-                    toc_titles = [str(entry.get("title", "")) for entry in toc_entries]
+                    toc_titles = [str(entry.get("title") or "") for entry in toc_entries]
                     
                     # 공백 포함 텍스트
                     full_text = " ".join(meta_parts + toc_titles).lower()
