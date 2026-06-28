@@ -10,17 +10,6 @@ import {
   Trash2,
   X,
   ChevronRight,
-  ChevronDown,
-  Pencil,
-  Check,
-  Download,
-  Building,
-  Cpu,
-  Folder,
-  Search,
-  AlertCircle,
-  RotateCw,
-  RefreshCw,
   PanelLeftClose,
   PanelLeftOpen,
   LogOut
@@ -30,51 +19,14 @@ import { useDocumentStore, Document } from "@/store/useDocumentStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { api } from "@/lib/api";
 import SparkleLogo from "./SparkleLogo";
+import DocSearchBar from "./sidebar/DocSearchBar";
+import SortToggle from "./sidebar/SortToggle";
+import DocItem from "./sidebar/DocItem";
+import DocTree from "./sidebar/DocTree";
+import { getDisplayFilename, sortByName, sortByDate, getLatestDateInDocs } from "./sidebar/utils";
 
-// 💡 PDF 메타데이터 찌꺼기 등을 제외하고 가독성 있는 파일명을 결정하는 헬퍼 함수
-export const getDisplayFilename = (doc: any): string => {
-  const badTitlePattern = /^(microsoft word\s*-\s*)|^(한글\s*-\s*)|^(adobe indesign\s*)|untitled|document|cover|제목\s*없음|\.(doc|docx|pdf|cdr|xls|xlsx|ppt|pptx|hwp|png|jpg)$/i;
-  
-  if (doc.filename && badTitlePattern.test(doc.filename)) {
-    if (doc.original_filename) {
-      return doc.original_filename.replace(/\.pdf$/i, "");
-    }
-  }
-  return doc.filename;
-};
-
-// 💡 문자열의 첫 글자가 한글인지 여부를 판별하는 헬퍼 함수
-const isKoreanStart = (str: string): boolean => {
-  if (!str) return false;
-  const firstChar = str.trim().charAt(0);
-  return /[\u3130-\u318F\uAC00-\uD7A3]/.test(firstChar);
-};
-
-// 💡 한글 가나다 및 영어 ABCD 사전식 오름차순 정렬을 위한 헬퍼 함수
-export const sortByName = (a: string, b: string): number => {
-  if (a === "미분류") return 1;
-  if (b === "미분류") return -1;
-
-  const aIsKo = isKoreanStart(a);
-  const bIsKo = isKoreanStart(b);
-
-  if (aIsKo && !bIsKo) return 1;
-  if (!aIsKo && bIsKo) return -1;
-
-  return a.localeCompare(b, "ko", { sensitivity: "base", numeric: true });
-};
-
-// 💡 업로드 날짜 기준 정렬
-export const sortByDate = (a: any, b: any): number => {
-  const dateA = a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0;
-  const dateB = b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0;
-  return dateB - dateA;
-};
-
-export const getLatestDateInDocs = (docs: any[]): number => {
-  if (docs.length === 0) return 0;
-  return Math.max(...docs.map(d => d.uploaded_at ? new Date(d.uploaded_at).getTime() : 0));
-};
+// 💡 하위 호환을 위해 sidebar/utils 의 헬퍼를 그대로 재export (이전 공개 API 유지)
+export { getDisplayFilename, sortByName, sortByDate, getLatestDateInDocs };
 
 export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse }: {
   isOpen?: boolean;
@@ -294,145 +246,26 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
   const toggleManufacturer = (mfg: string) => setExpandedManufacturers(prev => ({ ...prev, [mfg]: !prev[mfg] }));
   const toggleModel = (model: string) => setExpandedModels(prev => ({ ...prev, [model]: !prev[model] }));
 
-  const getGroupedDocs = (docs: Document[]) => {
-    const grouped: Record<string, Record<string, Document[]>> = {};
-    docs.forEach((doc) => {
-      if (doc.status === "analyzing") return;
-      const mfg = doc.manufacturer || "미분류"; const model = doc.model_series || "미분류";
-      if (!grouped[mfg]) grouped[mfg] = {}; if (!grouped[mfg][model]) grouped[mfg][model] = [];
-      grouped[mfg][model].push(doc);
-    });
-    return grouped;
-  };
-
-  const groupedDocs = getGroupedDocs(filteredDocuments);
-
-  const renderSingleDocItem = (doc: Document) => {
-    const isEditing = editingDocId === doc.document_id;
-    return (
-      <div key={doc.document_id} className="doc-item group flex flex-col gap-1.5 px-2.5 py-2 rounded-xl hover:bg-accent/40 transition-all border border-transparent hover:border-border/20 bg-accent/5">
-        {isEditing ? (
-          <div className="w-full space-y-2.5 p-2.5 bg-background/60 rounded-xl border border-border/30 shadow-inner" onClick={e => e.stopPropagation()}>
-            <div className="space-y-1">
-              <label className="text-[10px] md:text-[9px] font-semibold text-muted-foreground/80">제조사</label>
-              <input type="text" list="manufacturers-list" placeholder="제조사" value={editingMfg} onChange={e => setEditingMfg(e.target.value)} className="w-full bg-accent/20 text-foreground px-2.5 py-1.5 md:px-2 md:py-1 rounded-full border border-border/50 focus:outline-none focus:border-primary/50 text-base md:text-xs" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] md:text-[9px] font-semibold text-muted-foreground/80">모델 시리즈</label>
-              <input type="text" placeholder="모델 시리즈" value={editingModel} onChange={e => setEditingModel(e.target.value)} className="w-full bg-accent/20 text-foreground px-2.5 py-1.5 md:px-2 md:py-1 rounded-full border border-border/50 focus:outline-none focus:border-primary/50 text-base md:text-xs" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] md:text-[9px] font-semibold text-muted-foreground/80">문서 제목</label>
-              <input type="text" placeholder="문서 제목" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full bg-accent/20 text-foreground px-2.5 py-1.5 md:px-2 md:py-1 rounded-full border border-border/50 focus:outline-none focus:border-primary/50 text-base md:text-xs" />
-            </div>
-            <div className="flex justify-end gap-1.5 pt-1">
-              <button onClick={() => setEditingDocId(null)} className="px-3 py-1.5 md:px-2 md:py-0.5 text-[11px] md:text-[10px] font-medium rounded-full hover:bg-accent text-muted-foreground transition-colors">취소</button>
-              <button onClick={() => handleSaveMeta(doc.document_id)} className="px-3.5 py-1.5 md:px-2.5 md:py-0.5 text-[11px] md:text-[10px] font-medium bg-primary text-white rounded-full hover:bg-primary/90 flex items-center gap-1 transition-colors shadow-sm"><Check className="w-3 h-3 md:w-2.5 md:h-2.5" /> 저장</button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-start gap-2">
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-              doc.status === "analyzing" ? "bg-amber-500/10 text-amber-500" : doc.status === "error" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary/70"
-            }`}>
-              {doc.status === "analyzing" ? <Loader2 className="w-3 h-3 animate-spin" /> : doc.status === "error" ? <AlertCircle className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs md:text-[11px] font-medium text-foreground/80 group-hover:text-foreground line-clamp-3 break-all leading-tight pr-1">{getDisplayFilename(doc)}</p>
-              <div className="flex flex-wrap gap-1 mt-1 text-[9px] text-muted-foreground/50">
-                {doc.status === "analyzing" ? <span className="text-amber-500 font-semibold animate-pulse flex items-center gap-0.5">🤖 AI 분석 중...</span> : doc.status === "error" ? <span title={(doc as any).error_message || "분석 에러"} className="text-destructive font-semibold cursor-help">❌ 분석 실패</span> : <><span>{doc.total_pages}p</span>{doc.manufacturer && <span className="bg-primary/5 px-1 rounded-full text-primary/80 truncate max-w-[60px]">{doc.manufacturer}</span>}{doc.model_series && <span className="bg-blue-500/5 px-1 rounded-full text-blue-500/80 truncate max-w-[60px]">{doc.model_series}</span>}</>}
-              </div>
-            </div>
-            <div className="flex items-center gap-0.5 shrink-0 self-start">
-              {doc.status === "error" && <button onClick={(e) => handleRetryAnalysis(e, doc)} title="재분석" className="p-1 rounded-full hover:bg-amber-500/20 text-amber-500 transition-all animate-pulse"><RotateCw className="w-3 h-3" /></button>}
-              {doc.status !== "analyzing" && doc.status !== "error" && <button onClick={(e) => handleDownloadDoc(e, doc)} title="다운로드" className="md:opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"><Download className="w-3 h-3" /></button>}
-              {doc.status !== "analyzing" && doc.status !== "error" && <button onClick={(e) => handleStartRename(e, doc)} title="수정" className="md:opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"><Pencil className="w-3 h-3" /></button>}
-              <button onClick={(e) => handleDeleteDoc(e, doc.document_id)} title="삭제" className="md:opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3 h-3" /></button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderDocumentList = () => {
-    const completedFilteredDocs = filteredDocuments.filter(d => d.status !== "analyzing");
-    const completedDocs = documents.filter(d => d.status !== "analyzing");
-
-    if (completedFilteredDocs.length === 0) {
-      return <p className="text-[11px] text-muted-foreground/40 px-3 py-3 text-center">{searchQuery ? "검색 결과가 없습니다" : "업로드된 문서가 없습니다"}</p>;
-    }
-
-    if (completedDocs.length <= 3 || completedFilteredDocs.length <= 3) {
-      const sortedFlatDocs = [...completedFilteredDocs].sort((a, b) => sortBy === "latest" ? sortByDate(a, b) : sortByName(getDisplayFilename(a), getDisplayFilename(b)));
-      return <div className="space-y-1">{sortedFlatDocs.map((doc) => renderSingleDocItem(doc))}</div>;
-    }
-
-    const sortedManufacturers = Object.entries(groupedDocs).sort(([mfgA, modelsA], [mfgB, modelsB]) => {
-      if (mfgA === "미분류") return 1; if (mfgB === "미분류") return -1;
-      if (sortBy === "latest") return getLatestDateInDocs(Object.values(modelsB).flat()) - getLatestDateInDocs(Object.values(modelsA).flat());
-      return sortByName(mfgA, mfgB);
-    });
-
-    return (
-      <div className="space-y-2.5">
-        {sortedManufacturers.map(([mfg, models]) => {
-          const isMfgExpanded = !!expandedManufacturers[mfg];
-          return (
-            <div key={mfg} className="space-y-1">
-              <div className="group/mfg flex items-center gap-0.5">
-                <button onClick={() => toggleManufacturer(mfg)} className="flex-1 min-w-0 flex items-center justify-between text-xs font-semibold text-foreground/80 hover:text-foreground hover:bg-accent/30 py-1.5 px-2 rounded-xl transition-all">
-                  <div className="flex items-center gap-1.5 truncate">
-                    {mfg === "미분류" ? <Folder className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" /> : <Building className="w-3.5 h-3.5 text-primary/70 shrink-0" />}
-                    <span className="truncate">{mfg}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-[10px] text-muted-foreground/50 font-normal">({Object.values(models).flat().length})</span>
-                    {isMfgExpanded ? <ChevronDown className="w-3 h-3 text-muted-foreground/60 shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground/60 shrink-0" />}
-                  </div>
-                </button>
-                <div className="flex items-center gap-0.5 opacity-0 group-hover/mfg:opacity-100 transition-opacity shrink-0">
-                  {mfg === "미분류" && <button onClick={handleReclassify} disabled={isReclassifying} className="p-1 rounded-full hover:bg-primary/20 text-muted-foreground/40 hover:text-primary transition-all"><RefreshCw className={`w-3 h-3 ${isReclassifying ? "animate-spin" : ""}`} /></button>}
-                  <button onClick={(e) => handleBatchDownload(e, Object.values(models).flat(), mfg)} className="p-1 rounded-full hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"><Download className="w-3 h-3" /></button>
-                  <button onClick={(e) => handleBatchDelete(e, Object.values(models).flat(), mfg)} className="p-1 rounded-full hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3 h-3" /></button>
-                </div>
-              </div>
-              {isMfgExpanded && (
-                <div className="pl-3.5 border-l border-border/40 ml-3.5 space-y-1 pt-0.5">
-                  {Object.entries(models).sort(([modelA, docsA], [modelB, docsB]) => {
-                    if (modelA === "미분류") return 1; if (modelB === "미분류") return -1;
-                    if (sortBy === "latest") return getLatestDateInDocs(docsB) - getLatestDateInDocs(docsA);
-                    return sortByName(modelA, modelB);
-                  }).map(([model, docs]) => {
-                    const isModelExpanded = !!expandedModels[`${mfg}-${model}`];
-                    return (
-                      <div key={model} className="space-y-0.5">
-                        <div className="group/model flex items-center gap-0.5">
-                          <button onClick={() => toggleModel(`${mfg}-${model}`)} className="flex-1 min-w-0 flex items-center justify-between text-[11px] font-medium text-foreground/70 hover:text-foreground hover:bg-accent/30 py-1 px-1.5 rounded-xl transition-all">
-                            <div className="flex items-center gap-1 truncate"><Cpu className="w-3 h-3 text-blue-500/60 shrink-0" /><span className="truncate">{model}</span></div>
-                            <div className="flex items-center gap-1"><span className="text-[9px] text-muted-foreground/50 font-normal">({docs.length})</span>{isModelExpanded ? <ChevronDown className="w-2.5 h-2.5 text-muted-foreground/60 shrink-0" /> : <ChevronRight className="w-2.5 h-2.5 text-muted-foreground/60 shrink-0" />}</div>
-                          </button>
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover/model:opacity-100 transition-opacity shrink-0">
-                            <button onClick={(e) => handleBatchDownload(e, docs, `${mfg} > ${model}`)} className="p-0.5 rounded-full hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"><Download className="w-2.5 h-2.5" /></button>
-                            <button onClick={(e) => handleBatchDelete(e, docs, `${mfg} > ${model}`)} className="p-0.5 rounded-full hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-2.5 h-2.5" /></button>
-                          </div>
-                        </div>
-                        {isModelExpanded && (
-                          <div className="pl-2 space-y-0.5 pt-0.5">
-                            {[...docs].sort((a, b) => sortBy === "latest" ? sortByDate(a, b) : sortByName(getDisplayFilename(a), getDisplayFilename(b))).map((doc) => renderSingleDocItem(doc))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
+  // 💡 개별 문서 항목 렌더링 — DocItem 으로 위임 (편집 상태/핸들러는 Sidebar 가 소유)
+  const renderDocItem = (doc: Document) => (
+    <DocItem
+      key={doc.document_id}
+      doc={doc}
+      isEditing={editingDocId === doc.document_id}
+      editingMfg={editingMfg}
+      setEditingMfg={setEditingMfg}
+      editingModel={editingModel}
+      setEditingModel={setEditingModel}
+      editingName={editingName}
+      setEditingName={setEditingName}
+      onSave={handleSaveMeta}
+      onCancel={() => setEditingDocId(null)}
+      onRetry={handleRetryAnalysis}
+      onDownload={handleDownloadDoc}
+      onStartRename={handleStartRename}
+      onDelete={handleDeleteDoc}
+    />
+  );
 
   if (!isMounted) return null;
 
@@ -497,11 +330,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
           </div>
         </button>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
-          <input type="text" placeholder="검색 (이름, 제조사, 모델)..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-8 py-1.5 text-[12px] rounded-full bg-accent/20 border border-border/20 focus:border-primary/50 focus:bg-accent/10 focus:outline-none transition-all placeholder-muted-foreground/40" />
-          {searchQuery && <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-accent/70 text-muted-foreground/50"><X className="w-2.5 h-2.5" /></button>}
-        </div>
+        <DocSearchBar value={searchQuery} onChange={setSearchQuery} onClear={() => setSearchQuery("")} />
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin px-3 pb-1">
@@ -509,10 +338,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
           <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground/70 tracking-widest">
             <FileText className="w-3 h-3" /> 업로드된 문서
           </div>
-          <div className="flex items-center gap-1 bg-accent/20 p-0.5 rounded-md border border-border/10 shrink-0">
-            <button onClick={() => setSortBy("latest")} className={`text-[9px] px-1.5 py-0.5 rounded transition-all font-medium ${sortBy === "latest" ? "bg-background text-foreground shadow-sm font-semibold" : "text-muted-foreground/50 hover:text-foreground"}`}>최신순</button>
-            <button onClick={() => setSortBy("name")} className={`text-[9px] px-1.5 py-0.5 rounded transition-all font-medium ${sortBy === "name" ? "bg-background text-foreground shadow-sm font-semibold" : "text-muted-foreground/50 hover:text-foreground"}`}>이름순</button>
-          </div>
+          <SortToggle sortBy={sortBy} onChange={setSortBy} />
         </div>
         {analyzingDocuments.length > 0 && (
           <div className="mx-1 mt-1 mb-2.5 space-y-1.5 p-2 bg-amber-500/5 border border-amber-500/10 rounded-xl animate-pulse">
@@ -529,7 +355,23 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
             </div>
           </div>
         )}
-        <div className="px-1">{renderDocumentList()}</div>
+        <div className="px-1">
+          <DocTree
+            documents={documents}
+            filteredDocuments={filteredDocuments}
+            searchQuery={searchQuery}
+            sortBy={sortBy}
+            expandedManufacturers={expandedManufacturers}
+            expandedModels={expandedModels}
+            onToggleManufacturer={toggleManufacturer}
+            onToggleModel={toggleModel}
+            isReclassifying={isReclassifying}
+            onReclassify={handleReclassify}
+            onBatchDownload={handleBatchDownload}
+            onBatchDelete={handleBatchDelete}
+            renderDocItem={renderDocItem}
+          />
+        </div>
       </div>
     </div>
   );
