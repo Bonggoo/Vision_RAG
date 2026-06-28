@@ -230,7 +230,10 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
             logger.info(f"✅ GCS 업로드 성공: {doc_id}")
         except Exception as e:
             logger.error(f"❌ GCS 업로드 실패: {e}")
-        
+
+    # 업로드 직후 목록 캐시 무효화 (동기 업로드 경로의 stale 캐시 방지)
+    metadata_service.invalidate_documents_cache(owner_email)
+
     return metadata
 
 
