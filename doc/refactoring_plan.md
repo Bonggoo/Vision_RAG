@@ -1,11 +1,32 @@
 # 🔧 Vision RAG 리팩토링 계획서
 
-> 작성일: 2026-06-27
+> 작성일: 2026-06-27 · 갱신: 2026-06-28
 > 대상: 백엔드(`backend/`) + 프론트엔드(`frontend/`) 전체
-> 상태: **계획 수립 완료 / 구현 대기**
+> 상태: **Phase 1·2·3(C1)·4(M5/M8) 완료** — 1·2차 커밋 반영 (H2·테스트·인프라는 별도 트랙)
 
 본 문서는 기능 고도화가 아닌 **코드 구조·유지보수성 개선**을 위한 리팩토링 로드맵입니다.
 기능 요구사항 현황은 [`improvement_list.md`](./improvement_list.md)를 참고하세요.
+
+---
+
+## 0. ✅ 진행 현황 (2026-06-28)
+
+작업 브랜치: `refactor/phase1-2-cleanup` (미푸시)
+
+| Phase | 항목 | 상태 | 커밋 |
+|-------|------|------|------|
+| 1 | dead code 제거·빈 디렉토리·이중 Depends 정리·`lifespan` 전환·루트 스크래치 정리 | ✅ | `13f224b` |
+| 2 | ToC 추출 통합(`build_toc`)·프롬프트 외부화(`app/prompts.py`)·조회 최적화 | ✅ | `13f224b` |
+| 3 (C1) | `run_agentic_pipeline` 거대 함수 분해 (596→~58줄, `_PipelineContext`+4 stage) | ✅ | `c9c4503` |
+| 4 (M8) | 프론트 공유 타입 추출 (`src/types/`) | ✅ | `13f224b` |
+| 4 (M5) | `useChatStream` 훅 분리·`Sidebar` 하위 컴포넌트 분해 | ✅ | `c9c4503` |
+
+**검증**(2026-06-28, `verify`): 백엔드 `uvicorn` 기동 + SSE 스모크(일상대화 general / 문서없음 early-exit / 없는 document_id 404 / message 누락 422) 통과, 프론트 `build` + `dev serve(200)` 통과, lint 38→30 errors(순증 0). `done` 이벤트 모든 경로 1회 발행 확인. ⚠️ full Vision 경로(문서 업로드 필요)와 브라우저 GUI 인터랙션은 환경 제약으로 미관찰.
+
+**남은 트랙(별도 진행 예정)**
+- [ ] **H2** 블로킹 GCS I/O 비동기화 (Phase 3) — 호출처 광범위·위험 커서 분리
+- [ ] **Phase 4** `pytest` 순수함수 안전망 (`_normalize_page`, `_find_section_page_range`, `build_toc` 등)
+- [ ] **Phase 5** Cloud Run 설정 / BackgroundTasks→Cloud Tasks / 낙관적 락 (부하 대응)
 
 ---
 

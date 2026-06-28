@@ -5,6 +5,15 @@
 ## 향후 작업 (Next Tasks)
 
 ## 완료된 작업 (Completed Tasks)
+- [x] 🔧 코드 구조 리팩토링 1·2차 (Phase 1~3 + 프론트 M5/M8) — `doc/refactoring_plan.md` 참조
+  - [x] Phase 1: dead code 제거(`reason_target_pages`/`render_page_image` 등), 라우터 이중 `Depends` 정리, `@app.on_event`→`lifespan` 전환, 루트 스크래치 파일 `.gitignore` 정리
+  - [x] Phase 2: ToC 추출 로직 통합(`pdf_service.build_toc`), LLM 프롬프트 외부화(`app/prompts.py`), `owner_email` 전달로 GCS glob 조회 제거
+  - [x] Phase 3 (C1): `run_agentic_pipeline` 거대 함수(596줄)를 `_PipelineContext` + 4개 stage + orchestrator(~58줄)로 분해 (SSE 이벤트 계약 불변)
+  - [x] 프론트 M8: 공유 타입 추출 (`src/types/` — chat/sse/api), `lib/api.ts` `any` 정리
+  - [x] 프론트 M5: `page.tsx` SSE 로직을 `useChatStream` 훅으로 분리(460→287), `Sidebar.tsx`를 `sidebar/` 하위 컴포넌트로 분해(652→494)
+  - [x] 검증: 백엔드 `uvicorn` 기동 + SSE 스모크, 프론트 `build`/`dev serve`, lint 38→30 errors(순증 0) — `verify` 스킬 PASS
+  - [x] 커밋 2건(`13f224b`, `c9c4503`) — `refactor/phase1-2-cleanup` 브랜치
+- [ ] 🔧 리팩토링 남은 트랙: H2 블로킹 I/O 비동기화 / pytest 안전망 / Cloud Run·Cloud Tasks 부하 대응
 - [x] 🐛 채팅 기능 잔여 버그 수정 및 안정화 (GCS 저장, IME 중복 방지)
   - [x] 백엔드: 일상대화(early exit) 시 GCS 세션 데이터에 챗봇 답변과 추론 과정이 저장되지 않아 빈 값으로 보이던 현상 수정 (`agentic_graph.py` early exit 분기에서 `collected_answer`, `collected_reasoning` 업데이트 누락 버그 패치)
   - [x] 프론트엔드: PC 환경 한글 입력 시 엔터 키(IME 조합 중) 이벤트 중복 발생에 의해 메시지가 두 번 연속 전송되던 버그 수정 (`ChatInput.tsx`의 `isComposing` 상태 체크 추가)

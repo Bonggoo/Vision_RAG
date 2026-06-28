@@ -22,6 +22,14 @@
   * **속도 개선**: Step 0 + Phase 0+1을 1회 LLM 호출로 병합하고 Phase 2를 비동기화하여 응답 지연을 **~3초 이상 대폭 절감**
   * **매뉴얼 코드 반영**: AI 답변 중 근거가 되는 타겟 페이지를 탐색하여 썸네일 레퍼런스 이미지(Base64)와 함께 페이지 정보 명시
   * **대화 중 모바일 이미지 전송**: 대화창 내부에서 현장 장비 알람 이미지를 카메라/갤러리로 첨부하여 Gemini Vision으로 RAG 분석하는 전처리 파이프라인 구축 완료
+* **[x] 추론 정확도 고도화**
+  * **되묻기(Clarification)**: 1차 문서 선택 확신도가 낮거나 상위 2개 문서 간 점수 차이가 모호한 경우, SSE `clarification` 이벤트로 사용자에게 장비 선택 UI를 띄우고, 선택 시 질문을 자동 보강하여 정밀 재탐색 수행
+  * **대화 맥락 유지(Previous Reference)**: 직전 답변의 참조 문서 ID와 페이지를 다음 `ChatRequest`에 포함하여, 꼬리 질문 시 동일 매뉴얼 내 탐색 정확도 향상
+  * **1차 필터링 강화**: 문서 메타데이터(파일명, 제조사, 모델명)를 1차 LLM 필터에 포함하고, 한-영 기술 용어 동의어 매핑 적용하여 토큰 비용 90% 이상 절감
+* **[x] 대화 세션 GCS 영속 저장**
+  * 로컬스토리지 `persist` 의존성을 완전 제거하고 GCS(`users/{email}/conversations/{session_id}.json`)에 대화 히스토리 저장
+  * 대화 목록 조회, 생성, 삭제, 상세 로딩, 제목 수정 기능(`/conversations/` 라우터) 구현 완료
+  * 첫 메시지 스트리밍 `done` 수신 시 백엔드에서 자동 GCS 영속화
 
 ## 3. 📂 파일 관리 기능 (File Management) - ✅ 완료
 * **[x] 문서 관리 및 편집 기능 고도화**
@@ -39,7 +47,20 @@
   * 로고, 색상 팔레트 및 다크모드 레이아웃 고도화를 통한 테크노트 브랜딩 완료
 
 
-## 5. 💡 고도화 아이디어 (Future Roadmaps)
+## 5. 🔧 코드 구조 리팩토링 (Code Refactoring) - ✅ 1·2차 완료
+> 세부 로드맵 및 진행 현황: [`doc/refactoring_plan.md`](./refactoring_plan.md)
+
+* **[x] Phase 1·2 — 정리 및 중복 제거** (커밋 `13f224b`)
+  * dead code 제거, 라우터 이중 `Depends` 정리, `@app.on_event`→`lifespan` 전환, 루트 스크래치 `.gitignore` 정리
+  * ToC 추출 로직 통합(`pdf_service.build_toc` — 복붙 일원화), LLM 프롬프트 외부화(`app/prompts.py`), `owner_email` 전달로 GCS glob 조회 제거
+* **[x] Phase 3 (C1) — 거대 함수 분해** (커밋 `c9c4503`)
+  * `run_agentic_pipeline`(596줄)을 `_PipelineContext` + 4개 stage(image/general/resolve/answer) + orchestrator(~58줄)로 분해, SSE 이벤트 계약 불변
+* **[x] 프론트 M5·M8** (커밋 `13f224b`, `c9c4503`)
+  * 공유 타입 추출(`src/types/`), `page.tsx` SSE 로직 → `useChatStream` 훅 분리, `Sidebar.tsx` → `sidebar/` 하위 컴포넌트 분해
+* **[x] 런타임 검증** — 백엔드 기동 + SSE 스모크, 프론트 `build`/`dev serve` 통과 (`verify` PASS)
+* **[ ] 남은 트랙** — 블로킹 I/O 비동기화(H2), `pytest` 순수함수 안전망, Cloud Run/Cloud Tasks 부하 대응
+
+## 6. 💡 고도화 아이디어 (Future Roadmaps)
 1. **[ ] 다양한 문서 포맷 지원**
    * PDF 외에 직원이 작성한 오피스 파일(`.doc`, `.xlsx`, `.ppt` 등)을 추가로 분석하고 RAG 데이터로 활용할 수 있는 파이프라인 설계
 2. **[ ] 암묵지(개인 코멘트)의 문서화 (Memory)**
