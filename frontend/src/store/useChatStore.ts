@@ -3,57 +3,21 @@ import { v4 as uuidv4 } from 'uuid';
 import { useAuthStore } from '@/store/useAuthStore';
 import { api } from '@/lib/api';
 
-/** 참조 페이지 이미지 */
-export interface ReferenceImage {
-  pageNumber: number;
-  imageBase64?: string; // GCS 미저장 대비 선택적 필드로 변경
-  documentId?: string;
-  documentName?: string;
-}
-
-
-
-/** 채팅 메시지 */
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  isStreaming?: boolean;
-  /** 사용자가 업로드한 장비 알람 이미지 (Base64) */
-  image?: string;
-  /** AI 추론 과정 로그 (reasoning 이벤트) */
-  reasoningSteps?: string[];
-  /** 참조 페이지 썸네일 (reference 이벤트) */
-  references?: ReferenceImage[];
-
-  /** 이 답변이 참조한 문서 ID/명 (맥락 강화용) */
-  referenceDocumentId?: string;
-  referenceDocumentName?: string;
-  timestamp?: string;
-}
-
-export interface ChatSession {
-  id: string;
-  title: string;
-  messages: Message[];
-  createdAt: number;
-  /** 세션 소유자 이메일 (멀티테넌시 격리용, GCS 저장 기준) */
-  ownerEmail?: string;
-}
-
-export interface ClarificationCandidate {
-  document_id: string;
-  title: string;
-  manufacturer: string;
-  model_series: string;
-  confidence: number;
-}
-
-export interface ClarificationState {
-  content: string;
-  candidates: ClarificationCandidate[];
-  suggested_questions?: string[];
-}
+// 공유 채팅 타입은 @/types/chat 로 추출 (M8).
+// 내부에서 사용하는 타입은 import, 기존 import 경로 호환을 위해 재export.
+import type {
+  ReferenceImage,
+  Message,
+  ChatSession,
+  ClarificationState,
+} from '@/types/chat';
+export type {
+  ReferenceImage,
+  Message,
+  ChatSession,
+  ClarificationCandidate,
+  ClarificationState,
+} from '@/types/chat';
 
 interface ChatStore {
   sessions: ChatSession[];

@@ -2,8 +2,8 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks,
 from fastapi.responses import JSONResponse
 from app.schemas.response import UploadResponse, PreflightResponse, AnalyzeResponse
 from app.schemas.request import TocRangeRequest, PreflightRequest, AnalyzeRequest
-from app.services.pdf_service import process_document_upload, extract_pages_as_pdf, extract_toc, is_toc_meaningful, _extract_document_classification, is_scanned_pdf
-from app.services.agent_service import extract_toc_with_gemini, find_and_extract_toc
+from app.services.pdf_service import process_document_upload, extract_pages_as_pdf, _extract_document_classification, build_toc
+from app.services.agent_service import extract_toc_with_gemini
 from app.services import metadata_service
 from app.services.auth_service import get_current_user
 from app.exceptions import DuplicateDocumentError, EmptyFileError
@@ -14,7 +14,7 @@ import uuid
 import os
 from datetime import datetime, timezone
 
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter()
 
 
 @router.post("", response_model=UploadResponse)
@@ -106,30 +106,8 @@ async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str
         doc = fitz.open(pdf_path)
         total_pages = doc.page_count
 
-        # 2. ToC 추출 전략 (A, B, C)
-        raw_toc = extract_toc(doc)
-        toc = []
-        status = "indexed"
-
-        if is_toc_meaningful(raw_toc, total_pages):
-            toc = raw_toc
-            logger.info(f"📋 Case A-1: 북마크 ToC 사용 ({len(toc)}개 항목)")
-        elif raw_toc:
-            logger.info(f"📋 Case A-2: 북마크 ToC 부실 ({len(raw_toc)}개), 목차 페이지 탐색 시작...")
-            toc = find_and_extract_toc(doc, total_pages)
-            if not toc:
-                toc = raw_toc
-                logger.info(f"  ⚠️ 목차 페이지 미발견, 북마크 ToC 유지 ({len(raw_toc)}개)")
-        else:
-            scanned = is_scanned_pdf(doc)
-            if scanned and total_pages > 50:
-                status = "toc_required"
-                logger.info(f"📋 Case C: 스캔본 대용량 → 사용자 ToC 범위 입력 필요")
-            else:
-                logger.info(f"📋 Case B: Gemini 앞부분 스캔으로 ToC 추출...")
-                extract_pages = min(15, total_pages)
-                mini_pdf_bytes = extract_pages_as_pdf(doc, 0, extract_pages - 1)
-                toc = extract_toc_with_gemini(mini_pdf_bytes)
+        # 2. ToC 추출 전략 (Case A-1/A-2/B/C) — build_toc로 일원화
+        toc, status = build_toc(doc, total_pages)
 
         doc.close()
 

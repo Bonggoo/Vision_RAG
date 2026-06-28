@@ -56,3 +56,10 @@ Thumbs.db
 
 # Deploy Config (Secrets 포함)
 trigger_config.yaml
+
+# Scratch / 로컬 테스트 산출물 (루트 한정, 파일은 디스크에 보존)
+/batch_test.py
+/test_chat.py
+/scratch/
+/stich/
+/test_logs/

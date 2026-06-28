@@ -254,64 +254,6 @@ def find_and_extract_toc(
     return normalized
 
 
-def reason_target_pages(toc: List[Dict[str, Any]], question: str) -> Dict[str, Any]:
-    """
-    ToC(목차)와 사용자 질문을 기반으로, 가장 관련성 높은 타겟 페이지를 추론합니다.
-    
-    Returns:
-        {
-            "reasoning": "추론 과정 텍스트",
-            "target_pages": [45, 46, 47],
-            "section_title": "관련 섹션 제목"
-        }
-    """
-    llm = _create_flash_llm()
-    
-    toc_text = json.dumps(toc, ensure_ascii=False, indent=2)
-    
-    prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
-아래는 PDF 매뉴얼의 목차(Table of Contents)입니다:
-
-{toc_text}
-
-사용자의 질문: "{question}"
-
-위 목차를 분석하여, 이 질문에 답하기 위해 참조해야 할 가장 관련성 높은 페이지 범위를 추론하세요.
-
-다음 JSON 형식으로만 응답하세요 (마크다운 코드블록 없이):
-{{
-    "reasoning": "추론 과정을 한국어로 상세히 설명",
-    "target_pages": [시작페이지, ..., 끝페이지],
-    "section_title": "관련 섹션의 제목"
-}}
-
-규칙:
-- 타겟 페이지는 최소 1개, 최대 5개로 제한합니다.
-- 페이지 번호는 목차에 명시된 page 값을 기준으로 합니다.
-- 연속된 페이지라면 사이 페이지도 포함합니다 (예: 45페이지 섹션이면 45,46,47).
-"""
-    
-    message = HumanMessage(content=prompt)
-    
-    try:
-        response = llm.invoke([message])
-        content = _clean_json_response(response.content)
-        result = json.loads(content)
-        
-        # 타겟 페이지가 5개를 초과하면 자르기
-        if len(result.get("target_pages", [])) > 5:
-            result["target_pages"] = result["target_pages"][:5]
-        
-        return result
-    except Exception as e:
-        logger.error(f"❌ [AgentService] Page Reasoning Error: {e}", exc_info=True)
-        return {
-            "reasoning": f"페이지 추론 중 오류 발생: {str(e)}",
-            "target_pages": [1],
-            "section_title": "알 수 없음"
-        }
-
-
 async def analyze_pages_with_vision(
     pdf_bytes: bytes,
     question: str,
@@ -487,16 +429,6 @@ async def extract_document_metadata_with_gemini(pdf_bytes: bytes) -> dict | None
     except Exception as e:
         logger.error(f"❌ [AgentService] Gemini Metadata Extraction Error: {e}", exc_info=True)
         return None
-
-
-async def extract_document_title_with_gemini(pdf_bytes: bytes) -> str | None:
-    """
-    첫 페이지 PDF 바이트를 Gemini Vision에 전달하여 문서의 공식 제목을 분석/추출합니다. (비동기, 하위 호환)
-    """
-    metadata = await extract_document_metadata_with_gemini(pdf_bytes)
-    if metadata and metadata.get("title"):
-        return metadata["title"]
-    return None
 
 
 def normalize_manufacturer_with_llm(name: str) -> str:

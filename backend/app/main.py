@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +14,29 @@ import traceback
 if not os.path.exists(settings.PDF_UPLOAD_DIR):
     os.makedirs(settings.PDF_UPLOAD_DIR)
 
-app = FastAPI(title="Vision RAG API", version="1.0.0", redirect_slashes=False)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 1. JWT_SECRET 기본값 위협 검증
+    DEFAULT_SECRET = "vision-rag-jwt-secret-key-change-in-production-12345"
+    if settings.JWT_SECRET == DEFAULT_SECRET and not settings.USE_LOCAL_STORAGE:
+        logger.critical("❌ [보안 위협] 프로덕션 환경에서 하드코딩된 레거시 JWT_SECRET 키가 감지되었습니다. 서버 실행을 중단합니다.")
+        import sys
+        sys.exit("Critical Security Error: Please set a secure JWT_SECRET environment variable.")
+
+    # 2. 서버 기동 시 기존 레거시 제조사 정규화 마이그레이션 자동 수행 (부팅 지연 예방을 위해 백그라운드 태스크로 처리)
+    try:
+        import asyncio
+        from app.services.metadata_service import migrate_legacy_manufacturers
+        asyncio.create_task(asyncio.to_thread(migrate_legacy_manufacturers))
+        logger.info("🔄 레거시 제조사 정규화 마이그레이션을 백그라운드에서 백그라운드 태스크로 실행 중...")
+    except Exception as e:
+        logger.error(f"❌ 시작 마이그레이션 비동기 실행 실패: {e}")
+
+    yield
+
+
+app = FastAPI(title="Vision RAG API", version="1.0.0", redirect_slashes=False, lifespan=lifespan)
 
 # API 로깅 및 전역 예외 처리 미들웨어
 @app.middleware("http")
@@ -60,25 +83,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Disposition"],
 )
-
-@app.on_event("startup")
-async def startup_event():
-    # 1. JWT_SECRET 기본값 위협 검증
-    DEFAULT_SECRET = "vision-rag-jwt-secret-key-change-in-production-12345"
-    if settings.JWT_SECRET == DEFAULT_SECRET and not settings.USE_LOCAL_STORAGE:
-        logger.critical("❌ [보안 위협] 프로덕션 환경에서 하드코딩된 레거시 JWT_SECRET 키가 감지되었습니다. 서버 실행을 중단합니다.")
-        import sys
-        sys.exit("Critical Security Error: Please set a secure JWT_SECRET environment variable.")
-
-    # 2. 서버 기동 시 기존 레거시 제조사 정규화 마이그레이션 자동 수행 (부팅 지연 예방을 위해 백그라운드 태스크로 처리)
-    try:
-        import asyncio
-        from app.services.metadata_service import migrate_legacy_manufacturers
-        asyncio.create_task(asyncio.to_thread(migrate_legacy_manufacturers))
-        logger.info("🔄 레거시 제조사 정규화 마이그레이션을 백그라운드에서 백그라운드 태스크로 실행 중...")
-    except Exception as e:
-        logger.error(f"❌ 시작 마이그레이션 비동기 실행 실패: {e}")
-
 
 @app.get("/")
 async def root():

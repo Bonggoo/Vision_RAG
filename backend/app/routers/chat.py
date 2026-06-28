@@ -14,7 +14,7 @@ from app.services import metadata_service
 from app.services.auth_service import get_current_user
 from app.utils.logger import logger
 
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter()
 
 
 async def _stream_with_disconnect_check(

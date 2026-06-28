@@ -115,6 +115,50 @@ def is_toc_meaningful(toc: List[Dict[str, Any]], total_pages: int) -> bool:
     return True
 
 
+def build_toc(doc: fitz.Document, total_pages: int) -> tuple[list[dict], str]:
+    """
+    PDF에서 ToC를 추출하고 (toc, status)를 반환합니다. Case A-1/A-2/B/C 일원화.
+
+    - Case A-1: 북마크 ToC가 충분히 상세 → 그대로 사용
+    - Case A-2: 북마크 존재하나 부실 → 목차 페이지 Vision 탐색, 실패 시 북마크 유지
+    - Case B : 북마크 없음 + (텍스트 있음 또는 스캔본 50p 이하) → Gemini 앞부분 스캔 추출
+    - Case C : 북마크 없음 + 스캔본 50p 초과 → 사용자 ToC 범위 입력 필요(status="toc_required")
+    """
+    from app.services.agent_service import find_and_extract_toc, extract_toc_with_gemini
+
+    raw_toc = extract_toc(doc)
+    toc: List[Dict[str, Any]] = []
+    status = "indexed"
+
+    if is_toc_meaningful(raw_toc, total_pages):
+        # Case A-1: 북마크 ToC가 충분히 상세 → 그대로 사용
+        toc = raw_toc
+        logger.info(f"📋 Case A-1: 북마크 ToC 사용 ({len(toc)}개 항목)")
+    elif raw_toc:
+        # Case A-2: 북마크 존재하지만 부실 → 목차 페이지 탐색
+        logger.info(f"📋 Case A-2: 북마크 ToC 부실 ({len(raw_toc)}개), 목차 페이지 탐색 시작...")
+        toc = find_and_extract_toc(doc, total_pages)
+        if not toc:
+            # 목차 페이지를 못 찾으면 북마크라도 사용
+            toc = raw_toc
+            logger.info(f"  ⚠️ 목차 페이지 미발견, 북마크 ToC 유지 ({len(raw_toc)}개)")
+    else:
+        # 북마크 없음 → Case B/C
+        scanned = is_scanned_pdf(doc)
+        if scanned and total_pages > 50:
+            # Case C: 스캔본 & 50페이지 초과 -> 사용자 입력 요청
+            status = "toc_required"
+            logger.info(f"📋 Case C: 스캔본 대용량 → 사용자 ToC 범위 입력 필요")
+        else:
+            # Case B: 텍스트 있음 or (스캔본 & 50페이지 이하)
+            logger.info(f"📋 Case B: Gemini 앞부분 스캔으로 ToC 추출...")
+            extract_pages = min(15, total_pages)
+            mini_pdf_bytes = extract_pages_as_pdf(doc, 0, extract_pages - 1)
+            toc = extract_toc_with_gemini(mini_pdf_bytes)
+
+    return toc, status
+
+
 async def process_document_upload(file: UploadFile, owner_email: str = "") -> Dict[str, Any]:
     """
     업로드된 PDF 파일을 저장하고, 3단계 ToC 추출 전략(A,B,C)을 수행한 후 메타데이터를 반환합니다.
@@ -144,44 +188,8 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
     doc = fitz.open(file_path)
     total_pages = doc.page_count
     
-    # 1. ToC 추출 시도 — PDF 북마크
-    raw_toc = extract_toc(doc)
-    
-    if is_toc_meaningful(raw_toc, total_pages):
-        # Case A-1: 북마크 ToC가 충분히 상세 → 그대로 사용
-        toc = raw_toc
-        status = "indexed"
-        logger.info(f"📋 Case A-1: 북마크 ToC 사용 ({len(toc)}개 항목)")
-    elif raw_toc:
-        # Case A-2: 북마크 존재하지만 부실 → 목차 페이지 탐색
-        logger.info(f"📋 Case A-2: 북마크 ToC 부실 ({len(raw_toc)}개), 목차 페이지 탐색 시작...")
-        from app.services.agent_service import find_and_extract_toc
-        toc = find_and_extract_toc(doc, total_pages)
-        if not toc:
-            # 목차 페이지를 못 찾으면 북마크라도 사용
-            toc = raw_toc
-            logger.info(f"  ⚠️ 목차 페이지 미발견, 북마크 ToC 유지 ({len(raw_toc)}개)")
-        status = "indexed"
-    else:
-        # 북마크 없음
-        toc = []
-        status = "indexed"
-    
-    if not toc:
-        from app.services.agent_service import extract_toc_with_gemini
-        scanned = is_scanned_pdf(doc)
-        
-        if scanned and total_pages > 50:
-            # Case C: 스캔본 & 50페이지 초과 -> 사용자 입력 요청
-            status = "toc_required"
-            logger.info(f"📋 Case C: 스캔본 대용량 → 사용자 ToC 범위 입력 필요")
-        else:
-            # Case B: 텍스트 있음 or (스캔본 & 50페이지 이하)
-            logger.info(f"📋 Case B: Gemini 앞부분 스캔으로 ToC 추출...")
-            extract_pages = min(15, total_pages)
-            mini_pdf_bytes = extract_pages_as_pdf(doc, 0, extract_pages - 1)
-            toc = extract_toc_with_gemini(mini_pdf_bytes)
-        
+    # 1. ToC 추출 (Case A-1/A-2/B/C) — build_toc로 일원화
+    toc, status = build_toc(doc, total_pages)
     doc.close()
     
     # 3. AI 기반 자동 분류 및 제목 추출
@@ -419,9 +427,3 @@ def render_page_thumbnail(doc: fitz.Document, page_num: int, dpi: int = 72) -> b
     page = doc[page_num]
     pix = page.get_pixmap(dpi=dpi)
     return pix.tobytes("png")
-
-def render_page_image(doc: fitz.Document, page_num: int, dpi: int = 200) -> bytes:
-    """
-    특정 페이지의 고해상도 확대 PNG를 생성합니다.
-    """
-    return render_page_thumbnail(doc, page_num, dpi=dpi)

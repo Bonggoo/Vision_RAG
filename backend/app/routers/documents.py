@@ -12,7 +12,7 @@ import fitz
 import os
 import asyncio
 
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter()
 
 
 class DocumentUpdateRequest(BaseModel):

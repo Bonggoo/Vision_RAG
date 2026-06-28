@@ -15,7 +15,7 @@ from app.services.auth_service import get_current_user
 from app.services import conversation_service
 from app.schemas.request import CreateConversationRequest, RenameConversationRequest
 
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter()
 
 
 @router.post("/")

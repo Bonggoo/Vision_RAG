@@ -1,4 +1,12 @@
 import { useAuthStore } from "@/store/useAuthStore";
+import type {
+  DocumentInfo,
+  DocumentListResponse,
+  UploadDocumentResponse,
+  CreateConversationResponse,
+  ConversationListResponse,
+  ConversationDetail,
+} from "@/types/api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export { API_BASE_URL };
@@ -119,11 +127,11 @@ function uploadToGCS(file: File, signedUrl: string, onProgress?: (percent: numbe
 
 // 문서 목록 API용 ETag 캐시 변수
 let _lastDocEtag: string | null = null;
-let _lastDocData: any = null;
+let _lastDocData: DocumentListResponse | null = null;
 
 export const api = {
   /** PDF 문서 업로드 (비동기 GCS Direct 업로드 및 분석 트리거) */
-  uploadDocument: async (file: File, onProgress?: (progress: number) => void): Promise<any> => {
+  uploadDocument: async (file: File, onProgress?: (progress: number) => void): Promise<UploadDocumentResponse> => {
     try {
       console.log(`[Upload] 비동기 GCS Direct 업로드 모드 시작 (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
       
@@ -203,7 +211,7 @@ export const api = {
   },
 
   /** 기존 동기 업로드 (XMLHttpRequest 기반 진행률 연동) */
-  _uploadDocumentSync: async (file: File, onProgress?: (progress: number) => void): Promise<any> => {
+  _uploadDocumentSync: async (file: File, onProgress?: (progress: number) => void): Promise<UploadDocumentResponse> => {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       const formData = new FormData();
@@ -230,7 +238,8 @@ export const api = {
           try {
             resolve(JSON.parse(xhr.responseText));
           } catch (e) {
-            resolve(xhr.responseText);
+            // 비 JSON 성공 응답 바디 대비 — 런타임 동작 유지를 위한 타입 캐스트
+            resolve(xhr.responseText as unknown as UploadDocumentResponse);
           }
         } else {
           let errorMsg = `업로드 실패: ${xhr.statusText}`;
@@ -250,7 +259,7 @@ export const api = {
   },
 
   /** 전체 문서 목록 조회 */
-  getDocuments: async () => {
+  getDocuments: async (): Promise<DocumentListResponse> => {
     const headers: Record<string, string> = {};
     if (_lastDocEtag) {
       headers["If-None-Match"] = _lastDocEtag;
@@ -282,7 +291,7 @@ export const api = {
     manufacturer?: string;
     model_series?: string;
     doc_type?: string;
-  }) => {
+  }): Promise<DocumentInfo> => {
     const res = await authFetch(`${API_BASE_URL}/documents/${docId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -352,7 +361,7 @@ export const api = {
   },
 
   /** 대화 세션 생성 */
-  createConversation: async (title: string = "새로운 대화"): Promise<any> => {
+  createConversation: async (title: string = "새로운 대화"): Promise<CreateConversationResponse> => {
     const res = await authFetch(`${API_BASE_URL}/conversations/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -363,21 +372,21 @@ export const api = {
   },
 
   /** 대화 세션 목록 조회 */
-  getConversations: async (): Promise<any> => {
+  getConversations: async (): Promise<ConversationListResponse> => {
     const res = await authFetch(`${API_BASE_URL}/conversations/`);
     if (!res.ok) throw new Error("대화 목록을 가져오는데 실패했습니다.");
     return res.json();
   },
 
   /** 단건 대화 상세 조회 (메시지 포함) */
-  getConversation: async (sessionId: string): Promise<any> => {
+  getConversation: async (sessionId: string): Promise<ConversationDetail> => {
     const res = await authFetch(`${API_BASE_URL}/conversations/${sessionId}`);
     if (!res.ok) throw new Error("대화 내용을 가져오는데 실패했습니다.");
     return res.json();
   },
 
   /** 대화 세션 삭제 */
-  deleteConversation: async (sessionId: string): Promise<any> => {
+  deleteConversation: async (sessionId: string): Promise<unknown> => {
     const res = await authFetch(`${API_BASE_URL}/conversations/${sessionId}`, {
       method: "DELETE",
     });
@@ -386,7 +395,7 @@ export const api = {
   },
 
   /** 대화 세션 제목 변경 */
-  renameConversation: async (sessionId: string, title: string): Promise<any> => {
+  renameConversation: async (sessionId: string, title: string): Promise<unknown> => {
     const res = await authFetch(`${API_BASE_URL}/conversations/${sessionId}/rename`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
