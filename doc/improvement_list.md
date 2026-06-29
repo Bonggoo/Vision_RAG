@@ -47,7 +47,7 @@
   * 로고, 색상 팔레트 및 다크모드 레이아웃 고도화를 통한 테크노트 브랜딩 완료
 
 
-## 5. 🔧 코드 구조 리팩토링 (Code Refactoring) - ✅ 1·2차 완료
+## 5. 🔧 코드 구조 리팩토링 (Code Refactoring) - ✅ 전 Phase 완료
 > 세부 로드맵 및 진행 현황: [`doc/refactoring_plan.md`](./refactoring_plan.md)
 
 * **[x] Phase 1·2 — 정리 및 중복 제거** (커밋 `13f224b`)
@@ -57,8 +57,12 @@
   * `run_agentic_pipeline`(596줄)을 `_PipelineContext` + 4개 stage(image/general/resolve/answer) + orchestrator(~58줄)로 분해, SSE 이벤트 계약 불변
 * **[x] 프론트 M5·M8** (커밋 `13f224b`, `c9c4503`)
   * 공유 타입 추출(`src/types/`), `page.tsx` SSE 로직 → `useChatStream` 훅 분리, `Sidebar.tsx` → `sidebar/` 하위 컴포넌트 분해
-* **[x] 런타임 검증** — 백엔드 기동 + SSE 스모크, 프론트 `build`/`dev serve` 통과 (`verify` PASS)
-* **[ ] 남은 트랙** — 블로킹 I/O 비동기화(H2), `pytest` 순수함수 안전망, Cloud Run/Cloud Tasks 부하 대응
+* **[x] H2 — 블로킹 GCS I/O 비동기화** (커밋 `6073b36`)
+  * `metadata_service`·`conversation_service` 전 public 함수에 `asyncio.to_thread` `_async` 래퍼 추가, 8개 파일 모든 async 호출처 교체
+* **[x] Phase 4 — `pytest` 단위 테스트 63개** (커밋 `73de5a1`)
+  * `tests/unit/` 신설, `conftest.py` GCS/Gemini 더미 격리, `_normalize_page`·`_find_section_page_range`·`_sse_event`·`_quick_classify`·`normalize_manufacturer`·`is_toc_meaningful`·`gcs_doc_prefix` 등 순수 함수 커버리지
+* **[x] Phase 5 — Cloud Tasks + Cloud Run 성능 설정** (커밋 `a3745ab`)
+  * `BackgroundTasks` → `task_queue.enqueue_analysis()` (Cloud Tasks / asyncio 폴백), `/internal/analyze` 콜백 엔드포인트, `cloudbuild.yaml` `--cpu=2 --memory=2Gi --min-instances=1 --concurrency=8 --no-cpu-throttling`, `JWT_SECRET` 하드코딩 → `$_JWT_SECRET` 치환변수
 
 ## 6. 💡 고도화 아이디어 (Future Roadmaps)
 1. **[ ] 다양한 문서 포맷 지원**

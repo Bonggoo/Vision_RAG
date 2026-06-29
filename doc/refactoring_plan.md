@@ -1,17 +1,15 @@
 # 🔧 Vision RAG 리팩토링 계획서
 
-> 작성일: 2026-06-27 · 갱신: 2026-06-28
+> 작성일: 2026-06-27 · 갱신: 2026-06-29
 > 대상: 백엔드(`backend/`) + 프론트엔드(`frontend/`) 전체
-> 상태: **Phase 1·2·3(C1)·4(M5/M8) 완료** — 1·2차 커밋 반영 (H2·테스트·인프라는 별도 트랙)
+> 상태: **전 Phase 완료** — H2·pytest·Phase 5 포함 모든 트랙 완료
 
 본 문서는 기능 고도화가 아닌 **코드 구조·유지보수성 개선**을 위한 리팩토링 로드맵입니다.
 기능 요구사항 현황은 [`improvement_list.md`](./improvement_list.md)를 참고하세요.
 
 ---
 
-## 0. ✅ 진행 현황 (2026-06-28)
-
-작업 브랜치: `refactor/phase1-2-cleanup` (미푸시)
+## 0. ✅ 진행 현황 (2026-06-29)
 
 | Phase | 항목 | 상태 | 커밋 |
 |-------|------|------|------|
@@ -20,13 +18,29 @@
 | 3 (C1) | `run_agentic_pipeline` 거대 함수 분해 (596→~58줄, `_PipelineContext`+4 stage) | ✅ | `c9c4503` |
 | 4 (M8) | 프론트 공유 타입 추출 (`src/types/`) | ✅ | `13f224b` |
 | 4 (M5) | `useChatStream` 훅 분리·`Sidebar` 하위 컴포넌트 분해 | ✅ | `c9c4503` |
+| H2 | 동기 GCS I/O → `asyncio.to_thread` 래퍼 (8개 파일, 전 호출처) | ✅ | `6073b36` |
+| Phase 4 | `pytest` 단위 테스트 63개 (`_normalize_page`·`_find_section_page_range`·SSE·분류·제조사·ToC) | ✅ | `73de5a1` |
+| Phase 5 | Cloud Tasks 큐·Cloud Run 성능 설정·`JWT_SECRET` 하드코딩 제거 | ✅ | `a3745ab` |
 
-**검증**(2026-06-28, `verify`): 백엔드 `uvicorn` 기동 + SSE 스모크(일상대화 general / 문서없음 early-exit / 없는 document_id 404 / message 누락 422) 통과, 프론트 `build` + `dev serve(200)` 통과, lint 38→30 errors(순증 0). `done` 이벤트 모든 경로 1회 발행 확인. ⚠️ full Vision 경로(문서 업로드 필요)와 브라우저 GUI 인터랙션은 환경 제약으로 미관찰.
+**남은 GCP 수동 설정 (Phase 5 배포 적용을 위해 필요)**
+> 아래는 코드가 아닌 GCP 콘솔/CLI 작업입니다.
 
-**남은 트랙(별도 진행 예정)**
-- [ ] **H2** 블로킹 GCS I/O 비동기화 (Phase 3) — 호출처 광범위·위험 커서 분리
-- [ ] **Phase 4** `pytest` 순수함수 안전망 (`_normalize_page`, `_find_section_page_range`, `build_toc` 등)
-- [ ] **Phase 5** Cloud Run 설정 / BackgroundTasks→Cloud Tasks / 낙관적 락 (부하 대응)
+```bash
+# 1. Cloud Tasks API 활성화
+gcloud services enable cloudtasks.googleapis.com
+
+# 2. 분석 큐 생성 (asia-northeast3 = 서울)
+gcloud tasks queues create vision-rag-analysis \
+  --location=asia-northeast3 \
+  --max-concurrent-dispatches=5 \
+  --max-attempts=3
+
+# 3. Cloud Build 치환변수 추가 (GCP 콘솔 > Cloud Build > 트리거 > 변수)
+#    _JWT_SECRET          = <기존 JWT 시크릿>
+#    _CLOUD_TASKS_QUEUE   = projects/{project}/locations/asia-northeast3/queues/vision-rag-analysis
+#    _CLOUD_RUN_URL       = https://vision-rag-backend-xxx.a.run.app
+#    _INTERNAL_TASK_SECRET= <새로 생성한 랜덤 문자열>
+```
 
 ---
 
