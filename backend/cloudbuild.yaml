@@ -20,7 +20,13 @@ steps:
       - '--region'
       - 'asia-northeast3'
       - '--allow-unauthenticated'
-      - '--set-env-vars=^##^GEMINI_API_KEY=$_GEMINI_API_KEY##ALLOWED_ORIGINS=https://vision-rag-two.vercel.app,http://localhost:8374##GOOGLE_CLIENT_ID=$_GOOGLE_CLIENT_ID##JWT_SECRET=vision-rag-production-secure-secret-key-9b1cb9e-ff1540'
+      - '--set-env-vars=^##^GEMINI_API_KEY=$_GEMINI_API_KEY##ALLOWED_ORIGINS=https://vision-rag-two.vercel.app,http://localhost:8374##GOOGLE_CLIENT_ID=$_GOOGLE_CLIENT_ID##JWT_SECRET=$_JWT_SECRET##CLOUD_TASKS_QUEUE=$_CLOUD_TASKS_QUEUE##CLOUD_RUN_URL=$_CLOUD_RUN_URL##INTERNAL_TASK_SECRET=$_INTERNAL_TASK_SECRET'
+      - '--cpu=2'
+      - '--memory=2Gi'
+      - '--min-instances=1'
+      - '--concurrency=8'
+      - '--timeout=900'
+      - '--no-cpu-throttling'
 
 options:
   logging: CLOUD_LOGGING_ONLY

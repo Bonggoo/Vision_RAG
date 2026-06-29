@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 30분
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30  # 30일
 
+    # Cloud Tasks (미설정 시 로컬 asyncio.create_task 폴백)
+    # 형식: projects/{project}/locations/{region}/queues/{queue_name}
+    CLOUD_TASKS_QUEUE: str = ""
+    # Cloud Run 서비스 URL (Cloud Tasks 콜백용)
+    CLOUD_RUN_URL: str = ""
+    # /internal/* 엔드포인트 공유 비밀 (Cloud Tasks → Cloud Run)
+    INTERNAL_TASK_SECRET: str = ""
+
     @property
     def cors_origins(self) -> List[str]:
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]

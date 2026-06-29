@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from app.schemas.response import UploadResponse, PreflightResponse, AnalyzeResponse
 from app.schemas.request import TocRangeRequest, PreflightRequest, AnalyzeRequest
@@ -146,7 +146,7 @@ async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
-async def trigger_analysis(request: AnalyzeRequest, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
+async def trigger_analysis(request: AnalyzeRequest, current_user: dict = Depends(get_current_user)):
     """
     GCS 또는 로컬 스토리지에 업로드된 원본 PDF의 AI 분석을 비동기로 호출합니다.
     즉시 202 Accepted 응답을 보냅니다.
@@ -195,14 +195,9 @@ async def trigger_analysis(request: AnalyzeRequest, background_tasks: Background
     if not await metadata_service.create_document_metadata_async(doc_id, initial_metadata, current_user["email"]):
         raise HTTPException(status_code=500, detail="임시 메타데이터 생성 실패")
 
-    # 3. 비동기 작업 등록
-    background_tasks.add_task(
-        _run_analysis_pipeline,
-        doc_id,
-        request.filename,
-        request.file_hash,
-        current_user["email"]
-    )
+    # 3. 비동기 작업 등록 (Cloud Tasks 또는 로컬 폴백)
+    from app.services.task_queue import enqueue_analysis
+    await enqueue_analysis(doc_id, request.filename, request.file_hash, current_user["email"])
 
     return AnalyzeResponse(
         status="analyzing",
