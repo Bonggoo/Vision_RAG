@@ -68,10 +68,10 @@ async def chat_stream(request: ChatRequest, http_request: Request, current_user:
     
     # document_id가 지정된 경우 사전 검증 + 소유권 확인
     if doc_id:
-        meta = metadata_service.get_document(doc_id, owner_email=current_user["email"])
+        meta = await metadata_service.get_document_async(doc_id, owner_email=current_user["email"])
         if meta is None:
             raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
-        if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+        if not await metadata_service.verify_document_owner_async(doc_id, current_user["email"]):
             raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
     
     # 대화 이력을 딕셔너리 리스트로 변환

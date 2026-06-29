@@ -172,7 +172,7 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
         
     # 2. SHA-256 해시 계산 및 중복 검증
     file_hash = hashlib.sha256(content).hexdigest()
-    existing_docs = metadata_service.get_all_documents(owner_email=owner_email if owner_email else None)
+    existing_docs = await metadata_service.get_all_documents_async(owner_email=owner_email if owner_email else None)
     for doc_meta in existing_docs:
         if doc_meta.get("file_hash") == file_hash:
             raise DuplicateDocumentError(doc_meta["filename"])

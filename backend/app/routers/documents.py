@@ -34,11 +34,11 @@ async def _reclassify_documents(doc_ids: list[str], owner_email: str = ""):
 
     for doc_id in doc_ids:
         try:
-            meta = metadata_service.get_document(doc_id, owner_email=owner_email)
+            meta = await metadata_service.get_document_async(doc_id, owner_email=owner_email)
             if meta is None:
                 continue
 
-            pdf_path = metadata_service.get_document_path(doc_id, owner_email=owner_email)
+            pdf_path = await metadata_service.get_document_path_async(doc_id, owner_email=owner_email)
             if not pdf_path or not os.path.exists(pdf_path):
                 logger.warning(f"⚠️ [재분류] PDF 파일 없음: {doc_id}")
                 fail_count += 1
@@ -59,7 +59,7 @@ async def _reclassify_documents(doc_ids: list[str], owner_email: str = ""):
                 updates["filename"] = classification["title"]
 
             if updates:
-                metadata_service.update_document_metadata(doc_id, updates, owner_email=owner_email)
+                await metadata_service.update_document_metadata_async(doc_id, updates, owner_email=owner_email)
                 logger.info(f"✅ [재분류] 성공: {doc_id} → {updates}")
                 success_count += 1
             else:
@@ -83,7 +83,7 @@ async def reclassify_documents(background_tasks: BackgroundTasks, current_user: 
     미분류(manufacturer/model_series가 없는) 문서들을 Gemini Vision으로 일괄 재분류합니다.
     백그라운드 태스크로 실행되어 즉시 202 응답을 반환합니다.
     """
-    docs = metadata_service.get_all_documents(owner_email=current_user["email"])
+    docs = await metadata_service.get_all_documents_async(owner_email=current_user["email"])
 
     # 미분류 문서 필터링 (manufacturer 또는 model_series가 없는 문서)
     unclassified = [
@@ -107,7 +107,7 @@ async def reclassify_documents(background_tasks: BackgroundTasks, current_user: 
 @router.get("")
 async def list_documents(request: Request, current_user: dict = Depends(get_current_user)):
     """업로드된 모든 문서 목록을 반환합니다."""
-    docs = metadata_service.get_all_documents(owner_email=current_user["email"])
+    docs = await metadata_service.get_all_documents_async(owner_email=current_user["email"])
     
     # ETag: 문서 ID + status + filename 해시
     etag_source = "|".join(
@@ -130,9 +130,9 @@ async def list_documents(request: Request, current_user: dict = Depends(get_curr
 async def get_document_detail(document_id: UUID, current_user: dict = Depends(get_current_user)):
     """문서 상세 정보를 반환합니다."""
     doc_id = str(document_id)
-    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+    if not await metadata_service.verify_document_owner_async(doc_id, current_user["email"]):
         raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
-    meta = metadata_service.get_document(doc_id, owner_email=current_user["email"])
+    meta = await metadata_service.get_document_async(doc_id, owner_email=current_user["email"])
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
     
@@ -152,9 +152,9 @@ async def get_document_detail(document_id: UUID, current_user: dict = Depends(ge
 async def update_document(document_id: UUID, request: DocumentUpdateRequest, current_user: dict = Depends(get_current_user)):
     """문서 메타데이터(파일명, 제조사, 모델 등)를 수정합니다."""
     doc_id = str(document_id)
-    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+    if not await metadata_service.verify_document_owner_async(doc_id, current_user["email"]):
         raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
-    meta = metadata_service.get_document(doc_id, owner_email=current_user["email"])
+    meta = await metadata_service.get_document_async(doc_id, owner_email=current_user["email"])
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
     
@@ -176,7 +176,7 @@ async def update_document(document_id: UUID, request: DocumentUpdateRequest, cur
     if not updates:
         raise HTTPException(status_code=400, detail="변경할 항목이 없습니다.")
     
-    updated = metadata_service.update_document_metadata(doc_id, updates, owner_email=current_user["email"])
+    updated = await metadata_service.update_document_metadata_async(doc_id, updates, owner_email=current_user["email"])
     return {
         "status": "updated", 
         "document_id": doc_id, 
@@ -190,9 +190,9 @@ async def update_document(document_id: UUID, request: DocumentUpdateRequest, cur
 async def remove_document(document_id: UUID, current_user: dict = Depends(get_current_user)):
     """문서를 삭제합니다 (PDF + 메타데이터)."""
     doc_id = str(document_id)
-    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+    if not await metadata_service.verify_document_owner_async(doc_id, current_user["email"]):
         raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
-    success = metadata_service.delete_document(doc_id, owner_email=current_user["email"])
+    success = await metadata_service.delete_document_async(doc_id, owner_email=current_user["email"])
     if not success:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
     return {"status": "deleted", "document_id": document_id}
@@ -202,9 +202,9 @@ async def remove_document(document_id: UUID, current_user: dict = Depends(get_cu
 async def get_document_toc(document_id: UUID, current_user: dict = Depends(get_current_user)):
     """문서의 ToC(목차)를 반환합니다."""
     doc_id = str(document_id)
-    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+    if not await metadata_service.verify_document_owner_async(doc_id, current_user["email"]):
         raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
-    toc = metadata_service.get_document_toc(doc_id)
+    toc = await metadata_service.get_document_toc_async(doc_id)
     if toc is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
     return {"document_id": doc_id, "toc": toc, "toc_count": len(toc)}
@@ -214,13 +214,13 @@ async def get_document_toc(document_id: UUID, current_user: dict = Depends(get_c
 async def reindex_document(document_id: UUID, current_user: dict = Depends(get_current_user)):
     """기존 문서의 ToC를 Vision 기반으로 재보강합니다."""
     doc_id = str(document_id)
-    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+    if not await metadata_service.verify_document_owner_async(doc_id, current_user["email"]):
         raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
-    meta = metadata_service.get_document(doc_id, owner_email=current_user["email"])
+    meta = await metadata_service.get_document_async(doc_id, owner_email=current_user["email"])
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
     
-    pdf_path = metadata_service.get_document_path(doc_id, owner_email=current_user["email"])
+    pdf_path = await metadata_service.get_document_path_async(doc_id, owner_email=current_user["email"])
     if pdf_path is None:
         raise HTTPException(status_code=500, detail="PDF 파일을 찾을 수 없습니다.")
     
@@ -236,7 +236,7 @@ async def reindex_document(document_id: UUID, current_user: dict = Depends(get_c
             raise HTTPException(status_code=400, detail="목차를 찾을 수 없습니다.")
         
         old_count = len(meta.get("toc", []))
-        metadata_service.update_document_metadata(doc_id, {
+        await metadata_service.update_document_metadata_async(doc_id, {
             "toc": enriched,
             "status": "indexed",
         }, owner_email=current_user["email"])
@@ -260,13 +260,13 @@ async def download_document(document_id: UUID, current_user: dict = Depends(get_
     파일명 형식: 제조사_모델시리즈_문서유형.pdf
     """
     doc_id = str(document_id)
-    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+    if not await metadata_service.verify_document_owner_async(doc_id, current_user["email"]):
         raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
-    meta = metadata_service.get_document(doc_id, owner_email=current_user["email"])
+    meta = await metadata_service.get_document_async(doc_id, owner_email=current_user["email"])
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
     
-    pdf_path = metadata_service.get_document_path(doc_id, owner_email=current_user["email"])
+    pdf_path = await metadata_service.get_document_path_async(doc_id, owner_email=current_user["email"])
     if pdf_path is None or not os.path.isfile(pdf_path):
         raise HTTPException(status_code=404, detail="PDF 파일을 찾을 수 없습니다.")
     
@@ -299,9 +299,9 @@ async def download_document_url(document_id: UUID, current_user: dict = Depends(
     로컬 모드인 경우 로컬 다운로드 API 경로를, GCS 모드인 경우 GCS Signed URL을 반환합니다.
     """
     doc_id = str(document_id)
-    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+    if not await metadata_service.verify_document_owner_async(doc_id, current_user["email"]):
         raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
-    meta = metadata_service.get_document(doc_id, owner_email=current_user["email"])
+    meta = await metadata_service.get_document_async(doc_id, owner_email=current_user["email"])
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
     
@@ -318,7 +318,7 @@ async def download_document_url(document_id: UUID, current_user: dict = Depends(
     download_name = re.sub(r'[\\/*?:"<>|]', "", download_name)
     
     # Signed URL 생성 시도
-    signed_url = metadata_service.get_document_signed_url(doc_id, download_name, owner_email=current_user["email"])
+    signed_url = await metadata_service.get_document_signed_url_async(doc_id, download_name, owner_email=current_user["email"])
     
     if signed_url:
         return {

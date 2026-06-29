@@ -52,7 +52,7 @@ async def upload_preflight(request: PreflightRequest, current_user: dict = Depen
         raise HTTPException(status_code=400, detail="빈 파일은 업로드할 수 없습니다.")
 
     # 2. SHA-256 해시 중복 체크 (사용자 소유 문서 범위 내에서만)
-    existing_docs = metadata_service.get_all_documents(owner_email=current_user["email"])
+    existing_docs = await metadata_service.get_all_documents_async(owner_email=current_user["email"])
     for doc_meta in existing_docs:
         if doc_meta.get("file_hash") == request.file_hash:
             raise HTTPException(
@@ -68,7 +68,7 @@ async def upload_preflight(request: PreflightRequest, current_user: dict = Depen
     if not settings.USE_LOCAL_STORAGE:
         try:
             blob_name = metadata_service.gcs_blob_path(current_user["email"], str(doc_id), "original.pdf")
-            upload_url = metadata_service.generate_gcs_signed_url(
+            upload_url = await metadata_service.generate_gcs_signed_url_async(
                 bucket_name=settings.GCS_BUCKET_NAME,
                 blob_name=blob_name,
                 method="PUT",
@@ -99,7 +99,7 @@ async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str
     logger.info(f"🚀 비동기 PDF 분석 파이프라인 시작: {document_id} ({filename})")
     try:
         # 1. 원본 PDF 경로 확보 (GCS 사용 시 /tmp에 자동 캐싱 다운로드됨)
-        pdf_path = metadata_service.get_document_path(document_id, owner_email=owner_email)
+        pdf_path = await metadata_service.get_document_path_async(document_id, owner_email=owner_email)
         if not pdf_path or not os.path.exists(pdf_path):
             raise FileNotFoundError(f"PDF 원본 파일을 찾을 수 없습니다: {document_id}")
 
@@ -131,13 +131,13 @@ async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str
         }
 
         # 5. 메타데이터 업데이트 (로컬 & GCS)
-        metadata_service.update_document_metadata(document_id, final_metadata, owner_email=owner_email)
+        await metadata_service.update_document_metadata_async(document_id, final_metadata, owner_email=owner_email)
         logger.info(f"✅ 비동기 PDF 분석 파이프라인 완료: {document_id}")
 
     except Exception as e:
         logger.error(f"❌ 비동기 PDF 분석 파이프라인 실패: {document_id} - {e}")
         try:
-            metadata_service.update_document_metadata(document_id, {
+            await metadata_service.update_document_metadata_async(document_id, {
                 "status": "error",
                 "error_message": str(e)
             }, owner_email=owner_email)
@@ -192,7 +192,7 @@ async def trigger_analysis(request: AnalyzeRequest, background_tasks: Background
     # metadata_service에는 신규 생성용이 따로 없으므로 update_document_metadata를 사용하되, 
     # update_document_metadata의 get_document가 로컬/GCS에 파일이 없을 시 None을 주기 때문에
     # 직접 metadata_service에 파일을 써줍니다. (혹은 metadata_service 내부 로직 차용)
-    if not metadata_service.create_document_metadata(doc_id, initial_metadata, current_user["email"]):
+    if not await metadata_service.create_document_metadata_async(doc_id, initial_metadata, current_user["email"]):
         raise HTTPException(status_code=500, detail="임시 메타데이터 생성 실패")
 
     # 3. 비동기 작업 등록
@@ -220,14 +220,14 @@ async def extract_toc_with_range(request: TocRangeRequest, current_user: dict = 
     doc_id = str(request.document_id)
     
     # 소유권 검증
-    if not metadata_service.verify_document_owner(doc_id, current_user["email"]):
+    if not await metadata_service.verify_document_owner_async(doc_id, current_user["email"]):
         raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
     
-    meta = metadata_service.get_document(doc_id, owner_email=current_user["email"])
+    meta = await metadata_service.get_document_async(doc_id, owner_email=current_user["email"])
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
     
-    pdf_path = metadata_service.get_document_path(doc_id, owner_email=current_user["email"])
+    pdf_path = await metadata_service.get_document_path_async(doc_id, owner_email=current_user["email"])
     if pdf_path is None:
         raise HTTPException(status_code=500, detail="PDF 파일을 찾을 수 없습니다.")
     
@@ -249,7 +249,7 @@ async def extract_toc_with_range(request: TocRangeRequest, current_user: dict = 
         toc = extract_toc_with_gemini(mini_pdf_bytes)
         
         # 메타데이터 업데이트
-        updated = metadata_service.update_document_metadata(doc_id, {
+        updated = await metadata_service.update_document_metadata_async(doc_id, {
             "toc": toc,
             "status": "indexed"
         }, owner_email=current_user["email"])

@@ -7,6 +7,7 @@ GCS 경로 구조: users/{owner_email}/{document_id}/metadata.json, original.pdf
 import os
 import json
 import shutil
+import asyncio
 import threading
 from typing import List, Dict, Any, Optional
 from cachetools import TTLCache
@@ -518,3 +519,38 @@ def migrate_legacy_manufacturers() -> int:
                 
     logger.info(f"✅ 제조사명 정규화 마이그레이션 완료 (총 {migrated_count}건 변환됨)")
     return migrated_count
+
+
+# ── Async wrappers (asyncio.to_thread) ──────────────────────────────────────
+
+async def get_all_documents_async(owner_email: Optional[str] = None) -> List[Dict[str, Any]]:
+    return await asyncio.to_thread(get_all_documents, owner_email)
+
+async def get_document_async(document_id: str, owner_email: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    return await asyncio.to_thread(get_document, document_id, owner_email)
+
+async def get_document_path_async(document_id: str, owner_email: Optional[str] = None) -> Optional[str]:
+    return await asyncio.to_thread(get_document_path, document_id, owner_email)
+
+async def verify_document_owner_async(document_id: str, owner_email: str) -> bool:
+    return await asyncio.to_thread(verify_document_owner, document_id, owner_email)
+
+async def get_document_toc_async(document_id: str) -> List[Dict[str, Any]]:
+    return await asyncio.to_thread(get_document_toc, document_id)
+
+async def update_document_metadata_async(document_id: str, updates: Dict[str, Any], owner_email: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    return await asyncio.to_thread(update_document_metadata, document_id, updates, owner_email)
+
+async def delete_document_async(document_id: str, owner_email: Optional[str] = None) -> bool:
+    return await asyncio.to_thread(delete_document, document_id, owner_email)
+
+async def get_document_signed_url_async(document_id: str, download_name: str, owner_email: Optional[str] = None) -> Optional[str]:
+    return await asyncio.to_thread(get_document_signed_url, document_id, download_name, owner_email)
+
+async def create_document_metadata_async(document_id: str, metadata: Dict[str, Any], owner_email: str) -> bool:
+    return await asyncio.to_thread(create_document_metadata, document_id, metadata, owner_email)
+
+async def generate_gcs_signed_url_async(bucket_name: str, blob_name: str, method: str, expiration_minutes: int, content_type: str = None, response_content_disposition: str = None) -> Optional[str]:
+    return await asyncio.to_thread(
+        generate_gcs_signed_url, bucket_name, blob_name, method, expiration_minutes, content_type, response_content_disposition
+    )

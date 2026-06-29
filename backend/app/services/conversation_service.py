@@ -5,6 +5,7 @@ GCS 경로 구조: users/{owner_email}/conversations/{session_id}.json
 metadata_service의 GCS 버킷 싱글턴(_get_bucket)을 공유합니다.
 """
 import json
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -194,3 +195,24 @@ def rename_conversation(user_email: str, session_id: str, title: str) -> bool:
     except Exception as e:
         logger.error(f"❌ [Conversation] 제목 변경 실패: {session_id} - {e}")
         return False
+
+
+# ── Async wrappers (asyncio.to_thread) ──────────────────────────────────────
+
+async def create_conversation_async(user_email: str, session_id: str, title: str = "새로운 대화") -> dict:
+    return await asyncio.to_thread(create_conversation, user_email, session_id, title)
+
+async def get_conversations_async(user_email: str) -> list[dict]:
+    return await asyncio.to_thread(get_conversations, user_email)
+
+async def get_conversation_async(user_email: str, session_id: str) -> Optional[dict]:
+    return await asyncio.to_thread(get_conversation, user_email, session_id)
+
+async def save_message_async(user_email: str, session_id: str, **kwargs) -> bool:
+    return await asyncio.to_thread(lambda: save_message(user_email, session_id, **kwargs))
+
+async def delete_conversation_async(user_email: str, session_id: str) -> bool:
+    return await asyncio.to_thread(delete_conversation, user_email, session_id)
+
+async def rename_conversation_async(user_email: str, session_id: str, title: str) -> bool:
+    return await asyncio.to_thread(rename_conversation, user_email, session_id, title)

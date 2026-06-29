@@ -11,7 +11,10 @@ import json
 import re
 import fitz  # PyMuPDF
 from typing import AsyncGenerator
-from app.services.metadata_service import get_document, get_document_path, get_all_documents
+from app.services.metadata_service import (
+    get_document, get_document_path, get_all_documents,
+    get_document_async, get_document_path_async, get_all_documents_async,
+)
 from app.services.agent_service import analyze_pages_with_vision, _create_flash_llm, _clean_json_response, _extract_text_content
 from app.services.pdf_service import render_page_thumbnail
 from app.prompts import general_chat_prompt, refine_pages_prompt, select_document_prompt, select_pages_prompt
@@ -390,7 +393,7 @@ class _PipelineContext:
     파이프라인 전역 상태와 SSE 수집/대화 저장을 캡슐화합니다.
 
     각 stage는 이 컨텍스트를 공유하며 SSE 이벤트를 yield합니다.
-    early exit가 필요한 stage는 `yield ctx.finish()` 후 `return`하고,
+    early exit가 필요한 stage는 `yield await ctx.finish()` 후 `return`하고,
     orchestrator가 `ctx.done`을 확인해 파이프라인을 종료합니다.
     """
 
@@ -423,12 +426,12 @@ class _PipelineContext:
         self.collected_answer += content
         return _sse_event("answer", content=content)
 
-    def save_conversation(self):
+    async def save_conversation(self):
         """수집된 메시지를 GCS에 저장합니다 (모든 종료 경로에서 호출)."""
         if not (self.session_id and self.user_email and (self.collected_answer or self.collected_reasoning)):
             return
         try:
-            from app.services.conversation_service import save_message
+            from app.services.conversation_service import save_message_async
             user_msg = {
                 "role": "user",
                 "content": self.question,
@@ -443,13 +446,13 @@ class _PipelineContext:
                 "reference_document_name": self.selected_doc_filename if self.document_id else None,
             }
             title_text = self.question[:25] + "..." if len(self.question) > 25 else self.question
-            save_message(self.user_email, self.session_id, user_msg, assistant_msg, title=title_text)
+            await save_message_async(self.user_email, self.session_id, user_msg, assistant_msg, title=title_text)
         except Exception as e:
             logger.error(f"❌ [Pipeline] 대화 저장 실패 (무시): {e}")
 
-    def finish(self) -> str:
+    async def finish(self) -> str:
         """종료 처리: 대화 저장 + done 이벤트 생성 + done 플래그 설정."""
-        self.save_conversation()
+        await self.save_conversation()
         self.done = True
         return _sse_event("done")
 
@@ -493,7 +496,7 @@ async def _stage_image_analysis(ctx: "_PipelineContext"):
 
             # 문서 매칭: document_id가 지정되지 않은 경우, 분석된 제조사/모델과 일치하는 문서 검색
             if ctx.document_id is None:
-                all_docs = get_all_documents(owner_email=ctx.user_email)
+                all_docs = await get_all_documents_async(owner_email=ctx.user_email)
                 matched_doc = None
 
                 # 1순위: 제조사와 모델 모두 매칭되는 문서
@@ -558,7 +561,7 @@ async def _stage_quick_general(ctx: "_PipelineContext"):
         "안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요? 매뉴얼 PDF를 업로드하신 뒤 관련 질문(예: 특정 에러 코드나 조치 방법)을 입력해 주시면 정확히 분석하여 답변해 드리겠습니다.",
     ):
         yield ev
-    yield ctx.finish()
+    yield await ctx.finish()
 
 
 async def _stage_resolve_document(ctx: "_PipelineContext"):
@@ -570,7 +573,7 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
     # [Shortcut] document_id가 지정되지 않았고, 이전 참조 문서(previous_reference)가 있으며,
     # 사용자의 새 질문에 다른 제조사/모델 식별자가 없는 경우 맥락 유지
     if ctx.document_id is None:
-        all_docs = get_all_documents(owner_email=ctx.user_email)
+        all_docs = await get_all_documents_async(owner_email=ctx.user_email)
         if all_docs and ctx.previous_reference and ctx.previous_reference.get("document_id") and len(all_docs) > 1:
             prev_doc_id = str(ctx.previous_reference["document_id"])
 
@@ -600,11 +603,11 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
                     yield ctx.reasoning(f"🔄 이전 대화 맥락을 이어받아 '{prev_doc.get('filename')}' 문서에서 검색을 계속합니다.")
 
     if ctx.document_id is None:
-        all_docs = get_all_documents(owner_email=ctx.user_email)
+        all_docs = await get_all_documents_async(owner_email=ctx.user_email)
 
         if not all_docs:
             yield _sse_event("error", content="업로드된 문서가 없습니다. 먼저 PDF 매뉴얼을 업로드해 주세요.")
-            yield ctx.finish()
+            yield await ctx.finish()
             return
 
         filtered_docs = all_docs
@@ -694,7 +697,7 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
             yield ctx.reasoning("일상적 대화로 판별되어 일반 에이전트 모드로 답변을 생성합니다...")
             async for ev in _generate_general_answer(ctx, "안녕하세요! Vision RAG 에이전트입니다. 무엇을 도와드릴까요?"):
                 yield ev
-            yield ctx.finish()
+            yield await ctx.finish()
             return
 
         # 되묻기 판단 — 3중 체크
@@ -774,7 +777,7 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
                     candidates=clarification_candidates,
                     suggested_questions=suggested_questions,
                 )
-                yield ctx.finish()
+                yield await ctx.finish()
                 return
 
             ctx.document_id = top["document_id"]
@@ -799,10 +802,10 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
 
     else:
         # document_id가 지정된 경우: _select_pages()만 실행
-        meta = get_document(ctx.document_id, owner_email=ctx.user_email)
+        meta = await get_document_async(ctx.document_id, owner_email=ctx.user_email)
         if meta is None:
             yield _sse_event("error", content=f"문서를 찾을 수 없습니다: {ctx.document_id}")
-            yield ctx.finish()
+            yield await ctx.finish()
             return
 
         toc = meta.get("toc", [])
@@ -825,22 +828,22 @@ async def _stage_answer(ctx: "_PipelineContext"):
     모든 종료 경로에서 ctx.finish()를 yield합니다.
     """
     # ─── Step 1: 문서 검증 및 PDF 열기 ───
-    meta = get_document(ctx.document_id, owner_email=ctx.user_email)
+    meta = await get_document_async(ctx.document_id, owner_email=ctx.user_email)
     if meta is None:
         yield _sse_event("error", content=f"문서를 찾을 수 없습니다: {ctx.document_id}")
-        yield ctx.finish()
+        yield await ctx.finish()
         return
 
-    pdf_path = get_document_path(ctx.document_id, owner_email=ctx.user_email)
+    pdf_path = await get_document_path_async(ctx.document_id, owner_email=ctx.user_email)
     if pdf_path is None:
         yield _sse_event("error", content="PDF 파일을 찾을 수 없습니다.")
-        yield ctx.finish()
+        yield await ctx.finish()
         return
 
     toc = meta.get("toc", [])
     if not toc:
         yield _sse_event("error", content="목차(ToC)가 없는 문서입니다. 먼저 ToC를 추출해주세요.")
-        yield ctx.finish()
+        yield await ctx.finish()
         return
 
     try:
@@ -849,7 +852,7 @@ async def _stage_answer(ctx: "_PipelineContext"):
     except Exception as e:
         logger.error(f"❌ [Pipeline] PDF 파일 열기 실패 ({pdf_path}): {e}", exc_info=True)
         yield _sse_event("error", content=f"PDF 파일 열기 실패: {str(e)}")
-        yield ctx.finish()
+        yield await ctx.finish()
         return
 
     # 섹션 범위 계산 (ToC 기반으로 정확한 섹션 끝 찾기)
@@ -920,7 +923,7 @@ async def _stage_answer(ctx: "_PipelineContext"):
         doc.close()
         logger.error(f"❌ [Pipeline] PDF 처리 및 참조 이미지 생성 실패: {e}", exc_info=True)
         yield _sse_event("error", content=f"PDF 처리 중 오류: {str(e)}")
-        yield ctx.finish()
+        yield await ctx.finish()
         return
 
     # ─── Step 5: Vision LLM 분석 (스트리밍) + B-1 Fallback ───
@@ -942,7 +945,7 @@ async def _stage_answer(ctx: "_PipelineContext"):
             yield _sse_event("error", content=f"Vision 분석 및 텍스트 분석 모두 실패: {str(e)}")
 
     logger.info("🏁 [Pipeline] Agentic Search 파이프라인 처리 완료")
-    yield ctx.finish()
+    yield await ctx.finish()
 
 
 async def run_agentic_pipeline(
@@ -1002,7 +1005,7 @@ async def run_agentic_pipeline(
     except Exception as e:
         logger.error(f"❌ [Pipeline] 예상치 못한 오류: {e}", exc_info=True)
         yield _sse_event("error", content=f"시스템 오류: {str(e)}")
-        yield ctx.finish()
+        yield await ctx.finish()
 
 
 async def _generate_text_fallback(

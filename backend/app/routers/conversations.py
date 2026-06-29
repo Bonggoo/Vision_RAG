@@ -25,7 +25,7 @@ async def create_conversation(
 ):
     """새 대화 세션을 생성합니다."""
     session_id = str(uuid4())
-    result = conversation_service.create_conversation(
+    result = await conversation_service.create_conversation_async(
         user_email=current_user["email"],
         session_id=session_id,
         title=request.title,
@@ -36,7 +36,7 @@ async def create_conversation(
 @router.get("/")
 async def list_conversations(current_user: dict = Depends(get_current_user)):
     """사용자의 대화 목록을 조회합니다 (최대 20개, 최신순)."""
-    conversations = conversation_service.get_conversations(current_user["email"])
+    conversations = await conversation_service.get_conversations_async(current_user["email"])
     return {"conversations": conversations}
 
 
@@ -46,7 +46,7 @@ async def get_conversation(
     current_user: dict = Depends(get_current_user),
 ):
     """단건 대화를 조회합니다 (메시지 포함)."""
-    result = conversation_service.get_conversation(current_user["email"], session_id)
+    result = await conversation_service.get_conversation_async(current_user["email"], session_id)
     if result is None:
         raise HTTPException(status_code=404, detail="대화를 찾을 수 없습니다.")
     return result
@@ -58,7 +58,7 @@ async def delete_conversation(
     current_user: dict = Depends(get_current_user),
 ):
     """대화를 삭제합니다."""
-    success = conversation_service.delete_conversation(current_user["email"], session_id)
+    success = await conversation_service.delete_conversation_async(current_user["email"], session_id)
     if not success:
         raise HTTPException(status_code=404, detail="대화를 찾을 수 없습니다.")
     return {"status": "deleted", "session_id": session_id}
@@ -71,7 +71,7 @@ async def rename_conversation(
     current_user: dict = Depends(get_current_user),
 ):
     """대화 제목을 변경합니다."""
-    success = conversation_service.rename_conversation(
+    success = await conversation_service.rename_conversation_async(
         current_user["email"], session_id, request.title
     )
     if not success:
