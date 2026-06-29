@@ -1,126 +1,90 @@
-# 📋 To Do List (Vision RAG)
+# 📋 To Do List (Vision RAG / TechNote)
 
-## 진행 중인 작업 (In Progress Tasks)
+> 최종 갱신: 2026-06-29
+
+---
+
+## 진행 중인 작업 (In Progress)
+
+없음. 모든 리팩토링 트랙 완료.
+
+---
 
 ## 향후 작업 (Next Tasks)
 
-## 완료된 작업 (Completed Tasks)
-- [x] 🔧 코드 구조 리팩토링 1·2차 (Phase 1~3 + 프론트 M5/M8) — `doc/refactoring_plan.md` 참조
-  - [x] Phase 1: dead code 제거(`reason_target_pages`/`render_page_image` 등), 라우터 이중 `Depends` 정리, `@app.on_event`→`lifespan` 전환, 루트 스크래치 파일 `.gitignore` 정리
-  - [x] Phase 2: ToC 추출 로직 통합(`pdf_service.build_toc`), LLM 프롬프트 외부화(`app/prompts.py`), `owner_email` 전달로 GCS glob 조회 제거
-  - [x] Phase 3 (C1): `run_agentic_pipeline` 거대 함수(596줄)를 `_PipelineContext` + 4개 stage + orchestrator(~58줄)로 분해 (SSE 이벤트 계약 불변)
-  - [x] 프론트 M8: 공유 타입 추출 (`src/types/` — chat/sse/api), `lib/api.ts` `any` 정리
-  - [x] 프론트 M5: `page.tsx` SSE 로직을 `useChatStream` 훅으로 분리(460→287), `Sidebar.tsx`를 `sidebar/` 하위 컴포넌트로 분해(652→494)
-  - [x] 검증: 백엔드 `uvicorn` 기동 + SSE 스모크, 프론트 `build`/`dev serve`, lint 38→30 errors(순증 0) — `verify` 스킬 PASS
-  - [x] 커밋 2건(`13f224b`, `c9c4503`) — `refactor/phase1-2-cleanup` 브랜치
-- [ ] 🔧 리팩토링 남은 트랙: H2 블로킹 I/O 비동기화 / pytest 안전망 / Cloud Run·Cloud Tasks 부하 대응
-- [x] 🐛 채팅 기능 잔여 버그 수정 및 안정화 (GCS 저장, IME 중복 방지)
-  - [x] 백엔드: 일상대화(early exit) 시 GCS 세션 데이터에 챗봇 답변과 추론 과정이 저장되지 않아 빈 값으로 보이던 현상 수정 (`agentic_graph.py` early exit 분기에서 `collected_answer`, `collected_reasoning` 업데이트 누락 버그 패치)
-  - [x] 프론트엔드: PC 환경 한글 입력 시 엔터 키(IME 조합 중) 이벤트 중복 발생에 의해 메시지가 두 번 연속 전송되던 버그 수정 (`ChatInput.tsx`의 `isComposing` 상태 체크 추가)
-- [x] 📑 이름순 정렬 시 영어가 한글보다 우선 배치되도록 정렬 알고리즘 수정
-  - [x] `Sidebar.tsx` 내에 `isKoreanStart` 판별 함수 추가 및 `sortByName` 수정
-  - [x] Next.js 빌드 성공 여부 검증 (Turbopack 빌드 성공 확인)
-  - [x] 변경사항 Git 커밋 및 PR 생성 (gh CLI)
-  - [x] PR 머지 및 실서버 배포
-- [x] 📑 사이드바 문서 정렬 방식(최신순/이름순) 필터 UI 및 2단 트리 정렬 기능 구현
-  - [x] `Sidebar.tsx` 내에 `sortBy` 상태 및 정렬 방식 토글 UI 추가
-  - [x] 최신순/이름순 정렬 헬퍼 함수 (`sortByDate`, `getLatestDateInDocs`) 구현
-  - [x] 플랫 리스트 및 제조사 > 모델 2단 트리 그룹의 동적 정렬 로직 연동
-  - [x] 로컬 환경 빌드 및 수동 검증 테스트 실행 (Turbopack 빌드 성공 확인)
-  - [x] 변경사항 Git 커밋 및 PR 생성 (gh CLI)
+### 🔴 즉시 처리 — GCP 수동 설정 (Phase 5 배포 완성)
+
+Cloud Tasks 코드는 이미 배포됐지만, GCP 인프라 설정이 되어야 실제로 동작합니다.
+
+- [ ] **Cloud Tasks API 활성화**
+  ```bash
+  gcloud services enable cloudtasks.googleapis.com
+  ```
+- [ ] **분석 큐 생성** (asia-northeast3 서울 리전)
+  ```bash
+  gcloud tasks queues create vision-rag-analysis \
+    --location=asia-northeast3 \
+    --max-concurrent-dispatches=5 \
+    --max-attempts=3
+  ```
+- [ ] **Cloud Build 트리거 변수 추가** (GCP 콘솔 → Cloud Build → 트리거 → 편집)
+  - `_CLOUD_TASKS_QUEUE` = `projects/{project_id}/locations/asia-northeast3/queues/vision-rag-analysis`
+  - `_CLOUD_RUN_URL` = `https://vision-rag-backend-xxx.a.run.app` (Cloud Run 서비스 URL)
+  - `_INTERNAL_TASK_SECRET` = 랜덤 문자열 (예: `openssl rand -hex 32`)
+- [ ] 설정 완료 후 **master 재푸시**(또는 Cloud Build 수동 트리거)하여 새 환경변수로 재배포
+
+---
+
+### 🟠 단기 — 실 사용자 투입 전 준비
+
+- [ ] **사전 스모크 테스트** — 재배포 후 OAuth 로그인 → 문서 업로드 → 채팅 골든패스 확인
+- [ ] **화이트리스트 관리 UX** — 현재 코드에만 하드코딩된 허용 이메일 목록을 GCS JSON 파일 또는 환경변수로 분리하여 관리 편의성 개선
+- [ ] **에러 모니터링** — Cloud Logging 알람 설정 (5xx 에러, Gemini 할당량 초과 감지)
+
+---
+
+### 🟡 중기 — 기능 고도화
+
+- [ ] **다양한 문서 포맷 지원** — `.docx`, `.xlsx`, `.pptx` 업로드 → PDF 변환 후 기존 파이프라인 통과
+- [ ] **유저 피드백 수집** — 답변 좋아요/싫어요 버튼 → GCS 로그 적재 → 품질 개선 데이터로 활용
+- [ ] **관리자 대시보드** — 업로드 문서 수, 일별 대화 수, 오류율 등 운영 지표 페이지
+
+---
+
+### 🔵 장기 — 고도화 아이디어
+
+- [ ] **Memory (암묵지 자산화)** — 대화에서 사용자 코멘트·노하우를 추출해 개인 지식 베이스로 축적
+- [ ] **FAQ 챗봇** — 자주 묻는 질문 사전 등록 → 대기 없이 즉시 매칭 답변
+- [ ] **멀티모달 확장** — 도면, 회로도 등 이미지-텍스트 혼합 매뉴얼 처리 강화
+
+---
+
+## 완료된 작업 (Completed)
+
+- [x] 🔧 코드 구조 리팩토링 전 Phase 완료 (`doc/refactoring_plan.md` 참조)
+  - [x] Phase 1: dead code 제거, 라우터 이중 `Depends` 정리, `lifespan` 전환, `.gitignore` 정리
+  - [x] Phase 2: ToC 통합(`build_toc`), 프롬프트 외부화(`app/prompts.py`), GCS glob 제거
+  - [x] Phase 3 (C1): `run_agentic_pipeline` 596줄 → `_PipelineContext` + 4 stage + orchestrator(~58줄)
+  - [x] 프론트 M8: 공유 타입 추출 (`src/types/`)
+  - [x] 프론트 M5: `useChatStream` 훅 분리, `Sidebar.tsx` → `sidebar/` 하위 컴포넌트 분해
+  - [x] H2: 동기 GCS I/O → `asyncio.to_thread` 래퍼 (8파일, 전 async 호출처)
+  - [x] Phase 4: `pytest` 단위 테스트 63개 (`tests/unit/`)
+  - [x] Phase 5: Cloud Tasks 큐 + Cloud Run (`--cpu=2`, `--memory=2Gi`, `--min-instances=1`, `--no-cpu-throttling`) + `JWT_SECRET` 치환변수 보안 수정
+- [x] 🐛 채팅 기능 잔여 버그 수정 (GCS 저장, IME 중복 방지)
+- [x] 📑 이름순 정렬 시 영어 우선 배치 정렬 알고리즘 수정
+- [x] 📑 사이드바 문서 정렬 방식(최신순/이름순) 필터 UI 및 2단 트리 정렬
 - [x] 🌐 커스텀 도메인 연결 (Cloud Run URL 노출 해결)
-  - [x] 백엔드(Cloud Run) 커스텀 도메인 매핑 설정 가이드 및 DNS 레코드 연동 완료 (`doc/custom_domain_mapping.md` 생성)
-  - [x] 백엔드 및 프론트엔드 환경변수 연동 가이드라인 정리 완료
-- [x] 🛡️ Refresh Token HttpOnly 쿠키 전환 (보안 로드맵 Phase 1)
-  - [x] 백엔드: 쿠키 옵션 유틸 및 로그아웃 API 구현
-  - [x] 백엔드: `/auth/google` 및 `/auth/refresh` API 쿠키 기반으로 변경
-  - [x] 프론트엔드: `useAuthStore`에서 `refreshToken` 스토어 변수 제거 및 로그아웃 수정
-  - [x] 프론트엔드: `api.ts` fetch 래퍼에 `credentials: "include"` 옵션 추가 및 갱신 API 수정
-  - [x] 전체 빌드 및 로컬 테스트 검증 (Next.js 빌드 성공 확인)
+- [x] 🛡️ Refresh Token HttpOnly 쿠키 전환
 - [x] 📛 앱 이름/브랜딩 변경 (Vision RAG → TechNote 테크노트)
-- [x] 🎨 UI 전면 리디자인 (TechNote 브랜딩의 글래스모피즘/다크모드 적용)
-- [x] 🛡️ 중장기 보안 개선 로드맵 문서 작성 (`doc/security_roadmap.md` 신설)
-- [x] 🛡️ 시스템 운영 및 개인정보 보호를 위한 보안 개선 사항 조치 (보안 리포트 가이드 기반)
-  - [x] 백엔드 auth_service.py 로컬 우회 조건 강화 (프로덕션 차단)
-  - [x] 백엔드 main.py 기동 시 JWT_SECRET 기본값 위협 강제 차단 구현
-  - [x] gcs_cors.json CORS 오리진 제한 수정
-  - [x] trigger_config.yaml 내 하드코딩 민감 정보 제거 및 더미 처리
-  - [x] 로컬 실행 테스트 및 보안 기능 검증
-- [x] 📑 모든 문서 최신화 (PRD, API Contract, README, 로드맵, 개선 요구사항 정의서 등)
-  - [x] 백엔드 및 프론트엔드 최신 구현 스펙 파악 완료
-  - [x] `task.md` 구조 정리 및 문서화 계획 추가
-  - [x] `doc/PRD.md` 최신화 (인증, 멀티테넌시, PWA 등 구현 사항 반영)
-  - [x] `doc/API_Contract.md` 최신화 (인증, 비동기 업로드, 재분류, 다운로드 URL 등 엔드포인트 추가)
-  - [x] `doc/async_upload_roadmap.md` 및 `doc/gcs_signed_url_roadmap.md` 완료 보고서로 전환
-  - [x] `doc/improvement_list.md` 구현 완료 사항 업데이트
-  - [x] `README.md` 최신 기능 및 아키텍처, 디렉토리 구조 동기화
-- [x] 👥 사용자별 RAG 개인화(멀티테넌시) 시스템 구축
-  - [x] 백엔드: `metadata_service.py`에 `owner_email` 필터링 및 소유권 검증 로직 구현
-  - [x] 백엔드: `/upload`, `/documents` 등의 라우터에 현재 유저 이메일 연동 및 격리 필터 적용
-  - [x] 백엔드: `/chat/stream` RAG 실행 시 본인 소유의 매뉴얼 문서 풀 내에서만 자동 매칭되도록 제한
-  - [x] 프론트엔드: `useChatStore.ts` 세션 구조에 `ownerEmail` 추가 및 생성 시 이메일 바인딩
-  - [x] 프론트엔드: `Sidebar.tsx` 및 대화방 렌더링 시 현재 로그인 유저의 대화방만 격리 필터 적용
-  - [x] 레거시 문서 owner_email 마이그레이션 실행 완료 (실서버 3건 적용) 및 엄격 격리 정책 활성화
-  - [x] 백엔드 격리 필터 디버깅 로그 정리 및 사용하지 않는 임시 테스트 파일들 정리
-  - [x] 로그아웃 시 채팅 세션 완전 초기화 (프론트엔드 잔류 방지)
-- [x] ⚡ 답변 품질 + 속도 최적화 (93.33% → 98%+ 목표)
-  - [x] Phase 3 Vision API retry (3회) + exponential backoff 구현
-  - [x] Vision 실패 시 텍스트 기반 fallback 답변 생성
-  - [x] 규칙 기반 빠른 분류 (기술질문/인사말 LLM 호출 생략) → ~1~2초 절감
-  - [x] Step 0 + Phase 0+1 병합 (2회 LLM → 1회) → ~2~3초 절감
-  - [x] Phase 2 비동기화 (이벤트 루프 블로킹 방지)
-  - [x] 문서 선택에 제조사/모델 시리즈 정보 + 대화 이력 추가
+- [x] 🎨 UI 전면 리디자인 (글래스모피즘/다크모드)
+- [x] 🛡️ 보안 개선 (JWT 기본값 차단, CORS 제한, 민감 정보 제거)
+- [x] 📑 문서 최신화 (PRD, API Contract, README, 로드맵 등)
+- [x] 👥 멀티테넌시 (사용자별 문서·대화 격리)
+- [x] ⚡ 답변 품질·속도 최적화 (93.33% 달성, ~3~5초 절감)
 - [x] 🔐 구글 OAuth & 화이트리스트 보안 인증 체계 구축
-  - [x] 백엔드: JWT 토큰 생성 및 검증 모듈 추가 (`pyjwt` 설치 및 `auth_service.py`)
-  - [x] 백엔드: 구글 ID Token 검증 및 화이트리스트 이메일 확인 API (`/api/auth/google`) 구현
-  - [x] 백엔드: 기존 중요 API (/chat, /upload, /documents)에 인증 의존성(`Depends`) 주입 및 보호
-  - [x] 프론트엔드: `useAuthStore` Zustand 스토어 신설 (JWT 토큰 및 사용자 정보 저장)
-  - [x] 프론트엔드: API 요청 시 `Authorization: Bearer <JWT>` 헤더 전송 래퍼 추가
-  - [x] 프론트엔드: 고급 글래스모피즘 로그인 화면 UI 및 Google API 연동 (`/login` 페이지)
-  - [x] 프론트엔드: 비로그인 상태일 때 `/login` 페이지로 강제 리다이렉트하는 가드 구현
-  - [x] 전체 빌드 및 다중 브라우저 활용 교차 로그인(인가/비인가 계정) 검증 테스트
-- [x] 답변 품질 테스트 프로그램 개발 및 실행 🧪
-  - [x] doc/질문.md, doc/질문2.md 파싱 유틸리티 구현
-  - [x] 백엔드 API (/chat/stream) 연동 테스트 클라이언트 개발
-  - [x] 테스트 실행 및 실시간 진행 로깅, 시간 측정 기능
-- [x] 테스트 품질 비교/분석을 위한 JSON 및 마크다운 종합 리포트 생성 완료 (최종 성공률 93.33% 달성)
-  - [x] CLI 환경에서 간편히 실행 가능한 옵션 제공 (질문 파일 선택, 샘플링 개수, 동시성 등)
-- [x] 답변 품질 개선 및 예외 방어 🛠️
-  - [x] 대형 매뉴얼 스캔 시 httpx.ReadError 예외 방어 및 PDF 페이지 슬라이싱 최적화 코드 개발 완료 (aade7de)
-  - [x] 불필요한 비용 발생 차단을 위해 추가 전수 테스트 중단 및 최종 성적표 확정 💰
-  - [x] 자동 배포 서비스 계정 IAM 권한(Storage, Artifact, Container, Run Admin, Log) 정격 정밀 보강 완료 🏛️
-  - [x] 깃허브 연동 기반 백엔드 자동 빌드 및 실서버 최종 배포 완수 (`SUCCESS` 완료) 🚀
-- [x] 챗 서비스 활용 가이드라인 배포 (완료)
-- [x] 장비 알람 이미지 분석 RAG 기능 구현 완료 🚀
-  - [x] 백엔드: ChatRequest 스펙 확장 및 이미지 분석(Gemini Vision) 비동기 함수 구현
-  - [x] 백엔드: agentic_graph.py 이미지 기반 자동 문서 매칭 및 질문 리라이팅 전처리 연동
-  - [x] 프론트엔드: useChatStore 및 ChatMessage 이미지 보존 및 렌더링 추가
-  - [x] 프론트엔드: ChatInput 모바일 카메라/갤러리 사진 첨부 및 썸네일 미리보기 UI 구현
-  - [x] 프론트엔드: page.tsx 이미지 Base64 취합 및 SSE API 전송 연동
-- [x] 문서 관리 고도화 및 기존 문서 마이그레이션 (총 10개 기능 + 마이그레이션)
-  - [x] 1. 백엔드: 커스텀 예외 정의 (`app/exceptions.py`)
-  - [x] 2. 백엔드: AI 기반 제조사/모델 시리즈 자동 분류 기능 (`app/services/agent_service.py` 수정)
-  - [x] 3. 백엔드: 중복 방지(SHA-256) 및 빈 파일(0바이트) 검증 기능 추가 (`app/services/pdf_service.py` 수정)
-  - [x] 4. 백엔드: 메타데이터 관리 서비스 확장 및 업로드 응답 스키마 수정 (`app/services/metadata_service.py`, `app/schemas/response.py`)
-  - [x] 5. 백엔드: 업로드 라우터 예외 처리 및 문서 다운로드/메타데이터 수정 API 구현 (`app/routers/upload.py`, `app/routers/documents.py` 수정)
-  - [x] 6. 백엔드: 기존 업로드 문서에 대한 제조사/모델 시리즈 일괄 마이그레이션 스크립트 작성 및 실행
-  - [x] 7. 프론트엔드: API 클라이언트(다운로드, 메타 수정, 중복 처리) 및 Zustand 스토어 확장 (`src/lib/api.ts`, `src/store/useDocumentStore.ts` 수정)
-  - [x] 8. 프론트엔드: 드래그 앤 드롭 업로드 및 다중 파일 순차 업로드 UI/진행률 구현 (`src/components/layout/Sidebar.tsx` 수정)
-  - [x] 9. 프론트엔드: 사이드바 검색 필터 및 제조사 > 모델 시리즈 2단 트리 그룹핑 UI 구현 (`src/components/layout/Sidebar.tsx` 수정)
-  - [x] 10. 프론트엔드: 문서 개별 다운로드 및 인라인 메타데이터 편집 팝오버 UI 구현 (`src/components/layout/Sidebar.tsx` 수정)
-  - [x] 11. 프론트엔드: 대화 기록 마크다운 내보내기 기능 구현 (`src/components/chat/ExportButton.tsx` 신설, `page.tsx` 연동)
-  - [x] 12. 전체 빌드 검증, 로컬 테스트 및 Cloud Run/Vercel 배포
-  - [x] 13. 변경사항 Git 커밋 및 PR 생성 (Conventional Commits 준수)
-- [x] PWA 지원 추가 (앱 설치, 전체화면, 오프라인 캐싱)
-- [x] 모바일 크롬 입력창 위치 수정 (dvh + viewport-fit)
-- [x] 헤더 safe-area-inset-top 패딩 추가
-- [x] Gemini 모델 404 에러 수정 (flash-lite 통일)
-- [x] Cloud Run 환경변수 최신화 (GEMINI_MODEL_NAME 추가)
-- [x] Vercel (프론트엔드) + Cloud Run (백엔드) 배포 완료
-- [x] Phase 1~3 하이브리드 추론 파이프라인 완성
-- [x] Gemini 3.1 Flash-Lite 연동
-- [x] 프리미엄 UI 및 멀티턴 대화 구현
-- [x] 프로젝트 문서(README, PRD, API Contract) 최신화
-- [x] GitHub 원격 저장소 연동
-
-
+- [x] 🧪 답변 품질 테스트 프로그램 개발 및 실행 (93.33% 리포트)
+- [x] 📱 현장 장비 알람 이미지 RAG 기능 구현
+- [x] 📂 문서 관리 고도화 (삭제·다운로드·메타 수정·재분류·드래그앤드롭)
+- [x] 📲 PWA 지원 (홈 화면 설치, 오프라인 캐싱)
+- [x] 🗂️ 대화 GCS 영속 저장 및 대화 목록·관리 기능
+- [x] 🔍 되묻기(Clarification) 및 대화 맥락 유지(Previous Reference)
