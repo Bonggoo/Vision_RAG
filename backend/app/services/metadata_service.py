@@ -6,11 +6,13 @@ GCS 경로 구조: users/{owner_email}/{document_id}/metadata.json, original.pdf
 """
 import os
 import json
+import time
 import shutil
 import asyncio
 import threading
 from typing import List, Dict, Any, Optional
 from cachetools import TTLCache
+from google.api_core.exceptions import PreconditionFailed
 from google.cloud import storage
 from app.config import settings
 
@@ -376,14 +378,16 @@ def update_document_metadata(document_id: str, updates: Dict[str, Any], owner_em
     if meta is None:
         return None
 
-    meta.update(updates)
-    
-    # 제조사명이 있을 경우 자동 표준 영문 대문자 정규화 강제 적용
-    if "manufacturer" in meta:
-        from app.services.pdf_service import normalize_manufacturer
-        meta["manufacturer"] = normalize_manufacturer(meta["manufacturer"])
-    
+    def _apply_updates(target: Dict[str, Any]) -> Dict[str, Any]:
+        target.update(updates)
+        # 제조사명이 있을 경우 자동 표준 영문 대문자 정규화 강제 적용
+        if "manufacturer" in target:
+            from app.services.pdf_service import normalize_manufacturer
+            target["manufacturer"] = normalize_manufacturer(target["manufacturer"])
+        return target
+
     if settings.USE_LOCAL_STORAGE:
+        meta = _apply_updates(meta)
         doc_dir = os.path.join(settings.PDF_UPLOAD_DIR, document_id)
         os.makedirs(doc_dir, exist_ok=True)
         meta_path = os.path.join(doc_dir, "metadata.json")
@@ -398,7 +402,7 @@ def update_document_metadata(document_id: str, updates: Dict[str, Any], owner_em
     else:
         try:
             bucket = _get_bucket()
-            
+
             # owner_email 결정: 파라미터 → 메타데이터 내부 owner_email
             effective_email = owner_email or meta.get("owner_email")
             if effective_email:
@@ -410,11 +414,33 @@ def update_document_metadata(document_id: str, updates: Dict[str, Any], owner_em
                     logger.error(f"GCS에서 문서 프리픽스를 찾을 수 없습니다: {document_id}")
                     return None
                 blob_path = f"{prefix}/metadata.json"
-            
-            blob = bucket.blob(blob_path)
-            blob.upload_from_string(json.dumps(meta, ensure_ascii=False, indent=2), content_type="application/json")
-            invalidate_documents_cache(effective_email)
-            return meta
+
+            # 조건부 쓰기(if_generation_match)로 동시 수정 시 쓰기 유실 방지
+            for attempt in range(3):
+                blob = bucket.get_blob(blob_path)
+                if blob is None:
+                    logger.error(f"GCS 메타데이터 blob이 존재하지 않습니다: {blob_path}")
+                    return None
+
+                meta = _apply_updates(json.loads(blob.download_as_text()))
+                try:
+                    bucket.blob(blob_path).upload_from_string(
+                        json.dumps(meta, ensure_ascii=False, indent=2),
+                        content_type="application/json",
+                        if_generation_match=blob.generation,
+                    )
+                except PreconditionFailed:
+                    logger.warning(
+                        f"⚠️ 메타데이터 동시 쓰기 감지, 재시도 {attempt + 1}/3: {document_id}"
+                    )
+                    time.sleep(0.2 * (attempt + 1))
+                    continue
+
+                invalidate_documents_cache(effective_email)
+                return meta
+
+            logger.error(f"❌ 동시 쓰기 충돌로 메타데이터 업데이트 포기: {document_id}")
+            return None
         except Exception as e:
             logger.error(f"GCS update error: {e}")
             return None

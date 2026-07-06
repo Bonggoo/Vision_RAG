@@ -5,12 +5,29 @@ GCS 경로 구조: users/{owner_email}/conversations/{session_id}.json
 metadata_service의 GCS 버킷 싱글턴(_get_bucket)을 공유합니다.
 """
 import json
+import time
 import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 
+from google.api_core.exceptions import PreconditionFailed
+
 from app.services.metadata_service import _get_bucket
 from app.utils.logger import logger
+
+# 조건부 쓰기(if_generation_match) 충돌 시 재시도 횟수
+_CAS_MAX_RETRIES = 3
+
+
+def _load_with_generation(bucket, blob_path: str) -> tuple[Optional[dict], int]:
+    """대화 JSON과 GCS generation 번호를 함께 로드합니다.
+
+    generation 0은 'blob이 존재하지 않을 때만 쓰기 허용' 조건으로 사용됩니다.
+    """
+    blob = bucket.get_blob(blob_path)
+    if blob is None:
+        return None, 0
+    return json.loads(blob.download_as_text()), blob.generation
 
 
 # ── GCS 경로 헬퍼 ──
@@ -42,10 +59,19 @@ def create_conversation(user_email: str, session_id: str, title: str = "새로�
     }
 
     blob = bucket.blob(blob_path)
-    blob.upload_from_string(
-        json.dumps(conversation, ensure_ascii=False),
-        content_type="application/json",
-    )
+    try:
+        # if_generation_match=0: blob이 없을 때만 생성 (기존 대화 덮어쓰기 방지)
+        blob.upload_from_string(
+            json.dumps(conversation, ensure_ascii=False),
+            content_type="application/json",
+            if_generation_match=0,
+        )
+    except PreconditionFailed:
+        logger.warning(f"⚠️ [Conversation] 이미 존재하는 대화, 생성 생략: {session_id}")
+        existing = get_conversation(user_email, session_id)
+        if existing is not None:
+            return existing
+        return conversation
     logger.info(f"✅ [Conversation] 대화 생성: {session_id} (user: {user_email})")
     return conversation
 
@@ -107,45 +133,58 @@ def save_message(
     """
     bucket = _get_bucket()
     blob_path = _conversation_blob_path(user_email, session_id)
-    blob = bucket.blob(blob_path)
-    now = datetime.now(timezone.utc).isoformat()
 
     try:
-        # 기존 대화 로드 또는 새로 생성
-        if blob.exists():
-            conversation = json.loads(blob.download_as_text())
-        else:
-            conversation = {
-                "session_id": session_id,
-                "title": title or "새로운 대화",
-                "created_at": now,
-                "updated_at": now,
-                "messages": [],
-            }
+        for attempt in range(_CAS_MAX_RETRIES):
+            now = datetime.now(timezone.utc).isoformat()
 
-        # 타임스탬프 추가
-        user_msg["timestamp"] = now
-        assistant_msg["timestamp"] = now
+            # 기존 대화 로드 또는 새로 생성 (generation 번호와 함께)
+            conversation, generation = _load_with_generation(bucket, blob_path)
+            if conversation is None:
+                conversation = {
+                    "session_id": session_id,
+                    "title": title or "새로운 대화",
+                    "created_at": now,
+                    "updated_at": now,
+                    "messages": [],
+                }
 
-        # 메시지 추가
-        conversation["messages"].append(user_msg)
-        conversation["messages"].append(assistant_msg)
-        conversation["updated_at"] = now
+            # 타임스탬프 추가
+            user_msg["timestamp"] = now
+            assistant_msg["timestamp"] = now
 
-        # 첫 메시지이고 제목이 있으면 업데이트
-        if title and len(conversation["messages"]) <= 2:
-            conversation["title"] = title
+            # 메시지 추가
+            conversation["messages"].append(user_msg)
+            conversation["messages"].append(assistant_msg)
+            conversation["updated_at"] = now
 
-        # GCS에 저장
-        blob.upload_from_string(
-            json.dumps(conversation, ensure_ascii=False),
-            content_type="application/json",
-        )
-        logger.info(
-            f"✅ [Conversation] 메시지 저장 완료: {session_id} "
-            f"(총 {len(conversation['messages'])}개)"
-        )
-        return True
+            # 첫 메시지이고 제목이 있으면 업데이트
+            if title and len(conversation["messages"]) <= 2:
+                conversation["title"] = title
+
+            # 읽은 시점 이후 다른 요청이 쓰지 않았을 때만 저장 (동시 쓰기 유실 방지)
+            try:
+                bucket.blob(blob_path).upload_from_string(
+                    json.dumps(conversation, ensure_ascii=False),
+                    content_type="application/json",
+                    if_generation_match=generation,
+                )
+            except PreconditionFailed:
+                logger.warning(
+                    f"⚠️ [Conversation] 동시 쓰기 감지, 재시도 "
+                    f"{attempt + 1}/{_CAS_MAX_RETRIES}: {session_id}"
+                )
+                time.sleep(0.2 * (attempt + 1))
+                continue
+
+            logger.info(
+                f"✅ [Conversation] 메시지 저장 완료: {session_id} "
+                f"(총 {len(conversation['messages'])}개)"
+            )
+            return True
+
+        logger.error(f"❌ [Conversation] 동시 쓰기 충돌로 저장 포기: {session_id}")
+        return False
     except Exception as e:
         logger.error(
             f"❌ [Conversation] 메시지 저장 실패: {session_id} - {e}",
@@ -176,22 +215,35 @@ def rename_conversation(user_email: str, session_id: str, title: str) -> bool:
     """대화 제목을 변경합니다."""
     bucket = _get_bucket()
     blob_path = _conversation_blob_path(user_email, session_id)
-    blob = bucket.blob(blob_path)
-
-    if not blob.exists():
-        return False
 
     try:
-        conversation = json.loads(blob.download_as_text())
-        conversation["title"] = title
-        conversation["updated_at"] = datetime.now(timezone.utc).isoformat()
+        for attempt in range(_CAS_MAX_RETRIES):
+            conversation, generation = _load_with_generation(bucket, blob_path)
+            if conversation is None:
+                return False
 
-        blob.upload_from_string(
-            json.dumps(conversation, ensure_ascii=False),
-            content_type="application/json",
-        )
-        logger.info(f"✏️ [Conversation] 제목 변경: {session_id} → {title}")
-        return True
+            conversation["title"] = title
+            conversation["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+            try:
+                bucket.blob(blob_path).upload_from_string(
+                    json.dumps(conversation, ensure_ascii=False),
+                    content_type="application/json",
+                    if_generation_match=generation,
+                )
+            except PreconditionFailed:
+                logger.warning(
+                    f"⚠️ [Conversation] 동시 쓰기 감지, 재시도 "
+                    f"{attempt + 1}/{_CAS_MAX_RETRIES}: {session_id}"
+                )
+                time.sleep(0.2 * (attempt + 1))
+                continue
+
+            logger.info(f"✏️ [Conversation] 제목 변경: {session_id} → {title}")
+            return True
+
+        logger.error(f"❌ [Conversation] 동시 쓰기 충돌로 제목 변경 포기: {session_id}")
+        return False
     except Exception as e:
         logger.error(f"❌ [Conversation] 제목 변경 실패: {session_id} - {e}")
         return False
