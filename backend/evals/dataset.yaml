@@ -1,0 +1,98 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# 질문 품질 평가 골든 데이터셋
+#
+# 각 case는 run_agentic_pipeline에 그대로 흘려보내지고, expected 블록의
+# 항목이 "있는 것만" 채점됩니다 (없는 항목은 검사하지 않음).
+#
+# expected 필드:
+#   type             : technical | general | clarification  (라우팅 분기 기대값)
+#   document         : 기대 문서 파일명 부분 일치 (예: "MR-J4")
+#   pages            : 참조로 제시되어야 할 페이지 목록 (±page_tolerance 허용)
+#   answer_keywords  : 답변에 포함되어야 할 키워드 목록
+#   min_keyword_recall : 키워드 포함률 통과 기준 (기본 defaults 값)
+#   reference_answer : --judge 실행 시 LLM 채점의 기준 답변
+#   min_judge_score  : LLM 채점 통과 기준 (1~5, 기본 defaults 값)
+#
+# case 필드:
+#   id          : 고유 식별자 (--only 필터용)
+#   question    : 사용자 질문
+#   document_id : 지정 시 문서 선택 단계를 건너뛰고 해당 문서로 고정
+# ─────────────────────────────────────────────────────────────────────────────
+
+defaults:
+  # 배포 백엔드 URL — 기본 실행 대상 (--local로 로컬 파이프라인 직접 호출 가능)
+  base_url: https://vision-rag-backend-sfsbvktuia-du.a.run.app
+  user_email: choibong975@gmail.com   # 평가에 사용할 문서 소유자 계정
+  page_tolerance: 1                   # 페이지 판정 허용 오차 (±N)
+  min_keyword_recall: 0.7             # 키워드 포함률 통과 기준
+  min_judge_score: 3.5                # LLM 채점 통과 기준
+  timeout: 180                        # 케이스당 타임아웃 (초)
+
+cases:
+  # ── 라우팅: 일상 대화는 문서 탐색 없이 general로 빠져야 함 ──
+  - id: greeting-korean
+    question: "안녕하세요"
+    expected:
+      type: general
+
+  - id: thanks
+    question: "고마워"
+    expected:
+      type: general
+
+  # ── 실제 보유 매뉴얼 기반 케이스 (GCS 문서 목록 조회로 검증한 실데이터) ──
+  # 문서: "미쓰비시 MELSERVO-J4 서보앰프 기술자료집 (트러블 슈팅 편)"
+  # (document_id: 13c1b0ec-86b1-4975-9d19-c17f762de610, 58p)
+  # ToC "1.2 알람 대처 방법"(p.12) 확인 결과 AL.10 = 부족전압, 상세표는 p.13.
+
+  # 1) document_id 고정 → Phase 2/3만 검증 (문서 선택 로직 배제)
+  - id: mitsubishi-al10-undervoltage
+    document_id: "13c1b0ec-86b1-4975-9d19-c17f762de610"
+    question: "AL.10 알람이 발생했는데 원인이 뭐야?"
+    expected:
+      type: technical
+      pages: [12, 13]
+      page_tolerance: 2
+      answer_keywords: ["부족전압", "전압"]
+      reference_answer: "AL.10은 부족전압 알람으로, 제어회로 또는 주회로 전원 전압이 규정 이하로 저하되었을 때 발생합니다. 제어회로 전원 컨넥터(CNP2)와 주회로 전원 컨넥터(CNP1)의 접속 상태, 그리고 전압이 AC160V 이하인지 점검해야 합니다."
+
+  # 2) document_id 없이 질문만으로 — 문서 선택(라우팅) 자체를 검증
+  #    보유 매뉴얼 중 "MELSERVO-J4"가 붙은 문서가 2건(트러블 슈팅 편/기술자료집)
+  #    이라 정확한 문서 특정이 되는지가 핵심.
+  - id: mitsubishi-al10-auto-route
+    question: "미쓰비시 MELSERVO-J4 서보에서 AL.10 알람이 떴는데 원인이 뭐야?"
+    expected:
+      type: technical
+      document: "MELSERVO-J4"
+      answer_keywords: ["부족전압"]
+
+  # 3) 모호한 질문 → 되묻기(문서 후보) → 문서 선택 → 최종 답변
+  #    "서보 알람"만으로는 MELSERVO-J4 2건 + LS L7NH 등 후보가 여럿이라
+  #    되묻기가 발생해야 정상. select_document로 트러블 슈팅 편을 선택.
+  - id: vague-servo-alarm-then-select
+    question: "서보 알람이 떴는데 어떻게 해야 돼?"
+    select_document: "MELSERVO-J4"   # 되묻기 메뉴에서 미쓰비시 서보 매뉴얼 선택
+    expected:
+      expect_clarification: true
+      type: technical
+      document: "MELSERVO-J4"
+      answer_keywords: ["알람"]
+
+  # 4) 되묻기에서 멈추는 게 정답인 케이스 (제조사/모델 단서가 전혀 없음)
+  - id: vague-question-stops
+    question: "설정 방법 알려줘"
+    expected:
+      type: clarification
+
+  # ── 아래는 다른 매뉴얼 추가 시 참고할 템플릿 ──────────────────────────
+  # - id: your-case-id
+  #   question: "..."
+  #   document_id: "..."          # 선택: 문서 선택 단계 건너뛰기
+  #   select_document: "..."      # 선택: 되묻기 시 고를 문서 (부분 일치)
+  #   expected:
+  #     type: technical | general | clarification
+  #     expect_clarification: true/false
+  #     document: "파일명 부분 문자열"
+  #     pages: [1, 2]
+  #     answer_keywords: ["키워드1", "키워드2"]
+  #     reference_answer: "..."   # --judge 채점용

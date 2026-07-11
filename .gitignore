@@ -63,3 +63,7 @@ trigger_config.yaml
 /scratch/
 /stich/
 /test_logs/
+
+# Eval 결과 및 시크릿 (질문 품질 평가 산출물)
+backend/evals/results/
+backend/evals/.env

@@ -650,20 +650,28 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
                 toc_entries = d.get("toc", [])
                 toc_titles = [str(entry.get("title") or "") for entry in toc_entries]
 
-                # 공백 포함 텍스트
-                full_text = " ".join(meta_parts + toc_titles).lower()
-                # 공백 제거 텍스트 (띄어쓰기 불일치 대응)
-                full_text_no_space = full_text.replace(" ", "")
+                # 메타데이터(파일명/제조사/모델)와 ToC 제목을 분리해서 채점.
+                # 파일명·모델에 직접 매칭되는 것이 ToC 제목 언급보다 훨씬 강한
+                # 관련도 신호이므로 가중치를 다르게 둡니다. (예: "서보 알람" 질의에서
+                # 파일명에 '서보/MELSERVO'가 있는 서보앰프 매뉴얼이, ToC가 방대해
+                # servo/alarm을 여기저기 언급하는 로봇 매뉴얼보다 우선되어야 함)
+                meta_text = " ".join(meta_parts).lower()
+                meta_text_ns = meta_text.replace(" ", "")
+                toc_text = " ".join(toc_titles).lower()
+                toc_text_ns = toc_text.replace(" ", "")
 
-                match_count = 0
+                META_WEIGHT, TOC_WEIGHT = 3, 1
+                score = 0
                 for kw in extended_keywords:
                     kw_lower = kw.lower()
                     kw_no_space = kw_lower.replace(" ", "")
-                    if kw_lower in full_text or kw_no_space in full_text_no_space:
-                        match_count += 1
+                    if kw_lower in meta_text or kw_no_space in meta_text_ns:
+                        score += META_WEIGHT
+                    elif kw_lower in toc_text or kw_no_space in toc_text_ns:
+                        score += TOC_WEIGHT
 
-                if match_count > 0:
-                    toc_matched_docs.append((d, match_count))
+                if score > 0:
+                    toc_matched_docs.append((d, score))
 
             if toc_matched_docs:
                 # 매칭 수 내림차순 정렬
@@ -745,20 +753,39 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
                 f"→ needs_clarification={needs_clarification}"
             )
 
-            if needs_clarification and len(candidates) > 1:
-                # 되묻기 이벤트 발행 — 문서 후보 + 보강 질문 동시 전달
-                clarification_candidates = []
-                for c in candidates[:5]:  # 최대 5개 선택지
-                    doc_meta = next((d for d in all_docs if d["document_id"] == c["document_id"]), None)
-                    if doc_meta:
-                        clarification_candidates.append({
-                            "document_id": c["document_id"],
-                            "title": doc_meta.get("filename", "알 수 없음"),
-                            "manufacturer": doc_meta.get("manufacturer", "미상"),
-                            "model_series": doc_meta.get("model_series", "미상"),
-                            "confidence": c["confidence"],
-                        })
+            # 되묻기 후보 메뉴 구성: LLM 후보 + ToC 관련도 상위 문서로 보강.
+            # LLM이 후보를 1개만 반환해도, 질문에 식별자가 없으면(no_identifier)
+            # 관련 문서들을 함께 제시해 사용자가 올바른 매뉴얼을 고르게 합니다.
+            # (기존 버그: 후보가 1개면 needs_clarification여도 되묻기를 건너뛰고
+            #  그 단일 후보로 확신에 찬 오답을 냈음)
+            clarification_candidates = []
+            seen_ids = set()
 
+            def _add_candidate(doc_meta, confidence):
+                if doc_meta and doc_meta["document_id"] not in seen_ids:
+                    seen_ids.add(doc_meta["document_id"])
+                    clarification_candidates.append({
+                        "document_id": doc_meta["document_id"],
+                        "title": doc_meta.get("filename", "알 수 없음"),
+                        "manufacturer": doc_meta.get("manufacturer", "미상"),
+                        "model_series": doc_meta.get("model_series", "미상"),
+                        "confidence": confidence,
+                    })
+
+            for c in candidates[:5]:  # LLM 후보 우선
+                doc_meta = next((d for d in all_docs if d["document_id"] == c["document_id"]), None)
+                _add_candidate(doc_meta, c["confidence"])
+
+            # 후보가 2개 미만이면 관련도 상위 문서로 보강 (최대 5개)
+            if len(clarification_candidates) < 2:
+                for d in docs_for_selection:
+                    if len(clarification_candidates) >= 5:
+                        break
+                    _add_candidate(d, 0.0)
+
+            # 되묻기 조건: 불명확 판단 + 제시할 후보가 2개 이상일 때만.
+            # (관련 문서가 실제로 1개뿐이면 모호함이 없으므로 그대로 답변)
+            if needs_clarification and len(clarification_candidates) >= 2:
                 # 보강 질문 가져오기 (LLM이 생성한 것)
                 suggested_questions = doc_result.get("suggested_questions", [])
 
