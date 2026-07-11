@@ -21,9 +21,35 @@ python -m evals.run_eval --local          # 로컬 파이프라인 직접 호출
 python -m evals.run_eval --only greeting  # id 부분 일치 필터
 python -m evals.run_eval --judge          # LLM-as-judge 채점 포함
 python -m evals.run_eval --min-pass 0.8   # CI/루틴용: 통과율 미달 시 exit 1
+python -m evals.run_eval --generate 20    # 실제 매뉴얼에서 매번 다른 20문항 생성해 실행
 ```
 
 결과는 콘솔 요약 + `evals/results/<타임스탬프>.json`으로 저장됩니다 (git 제외).
+
+## 질문 자동 생성 (`--generate N`)
+
+`dataset.yaml`의 손으로 쓴 케이스 대신, **실행할 때마다** 실제 보유 매뉴얼(원격은
+`GET /documents`, `--local`은 GCS 메타데이터)에서 문서 N개를 고르게 뽑고 그
+ToC 섹션 제목을 근거로 Gemini가 자연스러운 질문을 새로 합성합니다. 뽑힌
+(문서, 페이지)가 곧 정답이 되어 `routing`/`document`/`pages`는 그대로
+채점되지만, 미리 써둔 답이 없어 `keywords`/`judge`는 건너뜁니다.
+
+```bash
+python -m evals.run_eval --generate 20
+```
+
+**채점 신뢰도가 축마다 다릅니다:**
+- `routing` — 신뢰도 높음 (거의 항상 20/20)
+- `document` — 신뢰도 높음. 코퍼스 안에 제조사/모델이 겹치는 문서가 많아
+  실패하면 대개 실제 라우팅 모호성을 반영하는 진짜 신호입니다.
+- `pages` — **참고용으로만 보세요.** ToC 항목 위치를 정답으로 쓰는 근사치라,
+  특히 방대한 매뉴얼(수백~1000+ 페이지)에서 실제 관련 내용이 챕터 시작점보다
+  한참 뒤에 있으면 오차가 커집니다. 문서 크기에 비례해 허용 오차를 넉넉히
+  주지만(최소 8, 최대 40페이지) 그래도 노이즈가 있어 `--min-pass`로 강하게
+  게이트하지 않는 걸 권장합니다.
+
+무작위 샘플링이라 실행마다 다른 질문 조합이 나오고, 문서별로 균등 분산되도록
+샘플링합니다(ToC가 방대한 문서 하나가 표본을 독식하지 않도록).
 
 ## 원격 인증 설정 (최초 1회)
 
