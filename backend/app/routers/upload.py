@@ -5,6 +5,7 @@ from app.schemas.request import TocRangeRequest, PreflightRequest, AnalyzeReques
 from app.services.pdf_service import process_document_upload, extract_pages_as_pdf, _extract_document_classification, build_toc
 from app.services.agent_service import extract_toc_with_gemini
 from app.services import metadata_service
+from app.services import dedup_service
 from app.services.auth_service import get_current_user
 from app.exceptions import DuplicateDocumentError, EmptyFileError
 from app.config import settings
@@ -129,6 +130,18 @@ async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str
             "doc_type": classification.get("doc_type"),
             "owner_email": owner_email,
         }
+
+        # 4-1. 근접 중복 감지 (콘텐츠 지문 기반, 비차단·감지 전용).
+        # 바이트 해시 사전검사를 통과한 재추출본 등 '사실상 같은 문서'를 찾아
+        # 메타데이터에 실어두면 프론트가 '유사 문서 있음'을 사용자에게 안내할 수 있음.
+        try:
+            existing = await metadata_service.get_all_documents_async(owner_email=owner_email)
+            final_metadata["similar_documents"] = dedup_service.find_similar_documents(final_metadata, existing)
+            if final_metadata["similar_documents"]:
+                logger.info(f"🔁 근접 중복 후보 감지: {document_id} ↔ {final_metadata['similar_documents']}")
+        except Exception as dup_err:
+            logger.warning(f"⚠️ 근접 중복 감지 건너뜀(비차단): {dup_err}")
+            final_metadata["similar_documents"] = []
 
         # 5. 메타데이터 업데이트 (로컬 & GCS)
         await metadata_service.update_document_metadata_async(document_id, final_metadata, owner_email=owner_email)

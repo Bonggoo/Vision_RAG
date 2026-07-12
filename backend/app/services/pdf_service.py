@@ -11,6 +11,7 @@ from app.config import settings
 from app.utils.logger import logger
 from app.exceptions import EmptyFileError, DuplicateDocumentError
 from app.services import metadata_service
+from app.services import dedup_service
 
 
 def normalize_manufacturer(name: Optional[str]) -> Optional[str]:
@@ -209,7 +210,16 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
         "doc_type": classification.get("doc_type"),
         "owner_email": owner_email,
     }
-    
+
+    # 근접 중복 감지 (콘텐츠 지문 기반, 비차단·감지 전용) — 동기 업로드 경로.
+    try:
+        metadata["similar_documents"] = dedup_service.find_similar_documents(metadata, existing_docs)
+        if metadata["similar_documents"]:
+            logger.info(f"🔁 근접 중복 후보 감지: {doc_id} ↔ {metadata['similar_documents']}")
+    except Exception as dup_err:
+        logger.warning(f"⚠️ 근접 중복 감지 건너뜀(비차단): {dup_err}")
+        metadata["similar_documents"] = []
+
     with open(os.path.join(doc_dir, "metadata.json"), "w", encoding="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
         

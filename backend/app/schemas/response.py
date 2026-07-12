@@ -8,6 +8,13 @@ class TocItem(BaseModel):
     title: str
     page: Union[int, str]
 
+class SimilarDocument(BaseModel):
+    """근접 중복으로 감지된 기존 문서 참조 (감지 전용, 비차단)."""
+    document_id: str
+    filename: str
+    score: float          # ToC 지문 Jaccard 유사도 (0.0~1.0)
+    reason: str           # "toc" | "metadata"
+
 class UploadResponse(BaseModel):
     document_id: UUID
     filename: str
@@ -18,6 +25,7 @@ class UploadResponse(BaseModel):
     manufacturer: Optional[str] = None
     model_series: Optional[str] = None
     doc_type: Optional[str] = None
+    similar_documents: List[SimilarDocument] = []
 
 class DocumentInfo(BaseModel):
     document_id: UUID
@@ -28,6 +36,7 @@ class DocumentInfo(BaseModel):
     manufacturer: Optional[str] = None
     model_series: Optional[str] = None
     doc_type: Optional[str] = None
+    similar_documents: List[SimilarDocument] = []
 
 class DocumentListResponse(BaseModel):
     documents: List[DocumentInfo]
