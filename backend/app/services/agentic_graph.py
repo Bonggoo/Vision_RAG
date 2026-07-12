@@ -564,6 +564,29 @@ async def _stage_quick_general(ctx: "_PipelineContext"):
     yield await ctx.finish()
 
 
+_MODEL_CODE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9/\-]{1,}")
+
+
+def _extract_model_codes(text: str) -> set[str]:
+    """텍스트에서 모델번호처럼 보이는 토큰(영문+숫자 혼합, 3자 이상)만 추출합니다.
+
+    예: 'F388A', 'L7NH', 'QD74MH', 'LS-R900', 'CZ-V20'.
+    순수 숫자('4800'), 알파벳만('CV'), 알람코드처럼 점으로 끊기는 것('AL.20'),
+    2자 이하('2D')는 제외해 오탐을 줄입니다. 한글 조사는 정규식 문자군 밖이라
+    자동으로 경계가 잘립니다(예: 'F388A를' → 'F388A').
+
+    질문에 명시된 모델번호를 문서 메타데이터와 '정확 일치'로 대조해 강하게
+    가중하기 위한 신호입니다 — F388A 질문이 F381 매뉴얼로 새는 것을 막습니다.
+    """
+    codes = set()
+    for tok in _MODEL_CODE_RE.findall(text or ""):
+        if len(tok) < 3:
+            continue
+        if any(c.isalpha() for c in tok) and any(c.isdigit() for c in tok):
+            codes.add(tok.casefold())
+    return codes
+
+
 async def _stage_resolve_document(ctx: "_PipelineContext"):
     """
     문서 선택(또는 맥락 유지)과 ToC 기반 1차 페이지 선택을 수행합니다.
@@ -639,6 +662,11 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
                     if kor_key in kw:
                         extended_keywords.update(eng_vals)
 
+            # 질문에 명시된 모델번호(예: 'F388A', 'L7NH')를 미리 추출.
+            # 일반 키워드 매칭은 한글 조사가 붙어 'f388a를'처럼 뭉쳐 정작 모델번호가
+            # 매칭되지 않는 문제가 있어, 모델번호는 별도로 정확 일치 대조합니다.
+            question_model_codes = _extract_model_codes(ctx.question)
+
             toc_matched_docs = []
             for d in all_docs:
                 # 검색 대상 텍스트 구성 (파일명 + 제조사 + 모델명 + ToC)
@@ -660,7 +688,7 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
                 toc_text = " ".join(toc_titles).lower()
                 toc_text_ns = toc_text.replace(" ", "")
 
-                META_WEIGHT, TOC_WEIGHT = 3, 1
+                META_WEIGHT, TOC_WEIGHT, MODEL_WEIGHT = 3, 1, 12
                 score = 0
                 for kw in extended_keywords:
                     kw_lower = kw.lower()
@@ -669,6 +697,15 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
                         score += META_WEIGHT
                     elif kw_lower in toc_text or kw_no_space in toc_text_ns:
                         score += TOC_WEIGHT
+
+                # 명시 모델번호 정확 일치 → 강한 가중. 메타데이터(파일명/모델)에
+                # 질문의 모델번호가 그대로 들어있는 문서를 최상위로 끌어올립니다.
+                # (예: 'F388A' 질문 → 'F388A' 매뉴얼 +12, 'F381' 매뉴얼 +0)
+                if question_model_codes:
+                    doc_model_codes = _extract_model_codes(meta_text)
+                    matched_codes = question_model_codes & doc_model_codes
+                    if matched_codes:
+                        score += MODEL_WEIGHT * len(matched_codes)
 
                 if score > 0:
                     toc_matched_docs.append((d, score))

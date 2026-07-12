@@ -14,6 +14,7 @@ from app.services.agentic_graph import (
     _sse_event,
     _quick_classify,
     _generate_default_clarification_questions,
+    _extract_model_codes,
 )
 
 
@@ -44,6 +45,43 @@ class TestNormalizePage:
 
     def test_none_returns_one(self):
         assert _normalize_page(None) == 1
+
+
+# ─── _extract_model_codes ────────────────────────────────────────────────────
+
+class TestExtractModelCodes:
+    """질문/메타데이터에서 모델번호 토큰 추출 — 문서 선택 시 정확 일치 가중용."""
+
+    def test_extracts_alphanumeric_model(self):
+        # 한글 조사가 붙어도 정규식 경계에서 잘려 모델번호만 추출
+        assert _extract_model_codes("F388A를 생산 라인에 설치") == {"f388a"}
+
+    def test_extracts_hyphenated_model(self):
+        assert _extract_model_codes("LS-R900의 고속 응답 모드") == {"ls-r900"}
+        assert _extract_model_codes("CZ-V20 컬러 센서") == {"cz-v20"}
+
+    def test_underscore_splits_token(self):
+        # SV_MEMORY는 밑줄로 끊겨 제외되고, 실제 모델(L7NH)만 남음
+        assert _extract_model_codes("SV_MEMORY 알람 L7NH 서보") == {"l7nh"}
+
+    def test_alarm_code_excluded(self):
+        # 'AL.20' — 점으로 끊겨 'AL'(숫자 없음)·'20'(문자 없음) 둘 다 탈락
+        assert _extract_model_codes("AL.20 알람이 떠 있는데") == set()
+
+    def test_two_char_token_excluded(self):
+        # '2D' — 2자 이하는 제외 (오탐 방지)
+        assert _extract_model_codes("GS1 2D 심볼과 선형 바코드") == {"gs1"}
+
+    def test_pure_korean_returns_empty(self):
+        assert _extract_model_codes("종단 저항은 별도로 부착해야 하나요") == set()
+
+    def test_model_disambiguation_f388a_vs_f381(self):
+        # 핵심 회귀 방어: 'F388A' 질문이 'F381' 문서로 새면 안 됨.
+        q = _extract_model_codes("F388A의 최대 하중과 샘플링 속도는?")
+        doc_388 = _extract_model_codes("유니펄스 F388A 웨이브 폼 체커 사용 설명서")
+        doc_381 = _extract_model_codes("유니펄스 F381 취급설명서")
+        assert q & doc_388 == {"f388a"}   # 정답 문서와는 정확 일치
+        assert q & doc_381 == set()        # 유사 모델과는 매칭 안 됨
 
 
 # ─── _find_section_page_range ────────────────────────────────────────────────
