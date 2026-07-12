@@ -5,6 +5,14 @@
 
 // ─── 문서 (documents) ───────────────────────────────────────────
 
+/** 근접 중복으로 감지된 기존 문서 참조 (감지 전용, 비차단) */
+export interface SimilarDocument {
+  document_id: string;
+  filename: string;
+  score: number;   // ToC 지문 Jaccard 유사도 (0.0~1.0)
+  reason: string;  // "toc" | "metadata"
+}
+
 /** 문서 목록 항목 (GET /documents 응답의 개별 문서 / 문서 메타 수정 응답) */
 export interface DocumentInfo {
   document_id: string;
@@ -17,6 +25,7 @@ export interface DocumentInfo {
   manufacturer?: string;
   model_series?: string;
   doc_type?: string;
+  similar_documents?: SimilarDocument[];
 }
 
 /** GET /documents 응답 */

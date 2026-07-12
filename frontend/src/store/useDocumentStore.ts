@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { api } from "@/lib/api";
+import type { SimilarDocument } from "@/types/api";
 
 export interface Document {
   document_id: string;
@@ -12,6 +13,7 @@ export interface Document {
   manufacturer?: string;
   model_series?: string;
   doc_type?: string;
+  similar_documents?: SimilarDocument[]; // 근접 중복 감지 결과 (비차단)
 }
 
 export interface UploadResult {
