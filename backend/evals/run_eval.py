@@ -317,9 +317,53 @@ async def _judge(question: str, reference_answer: str, answer: str) -> tuple[flo
     return float(data["score"]), str(data.get("reason", ""))
 
 
+async def _judge_document_equivalence(question: str, source_doc: str, selected_docs: list[str]) -> tuple[bool, str]:
+    """--generate 모드에서 소스 문서 대신 다른 문서가 선택됐을 때, 그 문서도
+    정답으로 인정 가능한지(같은 장비의 다른 판본이거나, 질문이 모델 비종속적이라
+    선택된 문서로도 정확히 답할 수 있는지)를 Flash로 판정합니다.
+
+    생성 질문은 일부러 모델명을 생략해 만들기 때문에(run_eval 상단 참고), 소스
+    문서 1개만 정답으로 채점하면 "여러 매뉴얼이 답할 수 있는 일반 질문"과 "중복/
+    판본 문서"가 구조적으로 실패로 찍힙니다. 이 판정으로 그 가짜 실패를 걸러냅니다.
+    단, 서로 다른 모델번호(F388A vs F381 등)에 대한 모델 특정 질문은 불인정해
+    실제 검색 오류 신호는 보존합니다.
+    """
+    from app.services.agent_service import _create_flash_llm, _clean_json_response
+    from langchain_core.messages import HumanMessage
+
+    sel = ", ".join(f"'{d}'" for d in selected_docs) or "없음"
+    prompt = f"""당신은 산업장비 매뉴얼 검색 시스템의 평가자입니다.
+이 질문은 원래 '{source_doc}' 매뉴얼에서 만들어졌지만, 이는 '출처'일 뿐
+질문이 그 모델 전용이라는 뜻은 아닙니다. 검색 시스템은 대신 다음 문서를
+참조해 답변했습니다: {sel}
+
+참조 문서로도 이 질문에 '정확히 답할 수 있는지'를 판정하세요.
+핵심 판단 기준은 **질문 텍스트 자체**입니다 (출처 문서명이 아니라).
+
+[인정(equivalent=true) 조건 — 하나라도 해당]
+- 참조 문서가 출처 문서와 같은 장비/모델의 다른 판본·번역본이라 내용이 실질적으로 동일
+- 질문 텍스트에 특정 모델번호가 없고 일반적 내용(예: 통신 규격·설치·안전)이라,
+  참조 문서가 같은 종류의 장비/기능을 다루면 정확히 답할 수 있음
+
+[불인정(equivalent=false) 조건 — 하나라도 해당]
+- 질문 텍스트가 특정 모델번호를 명시하고 그 모델 고유 사양을 물음
+  (예: 질문에 'F388A'가 있는데 참조는 F381 → 불인정)
+- 참조 문서가 다른 종류의 장비를 다뤄 질문의 기능·주제 자체가 없음
+
+[질문]
+{question}
+
+다른 텍스트 없이 JSON만 출력: {{"equivalent": true 또는 false, "reason": "<한 문장 근거>"}}"""
+
+    llm = _create_flash_llm()
+    resp = await llm.ainvoke([HumanMessage(content=prompt)])
+    data = json.loads(_clean_json_response(resp.content))
+    return bool(data.get("equivalent", False)), str(data.get("reason", ""))
+
+
 # ─── 케이스 실행 ─────────────────────────────────────────────────────────────
 
-async def run_case(case: dict, defaults: dict, transport, judge_enabled: bool) -> dict:
+async def run_case(case: dict, defaults: dict, transport, judge_enabled: bool, equiv_check: bool = False) -> dict:
     """케이스 1건 실행. 되묻기가 오면 문서를 선택해 2턴까지 진행 후 채점합니다."""
     expected = case.get("expected", {})
     user_email = case.get("user_email") or defaults.get("user_email")
@@ -348,6 +392,31 @@ async def run_case(case: dict, defaults: dict, transport, judge_enabled: bool) -
     latency = time.monotonic() - t0
 
     checks = _score(expected, final, defaults)
+
+    # 문서 채점 보정: 소스 문서가 되묻기 후보 메뉴에 떴는지(=검색 recall)를 detail에
+    # 덧붙이고, precision(자동선택)이 빗나갔더라도 선택된 문서가 '동등 문서'면 통과로
+    # 인정합니다. --generate 모드에서만 적용 (골든셋은 정답이 명확하므로 엄격 유지).
+    if equiv_check and "document" in checks:
+        want = str(expected.get("document", "")).casefold()
+        cand_titles = [c.get("title", "") for c in turn1["candidates"]]
+        source_in_menu = any(want in t.casefold() for t in cand_titles)
+        if turn1["candidates"]:
+            checks["document"]["detail"] += f" | 되묻기 후보에 소스 {'포함' if source_in_menu else '누락'}"
+
+        got_docs = sorted({r["document"] for r in final["references"] if r["document"]})
+        if not checks["document"]["pass"] and got_docs:
+            try:
+                equivalent, reason = await _judge_document_equivalence(
+                    question, expected.get("document", ""), got_docs
+                )
+                if equivalent:
+                    checks["document"]["pass"] = True
+                    checks["document"]["detail"] += f" | 동등 문서 인정: {reason}"
+                    checks["document"]["equiv_accepted"] = True
+                else:
+                    checks["document"]["detail"] += f" | 실오답 확인: {reason}"
+            except Exception as e:
+                checks["document"]["detail"] += f" | 동등성 판정 실패: {e}"
 
     # 되묻기 플로우 검사 (expect_clarification 명시 시)
     if "expect_clarification" in expected:
@@ -572,16 +641,32 @@ def main():
             print("실행할 케이스가 없습니다. dataset.yaml 또는 --only 필터를 확인하세요.")
             sys.exit(1)
 
+    # --generate 모드에서는 문서 동등성 판정을 켜서 '중복 문서 / 모델 비종속 일반
+    # 질문'으로 인한 가짜 실패를 걸러냅니다.
+    equiv_check = args.generate > 0
+
+    results: list[dict] = []
+
     async def run_all():
-        results = []
         for i, case in enumerate(cases, 1):
             print(f"[{i}/{len(cases)}] {case['id']}: {case['question']}")
-            results.append(await run_case(case, defaults, transport, args.judge))
-        return results
+            results.append(await run_case(case, defaults, transport, args.judge, equiv_check))
 
-    results = asyncio.run(run_all())
-    _print_report(results)
+    run_error = None
+    try:
+        asyncio.run(run_all())
+    except KeyboardInterrupt:
+        run_error = "KeyboardInterrupt (사용자 중단)"
+        print(f"\n⚠ {run_error} — 지금까지의 부분 결과를 저장합니다.")
+    except Exception as e:
+        run_error = f"{type(e).__name__}: {e}"
+        print(f"\n⚠ 실행 중 오류: {run_error} — 지금까지의 부분 결과를 저장합니다.")
 
+    if results:
+        _print_report(results)
+
+    # 실행이 중간에 죽더라도 부분 결과와 오류 원인을 반드시 파일로 남깁니다.
+    # (기존: 크래시 시 아무 흔적 없이 유실되어 예약 실행 실패 원인 추적 불가)
     RESULTS_DIR.mkdir(exist_ok=True)
     out_path = RESULTS_DIR / f"{datetime.now():%Y%m%d_%H%M%S}.json"
     with open(out_path, "w", encoding="utf-8") as f:
@@ -590,13 +675,20 @@ def main():
                 "ran_at": datetime.now().isoformat(),
                 "dataset": "generated" if args.generate else args.dataset,
                 "target": getattr(transport, "base_url", "local"),
+                "cases_planned": len(cases),
+                "cases_completed": len(results),
+                "error": run_error,
                 "results": results,
             },
             f, ensure_ascii=False, indent=2,
         )
     print(f"\n결과 저장: {out_path}")
 
-    pass_rate = sum(1 for r in results if r["passed"]) / len(results)
+    if run_error and not results:
+        print("실행된 케이스가 없습니다 → 실패 종료")
+        sys.exit(1)
+
+    pass_rate = (sum(1 for r in results if r["passed"]) / len(results)) if results else 0.0
     if pass_rate < args.min_pass:
         print(f"통과율 {pass_rate:.0%} < 기준 {args.min_pass:.0%} → 실패 종료")
         sys.exit(1)
