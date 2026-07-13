@@ -621,7 +621,12 @@ async def generate_cases(local: bool, base_url: str | None, token: str | None, u
 # ─── 진입점 ──────────────────────────────────────────────────────────────────
 
 def _mint_token(user_email: str) -> str:
-    """로컬에서 access token을 자체 발급합니다 (EVAL_JWT_SECRET 우선)."""
+    """로컬에서 access token을 자체 발급합니다 (EVAL_JWT_SECRET 우선).
+
+    수명 24시간: 대형 데이터셋(500문항 ≈ 2시간+) 실행 중 토큰이 만료되어
+    후반 케이스가 전부 HTTP 401로 실패한 사고가 있었음 (2026-07-13, 90건 유실).
+    eval 전용 토큰이므로 길게 잡아도 보안 영향은 로컬 시크릿 보관과 동일.
+    """
     from app.config import settings
     eval_secret = _env("EVAL_JWT_SECRET")
     if eval_secret:
@@ -629,7 +634,7 @@ def _mint_token(user_email: str) -> str:
     from app.services.auth_service import create_access_token
     return create_access_token(
         data={"email": user_email, "name": "Eval Runner", "picture": ""},
-        expires_delta=timedelta(hours=2),
+        expires_delta=timedelta(hours=24),
     )
 
 
