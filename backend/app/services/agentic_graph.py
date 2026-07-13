@@ -587,6 +587,145 @@ def _extract_model_codes(text: str) -> set[str]:
     return codes
 
 
+# ─── 1차 문서 필터 (키워드 매칭) ─────────────────────────────────────────────
+
+# 주요 산업 도메인 동의어 매핑 (한글 키워드가 들어왔을 때 영문 ToC와 매칭 지원)
+_SYNONYMS = {
+    "위치결정": ["positioning"],
+    "알람": ["alarm", "error", "warning", "err", "al"],
+    "에러": ["error", "err", "alarm"],
+    "경고": ["warning", "warn"],
+    "모듈": ["module"],
+    "서보": ["servo"],
+    "설명서": ["manual"],
+    "매뉴얼": ["manual"],
+}
+
+# 한글 조사 목록 — 긴 것부터 시도해 최장 일치를 제거
+_JOSA = sorted([
+    "은", "는", "이", "가", "을", "를", "의", "에", "도", "만",
+    "와", "과", "랑", "로", "으로", "에서", "에게", "한테",
+    "보다", "부터", "까지", "처럼", "같이", "마다", "조차", "마저", "밖에",
+    "이나", "이란", "에는", "에도", "와의", "과의",
+    "로는", "로도", "으로는", "으로도", "만으로", "에서는", "에서도",
+], key=len, reverse=True)
+
+
+def _strip_josa(token: str) -> str:
+    """한글 토큰 끝의 조사를 떼어낸 어근을 반환합니다 (뗄 게 없으면 원본).
+
+    형태소 분석기 의존성 없이 최장 일치 접미사 제거로 근사합니다.
+    어근이 2자 미만으로 남으면('차이'→'차'처럼 파괴되면) 떼지 않습니다.
+    매칭이 substring 방식이므로 어근은 조사 붙은 원형이 매칭되는 모든 곳에
+    + 그 이상을 매칭합니다 — 원형을 어근으로 '대체'해도 recall 손실이 없습니다.
+    (예: '색상의'→'색상', '설정값을'→'설정값', '차이만으로'→'차이')
+    """
+    if not token or not ("가" <= token[-1] <= "힣"):
+        return token
+    for josa in _JOSA:
+        if token.endswith(josa) and len(token) - len(josa) >= 2:
+            return token[: -len(josa)]
+    return token
+
+
+def _filter_documents_by_keywords(question: str, all_docs: list[dict]) -> tuple[list[dict], str]:
+    """질문 키워드로 문서 후보를 좁히는 1차 필터.
+
+    반환: (후보 문서 리스트, mode)
+      mode = "filtered"       — 증거가 충분해 후보를 좁혔음 (점수 내림차순 정렬)
+             "fallback_weak"  — 매칭이 전부 미약(ToC 우연 매칭 1~2건)해 필터를
+                                신뢰하지 않고 전체 문서를 반환
+             "fallback_none"  — 매칭된 문서가 없어 전체 문서를 반환
+
+    설계 (질문 품질 평가 107문항 실측에서 실패 8건이 전부 '정답 문서가 필터에서
+    0점 탈락'한 recall 문제였던 것을 근거로 함):
+      1. 조사 스트리핑 — 어절 토큰의 조사 때문에 '색상의'가 ToC의 '색상'과
+         매칭되지 않던 진짜 매칭 실패를 해소.
+      2. DF 컷 — 보유 문서의 1/3 이상에 등장하는 키워드('설정' 등 범용어)는
+         변별력이 없으므로 점수에서 제외. ToC가 방대한 문서가 범용어 우연
+         매칭으로 후보를 독식하던 문제를 해소. 코퍼스 기준 즉석 계산이라
+         사용자마다 자가 적응.
+      3. 확신 게이트 — 최고점이 META_WEIGHT 미만(파일명/제조사/모델 직접 매칭
+         전무)이면 필터가 정답을 놓쳤을 가능성이 커서 전체 문서로 폴백.
+         배제형 필터에서 0점 정답 문서는 이후 어떤 단계로도 복구 불가하므로,
+         약한 증거로는 배제하지 않는다.
+    """
+    META_WEIGHT, TOC_WEIGHT, MODEL_WEIGHT = 3, 1, 12
+
+    raw_keywords = set(re.findall(r"[가-힣a-zA-Z0-9]{2,}", question.lower()))
+    keywords = {_strip_josa(kw) for kw in raw_keywords}
+
+    extended_keywords = set(keywords)
+    for kw in keywords:
+        for kor_key, eng_vals in _SYNONYMS.items():
+            if kor_key in kw:
+                extended_keywords.update(eng_vals)
+
+    question_model_codes = _extract_model_codes(question)
+
+    # 문서별 검색 텍스트 사전 구성 (파일명/제조사/모델 = meta, ToC 제목 = toc).
+    # 파일명·모델 직접 매칭이 ToC 언급보다 훨씬 강한 관련도 신호이므로
+    # 가중치를 다르게 둡니다.
+    doc_texts = []
+    for d in all_docs:
+        meta_text = " ".join([
+            str(d.get("filename") or ""),
+            str(d.get("manufacturer") or ""),
+            str(d.get("model_series") or ""),
+        ]).lower()
+        toc_text = " ".join(
+            str(entry.get("title") or "") for entry in (d.get("toc") or [])
+        ).lower()
+        doc_texts.append(
+            (d, meta_text, meta_text.replace(" ", ""), toc_text, toc_text.replace(" ", ""))
+        )
+
+    def _hit(kw: str, mt: str, mns: str, tt: str, tns: str) -> str | None:
+        kwl = kw.lower()
+        kwns = kwl.replace(" ", "")
+        if kwl in mt or kwns in mns:
+            return "meta"
+        if kwl in tt or kwns in tns:
+            return "toc"
+        return None
+
+    # DF 컷: 코퍼스의 1/3 초과 문서에 매칭되는 키워드는 변별력 없음 → 제외
+    max_df = max(1, len(all_docs) // 3)
+    discriminative = set()
+    for kw in extended_keywords:
+        df = sum(1 for (_, mt, mns, tt, tns) in doc_texts if _hit(kw, mt, mns, tt, tns))
+        if 0 < df <= max_df:
+            discriminative.add(kw)
+
+    scored = []
+    for (d, mt, mns, tt, tns) in doc_texts:
+        score = 0
+        for kw in discriminative:
+            where = _hit(kw, mt, mns, tt, tns)
+            if where == "meta":
+                score += META_WEIGHT
+            elif where == "toc":
+                score += TOC_WEIGHT
+
+        # 명시 모델번호 정확 일치 → 강한 가중 (예: 'F388A' 질문 → 'F388A' 매뉴얼)
+        if question_model_codes:
+            matched_codes = question_model_codes & _extract_model_codes(mt)
+            if matched_codes:
+                score += MODEL_WEIGHT * len(matched_codes)
+
+        if score > 0:
+            scored.append((d, score))
+
+    if not scored:
+        return list(all_docs), "fallback_none"
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+    if scored[0][1] < META_WEIGHT:
+        return list(all_docs), "fallback_weak"
+
+    return [d for d, _ in scored], "filtered"
+
+
 async def _stage_resolve_document(ctx: "_PipelineContext"):
     """
     문서 선택(또는 맥락 유지)과 ToC 기반 1차 페이지 선택을 수행합니다.
@@ -634,87 +773,16 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
             return
 
         filtered_docs = all_docs
-        toc_matched_docs = []
+        filter_mode = "fallback_none"
 
         if len(all_docs) == 1:
             yield ctx.reasoning(f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
         else:
             # ─── 1차 필터링 (메타데이터 및 ToC 키워드 매칭) ───
-            # 질문의 키워드가 파일명, 제조사, 모델명 또는 ToC에 포함된 문서만 후보로 좁힘
-            question_keywords = set(re.findall(r'[가-힣a-zA-Z0-9]{2,}', ctx.question.lower()))
+            # 조사 스트리핑 + DF 컷 + 확신 게이트는 _filter_documents_by_keywords 참고
+            filtered_docs, filter_mode = _filter_documents_by_keywords(ctx.question, all_docs)
 
-            # 주요 산업 도메인 동의어 매핑 (한글 키워드가 들어왔을 때 영문 ToC와 매칭 지원)
-            SYNONYMS = {
-                "위치결정": ["positioning"],
-                "알람": ["alarm", "error", "warning", "err", "al"],
-                "에러": ["error", "err", "alarm"],
-                "경고": ["warning", "warn"],
-                "모듈": ["module"],
-                "서보": ["servo"],
-                "설명서": ["manual"],
-                "매뉴얼": ["manual"],
-            }
-
-            # 질문 키워드 확장 (동의어 포함)
-            extended_keywords = set(question_keywords)
-            for kw in question_keywords:
-                for kor_key, eng_vals in SYNONYMS.items():
-                    if kor_key in kw:
-                        extended_keywords.update(eng_vals)
-
-            # 질문에 명시된 모델번호(예: 'F388A', 'L7NH')를 미리 추출.
-            # 일반 키워드 매칭은 한글 조사가 붙어 'f388a를'처럼 뭉쳐 정작 모델번호가
-            # 매칭되지 않는 문제가 있어, 모델번호는 별도로 정확 일치 대조합니다.
-            question_model_codes = _extract_model_codes(ctx.question)
-
-            toc_matched_docs = []
-            for d in all_docs:
-                # 검색 대상 텍스트 구성 (파일명 + 제조사 + 모델명 + ToC)
-                meta_parts = [
-                    str(d.get("filename") or ""),
-                    str(d.get("manufacturer") or ""),
-                    str(d.get("model_series") or ""),
-                ]
-                toc_entries = d.get("toc", [])
-                toc_titles = [str(entry.get("title") or "") for entry in toc_entries]
-
-                # 메타데이터(파일명/제조사/모델)와 ToC 제목을 분리해서 채점.
-                # 파일명·모델에 직접 매칭되는 것이 ToC 제목 언급보다 훨씬 강한
-                # 관련도 신호이므로 가중치를 다르게 둡니다. (예: "서보 알람" 질의에서
-                # 파일명에 '서보/MELSERVO'가 있는 서보앰프 매뉴얼이, ToC가 방대해
-                # servo/alarm을 여기저기 언급하는 로봇 매뉴얼보다 우선되어야 함)
-                meta_text = " ".join(meta_parts).lower()
-                meta_text_ns = meta_text.replace(" ", "")
-                toc_text = " ".join(toc_titles).lower()
-                toc_text_ns = toc_text.replace(" ", "")
-
-                META_WEIGHT, TOC_WEIGHT, MODEL_WEIGHT = 3, 1, 12
-                score = 0
-                for kw in extended_keywords:
-                    kw_lower = kw.lower()
-                    kw_no_space = kw_lower.replace(" ", "")
-                    if kw_lower in meta_text or kw_no_space in meta_text_ns:
-                        score += META_WEIGHT
-                    elif kw_lower in toc_text or kw_no_space in toc_text_ns:
-                        score += TOC_WEIGHT
-
-                # 명시 모델번호 정확 일치 → 강한 가중. 메타데이터(파일명/모델)에
-                # 질문의 모델번호가 그대로 들어있는 문서를 최상위로 끌어올립니다.
-                # (예: 'F388A' 질문 → 'F388A' 매뉴얼 +12, 'F381' 매뉴얼 +0)
-                if question_model_codes:
-                    doc_model_codes = _extract_model_codes(meta_text)
-                    matched_codes = question_model_codes & doc_model_codes
-                    if matched_codes:
-                        score += MODEL_WEIGHT * len(matched_codes)
-
-                if score > 0:
-                    toc_matched_docs.append((d, score))
-
-            if toc_matched_docs:
-                # 매칭 수 내림차순 정렬
-                toc_matched_docs.sort(key=lambda x: x[1], reverse=True)
-                filtered_docs = [d for d, _ in toc_matched_docs]
-
+            if filter_mode == "filtered":
                 # 이전 참조 문서가 있으면 필터링 후보군에 강제 포함 (소실 방지)
                 if ctx.previous_reference and ctx.previous_reference.get("document_id"):
                     prev_doc_id = str(ctx.previous_reference["document_id"])
@@ -724,17 +792,18 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
                             filtered_docs.append(prev_doc)
                             logger.info(f"🔎 [ToC 키워드 필터] 이전 참조 문서를 후보군에 강제 포함시켰습니다: {prev_doc.get('filename')}")
 
-                logger.info(f"🔎 [ToC 키워드 필터] {len(all_docs)}개 → {len(filtered_docs)}개 문서로 필터링 (키워드: {question_keywords})")
+                logger.info(f"🔎 [ToC 키워드 필터] {len(all_docs)}개 → {len(filtered_docs)}개 문서로 필터링")
                 reasoning_content = f"📚 {len(all_docs)}개 문서 중 목차 키워드 매칭으로 {len(filtered_docs)}개 후보를 좁혔습니다..."
             else:
-                filtered_docs = all_docs
+                # 매칭 없음 또는 증거 미약 → 필터를 신뢰하지 않고 전체 문서를 LLM에 전달
+                logger.info(f"🔎 [ToC 키워드 필터] {filter_mode} → 전체 {len(all_docs)}개 문서를 LLM에 전달")
                 reasoning_content = f"📚 {len(all_docs)}개 문서 중 적합한 문서와 페이지를 찾고 있습니다..."
 
             yield ctx.reasoning(reasoning_content)
 
         # 1단계: 메타데이터로 문서 선택 (ToC 제외)
-        # ToC 매칭 필터링된 문서가 있으면 그것을, 없으면 전체 문서를 LLM에 전달
-        docs_for_selection = filtered_docs if len(all_docs) > 1 and toc_matched_docs else all_docs
+        # 필터가 확신할 때만 좁힌 후보를, 아니면 전체 문서를 LLM에 전달
+        docs_for_selection = filtered_docs if len(all_docs) > 1 and filter_mode == "filtered" else all_docs
         doc_result = await _select_document(ctx.question, docs_for_selection, ctx.chat_history, ctx.previous_reference)
 
         if doc_result["classification"] == "general":
