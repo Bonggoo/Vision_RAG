@@ -447,6 +447,7 @@ async def run_case(case: dict, defaults: dict, transport, judge_enabled: bool, e
     return {
         "id": case["id"],
         "question": question,
+        "style": case.get("style"),
         "passed": all(c["pass"] for c in checks.values()) if checks else False,
         "checks": checks,
         "turns": turns,
@@ -485,6 +486,18 @@ def _print_report(results: list[dict]):
     for name, vals in sorted(by_check.items()):
         print(f"  - {name}: {sum(vals)}/{len(vals)}")
 
+    # 문체별 분리 집계 (--generate의 terse/sentence 혼합 시)
+    by_style: dict[str, list[dict]] = {}
+    for r in results:
+        if r.get("style"):
+            by_style.setdefault(r["style"], []).append(r)
+    if len(by_style) > 1:
+        print("  문체별:")
+        for style, rs in sorted(by_style.items()):
+            p = sum(1 for r in rs if r["passed"])
+            doc_p = sum(1 for r in rs if r["checks"].get("document", {}).get("pass"))
+            print(f"    - {style}: 전체 {p}/{len(rs)}, document {doc_p}/{len(rs)}")
+
     if results:
         latencies = [r["latency_sec"] for r in results]
         print(f"  - 평균 응답 시간: {statistics.mean(latencies):.1f}s (최대 {max(latencies):.1f}s)")
@@ -507,13 +520,28 @@ async def _fetch_documents(local: bool, base_url: str | None, token: str | None,
         return resp.json().get("documents", [])
 
 
-async def _synthesize_question(doc: dict, entry: dict) -> str:
-    """문서 메타데이터 + ToC 섹션 제목을 근거로 자연스러운 사용자 질문 1개를 생성합니다."""
+async def _synthesize_question(doc: dict, entry: dict, style: str = "sentence") -> str:
+    """문서 메타데이터 + ToC 섹션 제목을 근거로 사용자 질문 1개를 생성합니다.
+
+    style:
+      - "sentence": 자연스러운 문장형 질문 (기본)
+      - "terse":    급한 현장 기술자가 검색창에 치듯 키워드만 나열한 전보식 입력.
+                    실사용자의 상당수가 이런 식으로 입력하므로, 키워드가 극도로
+                    적은 입력에서도 라우팅/문서선택이 버티는지 측정하는 용도.
+    """
     from app.services.agent_service import _create_flash_llm, _extract_text_content
     from langchain_core.messages import HumanMessage
 
+    if style == "terse":
+        style_rules = """- 급한 현장 기술자가 검색창에 치듯 **키워드 나열식**으로 작성
+- 조사·존댓말·의문문 어미 생략, 2~5개 단어, 20자 이내
+- 예시 형태: "AL.20 과부하", "2051 서보 알람", "원점복귀 안됨", "RS-485 종단저항 설정"
+- 섹션 제목의 핵심 용어(에러코드/기능명/부품명)를 반드시 1개 이상 포함"""
+    else:
+        style_rules = """- 너무 일반적이지 않게, 섹션 제목이 암시하는 구체적 상황을 반영한 자연스러운 문장형 질문"""
+
     prompt = f"""당신은 산업 현장 기술자입니다. 아래 매뉴얼의 특정 섹션 제목만 보고,
-현장에서 실제로 물어볼 법한 구체적인 질문을 정확히 1개 작성하세요.
+현장에서 실제로 물어볼 법한 질문을 정확히 1개 작성하세요.
 
 매뉴얼: {doc.get('filename', '')}
 제조사: {doc.get('manufacturer', '미상')}
@@ -523,7 +551,7 @@ async def _synthesize_question(doc: dict, entry: dict) -> str:
 규칙:
 - 질문 1개만, 다른 설명이나 번호 매기기 없이 순수 질문 텍스트만 출력
 - 제조사/모델명을 반드시 포함하지 않아도 됨 (실제 사용자는 종종 생략함)
-- 너무 일반적이지 않게, 섹션 제목이 암시하는 구체적 상황을 반영
+{style_rules}
 - 한국어로 작성"""
 
     llm = _create_flash_llm(temperature=0.9)
@@ -555,8 +583,15 @@ async def generate_cases(local: bool, base_url: str | None, token: str | None, u
     random.shuffle(doc_cycle)
     picks = [(d, random.choice(_entries_for(d))) for d in doc_cycle[:n]]
 
-    async def _build(i, doc, entry):
-        question = await _synthesize_question(doc, entry)
+    # 문체 배분: 30%는 전보식(terse — "2051 서보 알람" 같은 키워드 나열 입력),
+    # 나머지는 문장형. 실사용자의 급한 검색형 입력에서도 파이프라인이 버티는지
+    # 매 실행마다 함께 측정합니다.
+    n_terse = round(n * 0.3)
+    styles = ["terse"] * n_terse + ["sentence"] * (n - n_terse)
+    random.shuffle(styles)
+
+    async def _build(i, doc, entry, style):
+        question = await _synthesize_question(doc, entry, style)
         page = int(entry["page"]) if isinstance(entry["page"], int) else entry["page"]
         # ToC 항목 페이지는 "섹션 시작점"일 뿐 실제 관련 내용은 몇 페이지
         # 뒤에 있을 수 있음 — 문서가 클수록 그 간격도 비례해서 커지는 경향이
@@ -566,6 +601,7 @@ async def generate_cases(local: bool, base_url: str | None, token: str | None, u
         return {
             "id": f"gen-{i:02d}-{str(doc.get('document_id', ''))[:8]}",
             "question": question,
+            "style": style,
             "expected": {
                 "type": "technical",
                 "document": doc.get("filename", ""),
@@ -574,7 +610,9 @@ async def generate_cases(local: bool, base_url: str | None, token: str | None, u
             },
         }
 
-    return await asyncio.gather(*[_build(i, doc, entry) for i, (doc, entry) in enumerate(picks, 1)])
+    return await asyncio.gather(
+        *[_build(i, doc, entry, style) for i, ((doc, entry), style) in enumerate(zip(picks, styles), 1)]
+    )
 
 
 # ─── 진입점 ──────────────────────────────────────────────────────────────────
