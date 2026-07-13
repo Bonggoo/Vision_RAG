@@ -644,6 +644,9 @@ def main():
     parser.add_argument("--judge", action="store_true", help="reference_answer 기반 LLM 채점 활성화")
     parser.add_argument("--generate", type=int, default=0, metavar="N",
                          help="dataset.yaml 대신 실제 매뉴얼 ToC에서 N개 질문을 매번 새로 생성해 실행")
+    parser.add_argument("--equiv", action="store_true",
+                         help="문서 동등성 판정을 정적 데이터셋에도 적용 (--generate에선 항상 켜짐). "
+                              "ToC 샘플링 기반 데이터셋(claude_dataset.yaml 등)에 권장")
     parser.add_argument("--min-pass", type=float, default=0.0, help="통과율 미달 시 exit 1 (예: 0.8)")
     parser.add_argument("--verbose", action="store_true", help="파이프라인 내부 로그 출력")
     args = parser.parse_args()
@@ -683,8 +686,9 @@ def main():
             sys.exit(1)
 
     # --generate 모드에서는 문서 동등성 판정을 켜서 '중복 문서 / 모델 비종속 일반
-    # 질문'으로 인한 가짜 실패를 걸러냅니다.
-    equiv_check = args.generate > 0
+    # 질문'으로 인한 가짜 실패를 걸러냅니다. ToC 샘플링 기반 정적 데이터셋은
+    # --equiv로 동일하게 켤 수 있습니다.
+    equiv_check = args.generate > 0 or args.equiv
 
     results: list[dict] = []
 

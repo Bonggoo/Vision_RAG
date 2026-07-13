@@ -22,7 +22,13 @@ python -m evals.run_eval --only greeting  # id 부분 일치 필터
 python -m evals.run_eval --judge          # LLM-as-judge 채점 포함
 python -m evals.run_eval --min-pass 0.8   # CI/루틴용: 통과율 미달 시 exit 1
 python -m evals.run_eval --generate 20    # 실제 매뉴얼에서 매번 다른 20문항 생성해 실행
+python -m evals.run_eval --dataset evals/claude_dataset.yaml --equiv   # Claude 작성 500문항 (독립 출제)
 ```
+
+> `claude_dataset.yaml`: 실제 매뉴얼 53종 ToC에서 균등 샘플링한 500문항을 **Claude가 작성**한
+> 고정 세트. Gemini가 출제·응답을 모두 맡는 `--generate`의 자기일관성 편향이 없는 독립 벤치마크로,
+> 전보식 ~30%가 섞여 있고 `--only cld-0`처럼 부분 실행이 가능합니다. `--equiv`(동등 문서 인정)와
+> 함께 돌리는 것을 권장합니다.
 
 결과는 콘솔 요약 + `evals/results/<타임스탬프>.json`으로 저장됩니다 (git 제외).
 

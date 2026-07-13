@@ -1,0 +1,4519 @@
+# Claude 작성 500문항 평가 데이터셋 (2026-07-13)
+#
+# 실제 보유 매뉴얼 53종의 ToC에서 균등 샘플링한 (문서, 섹션) 500쌍에 대해
+# Claude(Opus 4.8)가 질문을 작성. Gemini가 출제·응답을 모두 맡는 --generate
+# 모드의 자기일관성 편향을 피하기 위한 독립 출제 세트입니다.
+#
+# - 문체: 전보식(terse) ~30% / 문장형(sentence) ~70%, 각 케이스 style 필드에 표기
+# - 지시어("이 모델" 등) 없이 자립적으로 작성 — 라우팅 채점 노이즈 방지
+# - 실행: python -m evals.run_eval --dataset evals/claude_dataset.yaml --equiv
+#         (--only cld-001 처럼 부분 필터 가능, --equiv는 동등 문서 인정 권장 옵션)
+# - 정답 page는 ToC 섹션 시작점이므로 pages 축은 --generate와 동일하게 참고용
+defaults:
+  base_url: https://vision-rag-backend-sfsbvktuia-du.a.run.app
+  user_email: choibong975@gmail.com
+  page_tolerance: 1
+  min_keyword_recall: 0.7
+  min_judge_score: 3.5
+  timeout: 180
+cases:
+- id: cld-001-bb218e4f
+  question: MELSEC-Q 이더넷 모듈로 네트워크상의 다른 국 PLC에 액세스하려고 하는데, 타국 액세스 시 미리 알아둬야 할 주의사항이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 Ethernet 인터페이스 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 81
+    page_tolerance: 8
+- id: cld-002-287bc708
+  question: 무수신 감시시간 타이머0 설정
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 172
+    page_tolerance: 14
+- id: cld-003-fa19fa26
+  question: MU-N 앰프의 외부 입력 단자에 할당할 수 있는 입력 기능에는 어떤 것들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 MU-N 시리즈 사용 설명서 (LR-T 시리즈편)
+    pages:
+    - 13
+    page_tolerance: 8
+- id: cld-004-d8a2c393
+  question: CC-Link 배선을 T분기 방식으로 구성하려고 하는데 시스템 구성상 제약이나 분기선 최대 길이가 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 CC-Link 시스템 마스터·로컬 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 146
+    page_tolerance: 11
+- id: cld-005-e3cbb841
+  question: F388A 사양 스펙
+  style: terse
+  expected:
+    type: technical
+    document: 유니펄스 F388A 웨이브 폼 체커 사용 설명서
+    pages:
+    - 139
+    page_tolerance: 8
+- id: cld-006-e3cbb841
+  question: F388A에서 SD 메모리 카드 셀프 체크는 어떻게 실행하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F388A 웨이브 폼 체커 사용 설명서
+    pages:
+    - 138
+    page_tolerance: 8
+- id: cld-007-4129765e
+  question: ZK2 진공 유니트의 소모 부품을 주문하려고 하는데 교환용 부품의 형식 표시는 어떻게 읽어야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZK2 시리즈 진공 유니트 카탈로그
+    pages:
+    - 28
+    page_tolerance: 8
+- id: cld-008-e0be10ac
+  question: BW 센서 구성품 목록
+  style: terse
+  expected:
+    type: technical
+    document: 오토닉스 BW 시리즈 취급설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-009-70a6c5f4
+  question: 서보 엔코더 케이블을 케이블베어에 넣어 반복 굴곡시키며 쓰는데, 케이블 굴곡 수명이 대략 몇 회 정도 보장되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSERVO-J4 시리즈 서보앰프 기술자료집
+    pages:
+    - 283
+    page_tolerance: 24
+- id: cld-010-33041864
+  question: 압력스위치 표시 단위를 kPa에서 다른 단위로 바꾸고 싶은데 단위전환 기능은 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZSE20B(F)/ISE20B 시리즈 디지털 압력스위치 취급설명서
+    pages:
+    - 38
+    page_tolerance: 8
+- id: cld-011-87964430
+  question: 시리얼 커뮤니케이션 모듈의 데이터 송수신 처리 시간은 어떤 계산식으로 산출하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 376
+    page_tolerance: 17
+- id: cld-012-c88e89db
+  question: CZ-V20 센서 헤드 종류
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 디지털 컬러 센서 카탈로그
+    pages:
+    - 4
+    page_tolerance: 8
+- id: cld-013-531f035c
+  question: 로봇 태블릿 UI에서 비전 기능을 사용하려면 어떤 메뉴에서 시작해야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Plus/R-30iB Mate Plus/R-30iB Mini Plus CONTROLLER TABLET UI 사용 설명서
+    pages:
+    - 121
+    page_tolerance: 12
+- id: cld-014-78438c65
+  question: L7NH 서보에서 모터 1회전당 이동량을 맞추려고 하는데 전자 기어비는 어떤 기준으로 설정해야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LS AC 서보 드라이브 L7NH 시리즈 사용 설명서
+    pages:
+    - 221
+    page_tolerance: 18
+- id: cld-015-85b560cd
+  question: LR-Z 케이블 연장 옵션
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 LR-Z 시리즈 앰프 내장형 CMOS 레이저 센서 카탈로그
+    pages:
+    - 11
+    page_tolerance: 8
+- id: cld-016-531f035c
+  question: 태블릿 UI의 오토매틱 튜닝 기능은 어떤 상황에서 실행하는 건가요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Plus/R-30iB Mate Plus/R-30iB Mini Plus CONTROLLER TABLET UI 사용 설명서
+    pages:
+    - 185
+    page_tolerance: 12
+- id: cld-017-77e576aa
+  question: RCS8000 파라미터 설정 방법
+  style: terse
+  expected:
+    type: technical
+    document: 로보스타 RCS-8000 시리즈 RCS8000 설명서
+    pages:
+    - 105
+    page_tolerance: 12
+- id: cld-018-fa19fa26
+  question: MU-N에서 설정을 다른 유닛으로 복사하려고 하는데 복사 유닛 모드는 어떻게 선택하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 MU-N 시리즈 사용 설명서 (LR-T 시리즈편)
+    pages:
+    - 6
+    page_tolerance: 8
+- id: cld-019-fa19fa26
+  question: MU-N 설정 초기화
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 MU-N 시리즈 사용 설명서 (LR-T 시리즈편)
+    pages:
+    - 9
+    page_tolerance: 8
+- id: cld-020-e3bd9db1
+  question: CV-X300F 컨트롤러가 대응하는 카메라 화소수와 사양이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X300F 데이터 시트
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-021-acbfba32
+  question: 비전 시스템 계측 결과가 기대대로 나오지 않을 때 점검해야 할 항목이 정리된 내용이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 310
+    page_tolerance: 40
+- id: cld-022-bba30bd5
+  question: LumiTrax 계측을 구성하려고 하는데 CA-DQW40X 조명을 사용하는 기본 시스템 구성 예를 알고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 991
+    page_tolerance: 40
+- id: cld-023-4129765e
+  question: ZK2 이젝터 시스템의 진공 발생 원리와 기본 구성이 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZK2 시리즈 진공 유니트 카탈로그
+    pages:
+    - 6
+    page_tolerance: 8
+- id: cld-024-e1467d6a
+  question: CV-X RS-232C PLC 링크 설정
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 796
+    page_tolerance: 40
+- id: cld-025-dd6ade58
+  question: LS-R900 본체를 나중에 교체해야 할 상황에 대비해서 미리 백업해둬야 할 설정 데이터가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 코스모 LS-R900 에어 리크 테스터 취급설명서
+    pages:
+    - 102
+    page_tolerance: 8
+- id: cld-026-fe16af23
+  question: LT20A 카운터에 알람이 표시됐을 때 알람 출력 신호는 어떻게 동작하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: Magnescale LT20A / LT30 시리즈 사용 설명서
+    pages:
+    - 47
+    page_tolerance: 8
+- id: cld-027-dd6ade58
+  question: 에어 리크 테스터 측정값의 신뢰성을 높이는 방법에는 어떤 것들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 코스모 LS-R900 에어 리크 테스터 취급설명서
+    pages:
+    - 87
+    page_tolerance: 8
+- id: cld-028-b13f828e
+  question: 로보스타 N1 컨트롤러와 PLC를 연동하려고 하는데 참고할 만한 PLC 프로그램 작성 예제가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 조작 및 운용 설명서
+    pages:
+    - 372
+    page_tolerance: 15
+- id: cld-029-e1467d6a
+  question: CV-X에서 검사 설정을 처음부터 새로 만들 때 전체 설정 흐름이 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 435
+    page_tolerance: 40
+- id: cld-030-77e576aa
+  question: RCS8000 ORIGIN 원점 수행
+  style: terse
+  expected:
+    type: technical
+    document: 로보스타 RCS-8000 시리즈 RCS8000 설명서
+    pages:
+    - 46
+    page_tolerance: 12
+- id: cld-031-d7f4a719
+  question: PDF417 종류
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 2D 코드의 기본 Vol.1 2D 코드의 종류
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-032-e3cbb841
+  question: F388A 파형 화면에서 시간축 스케일을 조정하고 싶은데 X축 설정은 어떻게 바꾸나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F388A 웨이브 폼 체커 사용 설명서
+    pages:
+    - 49
+    page_tolerance: 8
+- id: cld-033-acbfba32
+  question: 비전 검사 프로그램을 신규로 작성할 때 어떤 순서로 설정을 진행해야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 134
+    page_tolerance: 40
+- id: cld-034-d8a2c393
+  question: RIRCV 명령 사용법
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 CC-Link 시스템 마스터·로컬 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 257
+    page_tolerance: 11
+- id: cld-035-eed5531f
+  question: R-30iB Mate 컨트롤러에서 주변장치 케이블 커넥터의 위치와 핀 배치를 확인하고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Mate/R-30iB Mate Plus 컨트롤러 유지보수 매뉴얼
+    pages:
+    - 229
+    page_tolerance: 13
+- id: cld-036-68513725
+  question: 배관을 절단하지 않고 유량을 측정할 수 있다는 클램프온 방식의 장점이 구체적으로 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 FD-X 시리즈 클램프온식 유량 센서
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-037-f2688cef
+  question: QD77MS에서 인칭 운전을 하려면 어떤 파라미터들을 설정해야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 548
+    page_tolerance: 37
+- id: cld-038-eab3f637
+  question: CZ-V20 C모드 C+I모드 차이
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 설정 가이드
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-039-077e9483
+  question: LumiTrax 대응 카메라를 설치할 때 지원되는 설치 보조 기능이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 비전 시스템 사용 설명서
+    pages:
+    - 7
+    page_tolerance: 8
+- id: cld-040-70a6c5f4
+  question: MELSERVO-J4의 터프 드라이브 기능은 어떤 상황에서 동작하고 어떻게 활성화하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSERVO-J4 시리즈 서보앰프 기술자료집
+    pages:
+    - 228
+    page_tolerance: 24
+- id: cld-041-acbfba32
+  question: 화상 처리가 끝나기를 기다리지 않고 다음 촬상을 미리 실행하는 선행 촬상 기능은 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 530
+    page_tolerance: 40
+- id: cld-042-acbfba32
+  question: CV-X 검사 설정 순서
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 100
+    page_tolerance: 40
+- id: cld-043-ee586e0e
+  question: 너트런너 드라이브 유닛의 기본 구성과 각 부분의 역할이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: SETech AC SERVO NUTRUNNER LOCAL CONTROL SYSTEM 사용 설명서
+    pages:
+    - 13
+    page_tolerance: 8
+- id: cld-044-e7fd758f
+  question: F381에서 측정할 워크 번호는 어떻게 지정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F381 취급설명서
+    pages:
+    - 110
+    page_tolerance: 8
+- id: cld-045-eed5531f
+  question: 로봇 컨트롤러에 아크 용접 장비와 엔드 이펙터를 연결하는 인터페이스 사양을 알고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Mate/R-30iB Mate Plus 컨트롤러 유지보수 매뉴얼
+    pages:
+    - 195
+    page_tolerance: 13
+- id: cld-046-a9e449ae
+  question: CA-E100LJ 리모트 단자
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X400/X300 시리즈 취급 설명서
+    pages:
+    - 11
+    page_tolerance: 8
+- id: cld-047-06b35f99
+  question: 디바이스넷 슬레이브 기능으로 수신되는 데이터를 모니터링하려면 어떤 버퍼 메모리를 확인해야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 Q 시리즈 디바이스넷 마스터·슬레이브 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 130
+    page_tolerance: 8
+- id: cld-048-87964430
+  question: 시리얼 모듈 ERR LED 점등
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 360
+    page_tolerance: 17
+- id: cld-049-fa19fa26
+  question: MU-N 앰프의 표시 화면을 다른 표시 모드로 전환하는 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 MU-N 시리즈 사용 설명서 (LR-T 시리즈편)
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-050-68513725
+  question: FD-X 유량 센서가 다양한 배관 재질과 구경에서도 안정적으로 측정할 수 있는 이유가 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 FD-X 시리즈 클램프온식 유량 센서
+    pages:
+    - 11
+    page_tolerance: 8
+- id: cld-051-a8b74d85
+  question: iRVision에서 비전 프로세스를 새로 생성하고 티칭하는 절차가 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 화낙 R-30iB Plus 컨트롤러 iRVision 2D 카메라 애플리케이션 사용 설명서
+    pages:
+    - 130
+    page_tolerance: 9
+- id: cld-052-bba30bd5
+  question: 검사 도구의 판정 조건에서 OK/NG를 가르는 임계값은 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 1078
+    page_tolerance: 40
+- id: cld-053-e1467d6a
+  question: CV-X 3D검사 개요
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 1059
+    page_tolerance: 40
+- id: cld-054-d974ecfc
+  question: H5F 타임 스위치에 이미 등록된 설정 시간을 확인하고 수정하려면 어떻게 조작하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오므론 H5F 시리즈 디지털 데일리 타임 스위치 카탈로그
+    pages:
+    - 9
+    page_tolerance: 8
+- id: cld-055-f2688cef
+  question: 심플모션 유닛의 확장 파라미터에는 어떤 설정 항목들이 포함되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 123
+    page_tolerance: 37
+- id: cld-056-08d2aa54
+  question: CC-Link IE 필드 네트워크에 통신 이상이 생겼을 때 본격적인 트러블슈팅 전에 먼저 확인할 사항이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 CC-Link IE Field Network Master/Local 모듈 사용 설명서
+    pages:
+    - 422
+    page_tolerance: 21
+- id: cld-057-c88e89db
+  question: CZ-V20 앰프를 여러 대 나란히 연결할 때 기본 유닛과 증설 유닛은 어떻게 구분해서 주문하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 디지털 컬러 센서 카탈로그
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-058-9bc110ac
+  question: HPPF 평행 그리퍼를 로봇 플랜지에 조립할 때의 순서와 주의사항이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 페스토 HPPF 평행 그리퍼 사용 설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-059-a9e449ae
+  question: 비전 컨트롤러를 제어반 안에 설치하려고 하는데 냉각과 통풍 관련해서 지켜야 할 이격 거리가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X400/X300 시리즈 취급 설명서
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-060-287bc708
+  question: 시리얼 통신 수신 프로그램 예제
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 243
+    page_tolerance: 14
+- id: cld-061-bb218e4f
+  question: RECV 명령 사용법
+  style: terse
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 Ethernet 인터페이스 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 165
+    page_tolerance: 8
+- id: cld-062-f2dd2a23
+  question: NEO-HomeAP 장비의 용도와 기본 사양이 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 네오정보시스템 NEO NETWORK 제품군 통합 사용 설명서
+    pages:
+    - 4
+    page_tolerance: 8
+- id: cld-063-531f035c
+  question: 태블릿 UI에서 로봇 좌표계 프레임을 새로 정의하려면 어디서 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Plus/R-30iB Mate Plus/R-30iB Mini Plus CONTROLLER TABLET UI 사용 설명서
+    pages:
+    - 65
+    page_tolerance: 12
+- id: cld-064-287bc708
+  question: 시리얼 커뮤니케이션 모듈에 사용자 등록 프레임을 새로 등록하는 방법을 알고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 211
+    page_tolerance: 14
+- id: cld-065-9bc110ac
+  question: HPPF 관통 구멍 직접 고정
+  style: terse
+  expected:
+    type: technical
+    document: 페스토 HPPF 평행 그리퍼 사용 설명서
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-066-efc616f8
+  question: RCA4 로봇 컨트롤러와 외부 장치를 연결할 때의 접속 방법과 인터페이스 구성이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCA(I)4 시리즈 사용 설명서
+    pages:
+    - 66
+    page_tolerance: 8
+- id: cld-067-a9e449ae
+  question: CA-E200L 라인 스캔 카메라 사양
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X400/X300 시리즈 취급 설명서
+    pages:
+    - 17
+    page_tolerance: 8
+- id: cld-068-d974ecfc
+  question: H5F에서 요일마다 다른 ON/OFF 시간을 주고 싶은데 타이머 동작 설정은 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오므론 H5F 시리즈 디지털 데일리 타임 스위치 카탈로그
+    pages:
+    - 7
+    page_tolerance: 8
+- id: cld-069-bba30bd5
+  question: 워크 위치가 매번 조금씩 틀어지는데, 덩어리 중심을 기준으로 위치 이동 보정을 하려면 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 508
+    page_tolerance: 40
+- id: cld-070-06b35f99
+  question: 디바이스넷 마스터가 전원 투입 후 자동으로 교신을 시작하게 하려면 어떤 설정이 필요한가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 Q 시리즈 디바이스넷 마스터·슬레이브 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 70
+    page_tolerance: 8
+- id: cld-071-87964430
+  question: 모뎀을 경유한 시리얼 통신이 연결되지 않을 때 확인해야 할 트러블슈팅 절차가 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 356
+    page_tolerance: 17
+- id: cld-072-c88e89db
+  question: CZ-V20 에러 표시 의미
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 디지털 컬러 센서 카탈로그
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-073-e75cc266
+  question: 산업용 로봇 안전 핸드북에서 다루는 주요 안전 주제에는 어떤 것들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC 로봇 안전 핸드북
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-074-c88e89db
+  question: CZ-V20 앰프 유닛의 형식 라인업과 각 형식별 차이가 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 디지털 컬러 센서 카탈로그
+    pages:
+    - 4
+    page_tolerance: 8
+- id: cld-075-33041864
+  question: 디지털 압력스위치를 패널에 장착하는 설치 방법과 브래킷 사용법을 알고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZSE20B(F)/ISE20B 시리즈 디지털 압력스위치 취급설명서
+    pages:
+    - 17
+    page_tolerance: 8
+- id: cld-076-f2dd2a23
+  question: 소형통신분배장치 라인업
+  style: terse
+  expected:
+    type: technical
+    document: 네오정보시스템 NEO NETWORK 제품군 통합 사용 설명서
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-077-78438c65
+  question: L7NH 서보 드라이브의 다이나믹 브레이크는 어떤 조건에서 작동하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LS AC 서보 드라이브 L7NH 시리즈 사용 설명서
+    pages:
+    - 242
+    page_tolerance: 18
+- id: cld-078-287bc708
+  question: 온디맨드 송신에 사용하는 사용자 등록 프레임에는 어떤 종류가 있고 어느 영역에 등록되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 215
+    page_tolerance: 14
+- id: cld-079-a8b74d85
+  question: iRVision 2D 카메라 애플리케이션의 주요 기능과 특징이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 화낙 R-30iB Plus 컨트롤러 iRVision 2D 카메라 애플리케이션 사용 설명서
+    pages:
+    - 225
+    page_tolerance: 9
+- id: cld-080-155b3678
+  question: SIO 통신 에러 원인
+  style: terse
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 시리얼 통신 모듈 사용 설명서
+    pages:
+    - 361
+    page_tolerance: 17
+- id: cld-081-681bba21
+  question: 위치결정 데이터를 FOR 조건으로 반복 기동하려면 어떻게 프로그램하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 516
+    page_tolerance: 37
+- id: cld-082-08d2aa54
+  question: 링크 특수 레지스터 SW 일람
+  style: terse
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 CC-Link IE Field Network Master/Local 모듈 사용 설명서
+    pages:
+    - 483
+    page_tolerance: 21
+- id: cld-083-21927271
+  question: RI 인디케이터를 Modbus RTU 프로토콜로 상위 시스템과 통신시키려면 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 래디언큐바이오 디지털 인디케이터 RI 시리즈 사용 설명서
+    pages:
+    - 47
+    page_tolerance: 8
+- id: cld-084-eed5531f
+  question: 로봇 본체와 컨트롤러 사이의 주변장치·용접기 케이블 연결 구성을 확인하고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Mate/R-30iB Mate Plus 컨트롤러 유지보수 매뉴얼
+    pages:
+    - 228
+    page_tolerance: 13
+- id: cld-085-d8a2c393
+  question: CC-Link에서 나중에 증설할 슬레이브 국을 미리 프로그램에 반영해두는 예약국 기능은 어떻게 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 CC-Link 시스템 마스터·로컬 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 89
+    page_tolerance: 11
+- id: cld-086-c88e89db
+  question: CZ-V20 입출력 회로도
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 디지털 컬러 센서 카탈로그
+    pages:
+    - 4
+    page_tolerance: 8
+- id: cld-087-f9517114
+  question: 이더넷 인터페이스 모듈에서 사용할 수 있는 전용 명령의 종류를 한눈에 보고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 Q 시리즈 Ethernet 인터페이스 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 56
+    page_tolerance: 14
+- id: cld-088-bb218e4f
+  question: 이더넷 모듈 경유로 데이터링크용 명령을 쓸 때 지원되는 명령에는 어떤 것들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 Ethernet 인터페이스 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 86
+    page_tolerance: 8
+- id: cld-089-e0be10ac
+  question: BW 시리즈 별매품
+  style: terse
+  expected:
+    type: technical
+    document: 오토닉스 BW 시리즈 취급설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-090-d974ecfc
+  question: H5F의 반자동 동작 모드는 일반 자동 동작과 어떻게 다른가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오므론 H5F 시리즈 디지털 데일리 타임 스위치 카탈로그
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-091-8fe3487e
+  question: 광파오븐 레인지 자동메뉴에는 어떤 요리들이 등록되어 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LG 광파오븐 사용설명서
+    pages:
+    - 35
+    page_tolerance: 8
+- id: cld-092-fa19fa26
+  question: MU-N 본체 각 구성 요소의 명칭과 역할을 알고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 MU-N 시리즈 사용 설명서 (LR-T 시리즈편)
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-093-bba30bd5
+  question: 검사 영역을 여러 개로 나누는 복수 영역 모드를 켜면 기존 설정에서 무엇이 달라지나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 1153
+    page_tolerance: 40
+- id: cld-094-bba30bd5
+  question: 에지 위치 이동 보정이란
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 492
+    page_tolerance: 40
+- id: cld-095-155b3678
+  question: 송신용 사용자 프레임 번호 지정 방식은 시스템 설정에서 어떻게 지정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 시리얼 통신 모듈 사용 설명서
+    pages:
+    - 259
+    page_tolerance: 17
+- id: cld-096-fe16af23
+  question: LT30 카운터가 고장으로 의심될 때 수리를 요청하기 전에 확인해볼 항목이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: Magnescale LT20A / LT30 시리즈 사용 설명서
+    pages:
+    - 54
+    page_tolerance: 8
+- id: cld-097-08d2aa54
+  question: CC-Link IE 필드 네트워크의 IP 패킷 전송 기능으로 통신하는 구성 예를 보고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 CC-Link IE Field Network Master/Local 모듈 사용 설명서
+    pages:
+    - 159
+    page_tolerance: 21
+- id: cld-098-c88e89db
+  question: 컬러 센서 슈퍼 I모드를 사용할 때 디지털 표시값은 무엇을 의미하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 디지털 컬러 센서 카탈로그
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-099-f9517114
+  question: ERRRD 명령 에러 읽기
+  style: terse
+  expected:
+    type: technical
+    document: 미쯔비시 Q 시리즈 Ethernet 인터페이스 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 254
+    page_tolerance: 14
+- id: cld-100-eab3f637
+  question: CZ-V20에서 슈퍼 I 모드는 어떤 경우에 사용하고 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 설정 가이드
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-101-78438c65
+  question: L7NH 사용 설명서 뒷부분에 나오는 개요 항목에는 어떤 내용이 정리되어 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LS AC 서보 드라이브 L7NH 시리즈 사용 설명서
+    pages:
+    - 410
+    page_tolerance: 18
+- id: cld-102-8fe3487e
+  question: 광파오븐을 일상적으로 사용할 때 지켜야 할 안전 주의사항이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: LG 광파오븐 사용설명서
+    pages:
+    - 9
+    page_tolerance: 8
+- id: cld-103-77e576aa
+  question: RCS8000에서 입출력 접점이 실제로 동작하는지 상태 확인이나 테스트를 해볼 수 있는 방법이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCS-8000 시리즈 RCS8000 설명서
+    pages:
+    - 98
+    page_tolerance: 12
+- id: cld-104-f9517114
+  question: 이더넷 모듈에서 Passive 오픈과 클로즈 처리는 어떤 순서로 진행되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 Q 시리즈 Ethernet 인터페이스 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 141
+    page_tolerance: 14
+- id: cld-105-e0be10ac
+  question: BW 센서 취급 주의사항
+  style: terse
+  expected:
+    type: technical
+    document: 오토닉스 BW 시리즈 취급설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-106-acbfba32
+  question: 양품 이미지를 학습시켜서 유무 판별을 하는 계측 방식은 어떤 원리로 동작하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 99
+    page_tolerance: 40
+- id: cld-107-21927271
+  question: RI 인디케이터 결선도
+  style: terse
+  expected:
+    type: technical
+    document: 래디언큐바이오 디지털 인디케이터 RI 시리즈 사용 설명서
+    pages:
+    - 43
+    page_tolerance: 8
+- id: cld-108-e3cbb841
+  question: F388A에서 기준 파형과 측정 파형을 비교하는 설정은 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F388A 웨이브 폼 체커 사용 설명서
+    pages:
+    - 73
+    page_tolerance: 8
+- id: cld-109-fe16af23
+  question: LT20A 카운터를 설치하기 전에 알아둬야 할 안전 관련 주의사항이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: Magnescale LT20A / LT30 시리즈 사용 설명서
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-110-efc616f8
+  question: RCA4 로봇의 정기 유지보수 항목과 주기가 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCA(I)4 시리즈 사용 설명서
+    pages:
+    - 104
+    page_tolerance: 8
+- id: cld-111-d89ee7e5
+  question: 로보스타 N1에서 E1101번대 프로텍션 알람이 떴는데 이 대역 알람들의 원인과 조치 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 알람코드 설명서
+    pages:
+    - 19
+    page_tolerance: 8
+- id: cld-112-287bc708
+  question: 시리얼 커뮤니케이션 모듈을 처음 사용할 때 초기 설정은 어떤 항목부터 잡아야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 112
+    page_tolerance: 14
+- id: cld-113-f2dd2a23
+  question: SMATV 광방송장비 라인업
+  style: terse
+  expected:
+    type: technical
+    document: 네오정보시스템 NEO NETWORK 제품군 통합 사용 설명서
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-114-fe16af23
+  question: LT30 카운터의 출력 방식에는 어떤 종류가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: Magnescale LT20A / LT30 시리즈 사용 설명서
+    pages:
+    - 151
+    page_tolerance: 8
+- id: cld-115-bba30bd5
+  question: CV-X 설정 흐름 순서
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 435
+    page_tolerance: 40
+- id: cld-116-8fe3487e
+  question: 광파오븐을 키 큰장 상부장에 빌트인으로 설치할 때 확보해야 할 공간과 설치 조건이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: LG 광파오븐 사용설명서
+    pages:
+    - 11
+    page_tolerance: 8
+- id: cld-117-bb218e4f
+  question: 인터럽트 프로그램에서 데이터를 수신하려면 RECVS 명령을 어떻게 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 Ethernet 인터페이스 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 169
+    page_tolerance: 8
+- id: cld-118-d89ee7e5
+  question: N1 컨트롤러 화면에 알람 메시지가 표시될 때 화면 구성과 각 항목의 의미가 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 알람코드 설명서
+    pages:
+    - 7
+    page_tolerance: 8
+- id: cld-119-85b560cd
+  question: LR-Z 센서 사양표
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 LR-Z 시리즈 앰프 내장형 CMOS 레이저 센서 카탈로그
+    pages:
+    - 12
+    page_tolerance: 8
+- id: cld-120-155b3678
+  question: 시리얼 통신 모듈의 수신 버퍼에 쌓인 데이터를 클리어하려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 시리얼 통신 모듈 사용 설명서
+    pages:
+    - 419
+    page_tolerance: 17
+- id: cld-121-a9e449ae
+  question: 비전 컨트롤러에 24V 전원을 연결할 때 배선 방법과 주의사항이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X400/X300 시리즈 취급 설명서
+    pages:
+    - 7
+    page_tolerance: 8
+- id: cld-122-eab3f637
+  question: CZ-V20 설정 초기화 방법
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 설정 가이드
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-123-acbfba32
+  question: 검사 도구의 기본 설정 후에 더 세부적인 상세 조건을 잡으려면 어디서 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 473
+    page_tolerance: 40
+- id: cld-124-68513725
+  question: FD-X 센서 헤드의 방수·방진 보호 등급이 어떻게 되나요? 세척수가 닿는 환경에서 쓸 수 있는지 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 FD-X 시리즈 클램프온식 유량 센서
+    pages:
+    - 13
+    page_tolerance: 8
+- id: cld-125-eed5531f
+  question: 로봇 컨트롤러를 현장에 설치하면서 조립해야 하는 부품들은 어떤 순서로 조립하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Mate/R-30iB Mate Plus 컨트롤러 유지보수 매뉴얼
+    pages:
+    - 250
+    page_tolerance: 13
+- id: cld-126-87964430
+  question: CH1.ERR 통신 에러 트러블슈팅
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 350
+    page_tolerance: 17
+- id: cld-127-155b3678
+  question: 시리얼 통신 송신 영역의 버퍼 메모리 배치와 송신 데이터 구성이 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 시리얼 통신 모듈 사용 설명서
+    pages:
+    - 193
+    page_tolerance: 17
+- id: cld-128-06b35f99
+  question: 디바이스넷 슬레이브 기능을 사용할 때의 시스템 구성 조건이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 Q 시리즈 디바이스넷 마스터·슬레이브 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 139
+    page_tolerance: 8
+- id: cld-129-155b3678
+  question: 시리얼 통신 모듈 단독으로 루프백 테스트를 해서 모듈 이상 여부를 확인하는 방법이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 시리얼 통신 모듈 사용 설명서
+    pages:
+    - 133
+    page_tolerance: 17
+- id: cld-130-f9517114
+  question: GX 개발툴의 진단 기능으로 이더넷 모듈의 어떤 버퍼 메모리를 모니터링할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 Q 시리즈 Ethernet 인터페이스 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 268
+    page_tolerance: 14
+- id: cld-131-77e576aa
+  question: RCS8000 E11 프로그램 에러
+  style: terse
+  expected:
+    type: technical
+    document: 로보스타 RCS-8000 시리즈 RCS8000 설명서
+    pages:
+    - 240
+    page_tolerance: 12
+- id: cld-132-33041864
+  question: 압력스위치 표시값의 소수점 자리수를 바꾸고 싶은데 표시 분해능 설정은 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZSE20B(F)/ISE20B 시리즈 디지털 압력스위치 취급설명서
+    pages:
+    - 56
+    page_tolerance: 8
+- id: cld-133-e7fd758f
+  question: F381 입출력 사양
+  style: terse
+  expected:
+    type: technical
+    document: 유니펄스 F381 취급설명서
+    pages:
+    - 194
+    page_tolerance: 8
+- id: cld-134-a187eba6
+  question: 교류형 근접센서를 배선할 때 부하와의 접속 방법이 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오토닉스 근접센서 기술해설
+    pages:
+    - 6
+    page_tolerance: 8
+- id: cld-135-bb1a7876
+  question: QD74MH에서 위치결정 제어에 사용되는 데이터의 종류와 역할이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 QD74MH 시리즈 위치결정 모듈 사용 설명서
+    pages:
+    - 173
+    page_tolerance: 11
+- id: cld-136-681bba21
+  question: 심플모션 유닛에서 발생한 에러를 표시 유닛으로 확인하는 방법이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 744
+    page_tolerance: 37
+- id: cld-137-21927271
+  question: RI 인디케이터의 비교출력 기능으로 상한/하한 판정 신호를 내보내려면 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 래디언큐바이오 디지털 인디케이터 RI 시리즈 사용 설명서
+    pages:
+    - 15
+    page_tolerance: 8
+- id: cld-138-e7fd758f
+  question: F381 인터페이스 옵션
+  style: terse
+  expected:
+    type: technical
+    document: 유니펄스 F381 취급설명서
+    pages:
+    - 194
+    page_tolerance: 8
+- id: cld-139-e75cc266
+  question: 로봇 안전 시스템에 문제가 생겼을 때 참고할 수 있는 트러블슈팅 정보가 안전 핸드북에 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC 로봇 안전 핸드북
+    pages:
+    - 40
+    page_tolerance: 8
+- id: cld-140-531f035c
+  question: 비전 보정 후에도 오프셋 오차가 크게 나올 때는 어떤 원인을 의심해야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Plus/R-30iB Mate Plus/R-30iB Mini Plus CONTROLLER TABLET UI 사용 설명서
+    pages:
+    - 165
+    page_tolerance: 12
+- id: cld-141-dd6ade58
+  question: LS-R900 측정 데이터를 USB 메모리에 저장하려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 코스모 LS-R900 에어 리크 테스터 취급설명서
+    pages:
+    - 60
+    page_tolerance: 8
+- id: cld-142-bb1a7876
+  question: QD74MH 인크리멘탈 피드 운전
+  style: terse
+  expected:
+    type: technical
+    document: 미쯔비시 QD74MH 시리즈 위치결정 모듈 사용 설명서
+    pages:
+    - 170
+    page_tolerance: 11
+- id: cld-143-c88e89db
+  question: 컬러 센서의 C모드는 단색 광원 광 센서와 비교해서 뭐가 다른가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 디지털 컬러 센서 카탈로그
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-144-bba30bd5
+  question: PLC와 주기 통신으로 데이터를 주고받을 때 주기 통신 데이터의 지정 상태는 어떻게 확인하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 919
+    page_tolerance: 40
+- id: cld-145-287bc708
+  question: 시리얼 커뮤니케이션 모듈의 동작 모드를 운전 중에 전환하는 순서가 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 311
+    page_tolerance: 14
+- id: cld-146-77e576aa
+  question: RCS8000 컨트롤러의 I/O 중계 단자대와 중계용 케이블 구성은 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCS-8000 시리즈 RCS8000 설명서
+    pages:
+    - 38
+    page_tolerance: 12
+- id: cld-147-ee586e0e
+  question: 너트런너 운전 기능과 프로그램 채널은 어떻게 설정하나요? 채널별로 다른 체결 조건을 주고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: SETech AC SERVO NUTRUNNER LOCAL CONTROL SYSTEM 사용 설명서
+    pages:
+    - 57
+    page_tolerance: 8
+- id: cld-148-08d2aa54
+  question: CC-Link IE 네트워크 상태 확인
+  style: terse
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 CC-Link IE Field Network Master/Local 모듈 사용 설명서
+    pages:
+    - 402
+    page_tolerance: 21
+- id: cld-149-e7fd758f
+  question: F381 취급설명서에 나오는 전문 용어들의 의미를 정리한 부분이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F381 취급설명서
+    pages:
+    - 21
+    page_tolerance: 8
+- id: cld-150-77e576aa
+  question: E01 과전류 에러 원인
+  style: terse
+  expected:
+    type: technical
+    document: 로보스타 RCS-8000 시리즈 RCS8000 설명서
+    pages:
+    - 227
+    page_tolerance: 12
+- id: cld-151-ee586e0e
+  question: 너트런너 컨트롤러의 운전 메뉴에는 어떤 기능들이 있는지 요약해서 알고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: SETech AC SERVO NUTRUNNER LOCAL CONTROL SYSTEM 사용 설명서
+    pages:
+    - 35
+    page_tolerance: 8
+- id: cld-152-bb1a7876
+  question: QD74MH의 데이터 세트 방식 원점복귀는 어떤 경우에 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 QD74MH 시리즈 위치결정 모듈 사용 설명서
+    pages:
+    - 137
+    page_tolerance: 11
+- id: cld-153-08d2aa54
+  question: CC-Link IE 필드 네트워크에서 헤드 모듈 쪽 설정은 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 CC-Link IE Field Network Master/Local 모듈 사용 설명서
+    pages:
+    - 388
+    page_tolerance: 21
+- id: cld-154-87964430
+  question: RS-422/485 회선으로 데이터 교신할 때 특별히 주의해야 할 사항이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 73
+    page_tolerance: 17
+- id: cld-155-a8b74d85
+  question: iRVision에서 카메라 데이터를 새로 생성하는 절차가 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 화낙 R-30iB Plus 컨트롤러 iRVision 2D 카메라 애플리케이션 사용 설명서
+    pages:
+    - 187
+    page_tolerance: 9
+- id: cld-156-dd6ade58
+  question: LS-R900의 해석 기능 중 관리도는 어떻게 조작하고 활용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 코스모 LS-R900 에어 리크 테스터 취급설명서
+    pages:
+    - 98
+    page_tolerance: 8
+- id: cld-157-f2688cef
+  question: QD77MS 버퍼메모리 어드레스 일람
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 814
+    page_tolerance: 37
+- id: cld-158-21927271
+  question: RI-20W 포텐셔미터를 교정할 때 참고해야 할 사항이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 래디언큐바이오 디지털 인디케이터 RI 시리즈 사용 설명서
+    pages:
+    - 36
+    page_tolerance: 8
+- id: cld-159-77e576aa
+  question: E05 Power Fail 알람
+  style: terse
+  expected:
+    type: technical
+    document: 로보스타 RCS-8000 시리즈 RCS8000 설명서
+    pages:
+    - 231
+    page_tolerance: 12
+- id: cld-160-d974ecfc
+  question: H5F 타임 스위치의 현재 시각이 틀어져 있는데 시각은 어떻게 다시 맞추나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오므론 H5F 시리즈 디지털 데일리 타임 스위치 카탈로그
+    pages:
+    - 7
+    page_tolerance: 8
+- id: cld-161-33041864
+  question: 압력스위치의 FUNC 단자에 외부 입력 기능을 할당하려면 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZSE20B(F)/ISE20B 시리즈 디지털 압력스위치 취급설명서
+    pages:
+    - 47
+    page_tolerance: 8
+- id: cld-162-33041864
+  question: 압력스위치를 저전력 모드로 운용하고 싶은데 설정 방법과 제약 사항이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZSE20B(F)/ISE20B 시리즈 디지털 압력스위치 취급설명서
+    pages:
+    - 57
+    page_tolerance: 8
+- id: cld-163-f9517114
+  question: 이더넷 모듈 통신 프로그램을 작성할 때 참고할 수 있는 프로그램 예제가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 Q 시리즈 Ethernet 인터페이스 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 320
+    page_tolerance: 14
+- id: cld-164-eab3f637
+  question: CZ-V20 상세 설정 항목
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 설정 가이드
+    pages:
+    - 6
+    page_tolerance: 8
+- id: cld-165-a187eba6
+  question: 직류형 근접센서를 PLC 입력에 연결할 때 NPN/PNP 접속 방법이 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오토닉스 근접센서 기술해설
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-166-d359e943
+  question: NTS-4800 전류출력 옵션
+  style: terse
+  expected:
+    type: technical
+    document: NTS-4800 모델 사양서
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-167-d89ee7e5
+  question: N1 컨트롤러에서 과거에 발생했던 알람 이력을 조회하려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 알람코드 설명서
+    pages:
+    - 9
+    page_tolerance: 8
+- id: cld-168-bb1a7876
+  question: QD74MH에서 에러가 발생한 후 에러를 리셋하는 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 QD74MH 시리즈 위치결정 모듈 사용 설명서
+    pages:
+    - 220
+    page_tolerance: 11
+- id: cld-169-fe16af23
+  question: LT20A 전면 패널의 각 버튼과 표시부 명칭을 알고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: Magnescale LT20A / LT30 시리즈 사용 설명서
+    pages:
+    - 120
+    page_tolerance: 8
+- id: cld-170-e1467d6a
+  question: 계측 결과가 실제 값과 일정하게 차이날 때 오프셋값으로 보정하는 한 점 보정은 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 1151
+    page_tolerance: 40
+- id: cld-171-87964430
+  question: 시리얼 통신에서 송신 에러가 발생했는지 프로그램에서 검출하는 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 168
+    page_tolerance: 17
+- id: cld-172-dd6ade58
+  question: LS-R900의 상세설정 메뉴에서는 어떤 항목들을 조정할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 코스모 LS-R900 에어 리크 테스터 취급설명서
+    pages:
+    - 55
+    page_tolerance: 8
+- id: cld-173-155b3678
+  question: 시리얼 통신 모듈로 데이터를 수신하는 시퀀스 프로그램은 어떻게 작성하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 시리얼 통신 모듈 사용 설명서
+    pages:
+    - 155
+    page_tolerance: 17
+- id: cld-174-06b35f99
+  question: 디바이스넷 마스터의 파라미터를 플래시 ROM에 저장할지 선택하는 영역은 어디인가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 Q 시리즈 디바이스넷 마스터·슬레이브 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 70
+    page_tolerance: 8
+- id: cld-175-85b560cd
+  question: LR-Z 외형 치수도
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 LR-Z 시리즈 앰프 내장형 CMOS 레이저 센서 카탈로그
+    pages:
+    - 13
+    page_tolerance: 8
+- id: cld-176-9bc110ac
+  question: HPPF 그리퍼를 측면에서 직접 고정하는 방식으로 장착할 때 볼트 규격과 체결 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 페스토 HPPF 평행 그리퍼 사용 설명서
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-177-ee586e0e
+  question: 너트런너 메뉴 구성
+  style: terse
+  expected:
+    type: technical
+    document: SETech AC SERVO NUTRUNNER LOCAL CONTROL SYSTEM 사용 설명서
+    pages:
+    - 48
+    page_tolerance: 8
+- id: cld-178-77e576aa
+  question: RCS8000에서 E14번대 프로그램 에러가 발생하는 원인과 해결 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCS-8000 시리즈 RCS8000 설명서
+    pages:
+    - 223
+    page_tolerance: 12
+- id: cld-179-21927271
+  question: RI 인디케이터에서 표시값을 일시 정지시키는 Hold 기능은 어떻게 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 래디언큐바이오 디지털 인디케이터 RI 시리즈 사용 설명서
+    pages:
+    - 14
+    page_tolerance: 8
+- id: cld-180-bba30bd5
+  question: 화면 안에 특정 부품이 있는지 없는지 판별하는 유무 판별 검사는 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 98
+    page_tolerance: 40
+- id: cld-181-d89ee7e5
+  question: N1 E2160 서보앰프 알람
+  style: terse
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 알람코드 설명서
+    pages:
+    - 81
+    page_tolerance: 8
+- id: cld-182-06b35f99
+  question: 디바이스넷 마스터 기능에서 슬레이브와 주고받는 송수신 데이터 영역의 버퍼 메모리 구성이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 Q 시리즈 디바이스넷 마스터·슬레이브 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 61
+    page_tolerance: 8
+- id: cld-183-d89ee7e5
+  question: 알람이 동시에 여러 개 발생했을 때 N1 컨트롤러에서 다중 알람을 확인하는 방법이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 알람코드 설명서
+    pages:
+    - 8
+    page_tolerance: 8
+- id: cld-184-bb218e4f
+  question: 이더넷 경유로 원격지 PLC를 리모트 RUN이나 STOP 시키려면 REQ 명령을 어떻게 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 Ethernet 인터페이스 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 173
+    page_tolerance: 8
+- id: cld-185-531f035c
+  question: 로봇 힘 제어 기능을 쓸 때 힘 제어 좌표계는 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Plus/R-30iB Mate Plus/R-30iB Mini Plus CONTROLLER TABLET UI 사용 설명서
+    pages:
+    - 187
+    page_tolerance: 12
+- id: cld-186-37c809d2
+  question: LS-R900 기밀시험기 기능
+  style: terse
+  expected:
+    type: technical
+    document: Cosmo LS-R900 기밀시험기 카탈로그
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-187-bb1a7876
+  question: QD74MH의 스토퍼 방식 원점복귀는 어떤 동작 원리로 진행되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 QD74MH 시리즈 위치결정 모듈 사용 설명서
+    pages:
+    - 138
+    page_tolerance: 11
+- id: cld-188-4129765e
+  question: ZK2 진공 유니트를 사용할 때 안전상 주의해야 할 사항들이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZK2 시리즈 진공 유니트 카탈로그
+    pages:
+    - 47
+    page_tolerance: 8
+- id: cld-189-531f035c
+  question: 태블릿 UI에서 비전으로 유저 프레임을 설정하는 Set UFrame 아이콘은 어떻게 추가하고 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Plus/R-30iB Mate Plus/R-30iB Mini Plus CONTROLLER TABLET UI 사용 설명서
+    pages:
+    - 167
+    page_tolerance: 12
+- id: cld-190-d8a2c393
+  question: CC-Link 마스터국과 리모트 디바이스국 사이의 데이터 교신 흐름이 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 CC-Link 시스템 마스터·로컬 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 105
+    page_tolerance: 11
+- id: cld-191-08d2aa54
+  question: CC-Link IE 모듈 고장 X0
+  style: terse
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 CC-Link IE Field Network Master/Local 모듈 사용 설명서
+    pages:
+    - 459
+    page_tolerance: 21
+- id: cld-192-68513725
+  question: FD-X 센서는 본체와 표시부가 분리되는 구조인가요? 좁은 공간에 설치할 수 있는지 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 FD-X 시리즈 클램프온식 유량 센서
+    pages:
+    - 12
+    page_tolerance: 8
+- id: cld-193-e3cbb841
+  question: F388A 인터페이스 사양
+  style: terse
+  expected:
+    type: technical
+    document: 유니펄스 F388A 웨이브 폼 체커 사용 설명서
+    pages:
+    - 140
+    page_tolerance: 8
+- id: cld-194-dd6ade58
+  question: LS-R900에 내장된 계산 도구로는 어떤 값들을 계산할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 코스모 LS-R900 에어 리크 테스터 취급설명서
+    pages:
+    - 107
+    page_tolerance: 8
+- id: cld-195-a9e449ae
+  question: 취급 설명서에 나오는 경고·주의 기호들은 각각 어떤 의미인가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X400/X300 시리즈 취급 설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-196-155b3678
+  question: Q 시리즈 C24 시리얼 통신 모듈이 버전업되면서 개선된 기능들은 뭐가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 시리얼 통신 모듈 사용 설명서
+    pages:
+    - 374
+    page_tolerance: 17
+- id: cld-197-bb1a7876
+  question: QD74MH OPR 원점복귀 파라미터
+  style: terse
+  expected:
+    type: technical
+    document: 미쯔비시 QD74MH 시리즈 위치결정 모듈 사용 설명서
+    pages:
+    - 105
+    page_tolerance: 11
+- id: cld-198-e7ecaf77
+  question: CA-LHS 고해상도 렌즈 시리즈의 라인업과 사양이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CA-L 시리즈 렌즈 카탈로그
+    pages:
+    - 6
+    page_tolerance: 8
+- id: cld-199-4129765e
+  question: ZK2 필터 엘리먼트 같은 소모품을 교환할 때 부품 형식은 어떻게 확인하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZK2 시리즈 진공 유니트 카탈로그
+    pages:
+    - 27
+    page_tolerance: 8
+- id: cld-200-a8b74d85
+  question: iRVision 비전 결과를 사용하는 로봇 프로그램은 어떻게 작성하고 티칭하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 화낙 R-30iB Plus 컨트롤러 iRVision 2D 카메라 애플리케이션 사용 설명서
+    pages:
+    - 61
+    page_tolerance: 9
+- id: cld-201-e7ecaf77
+  question: CA-LH 렌즈 라인업
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CA-L 시리즈 렌즈 카탈로그
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-202-eab3f637
+  question: 현장 작업자가 CZ-V20 설정을 임의로 못 바꾸게 키 잠금을 걸어두려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 설정 가이드
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-203-acbfba32
+  question: 멀티 스펙트럼 조명을 일반 점등모드로 촬상하도록 설정을 바꾸려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 1016
+    page_tolerance: 40
+- id: cld-204-08d2aa54
+  question: CC-Link IE에서 예약국으로 설정해둔 국을 나중에 유효하게 전환하려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 CC-Link IE Field Network Master/Local 모듈 사용 설명서
+    pages:
+    - 221
+    page_tolerance: 21
+- id: cld-205-68513725
+  question: 아주 적은 유량도 클램프온 방식으로 측정할 수 있나요? 미세 유량 측정 용도가 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 FD-X 시리즈 클램프온식 유량 센서
+    pages:
+    - 4
+    page_tolerance: 8
+- id: cld-206-85b560cd
+  question: 레이저 센서 뒤쪽 배경이 바뀌어도 오동작하지 않게 배경 변화를 무시하는 기능이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 LR-Z 시리즈 앰프 내장형 CMOS 레이저 센서 카탈로그
+    pages:
+    - 7
+    page_tolerance: 8
+- id: cld-207-85b560cd
+  question: LR-Z 센서의 삼각 측정 방식과 하이파워 광원 조합은 어떤 장점이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 LR-Z 시리즈 앰프 내장형 CMOS 레이저 센서 카탈로그
+    pages:
+    - 4
+    page_tolerance: 8
+- id: cld-208-f2dd2a23
+  question: 통합분배장치 제품 라인업
+  style: terse
+  expected:
+    type: technical
+    document: 네오정보시스템 NEO NETWORK 제품군 통합 사용 설명서
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-209-e0be10ac
+  question: BW 센서 동작 표시등 의미
+  style: terse
+  expected:
+    type: technical
+    document: 오토닉스 BW 시리즈 취급설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-210-f2688cef
+  question: QD77MS 버퍼메모리의 영역 구성이 어떻게 나뉘어 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 369
+    page_tolerance: 37
+- id: cld-211-70a6c5f4
+  question: 반도체 공장에 서보를 넣어야 하는데 MELSERVO-J4가 SEMI-F47 순간 정전 규격에 대응하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSERVO-J4 시리즈 서보앰프 기술자료집
+    pages:
+    - 234
+    page_tolerance: 24
+- id: cld-212-e75cc266
+  question: 로봇 안전 펜스의 세이프티 게이트와 플러그는 어떤 요건으로 설치해야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC 로봇 안전 핸드북
+    pages:
+    - 32
+    page_tolerance: 8
+- id: cld-213-b13f828e
+  question: N1 컨트롤러에서 티치 펜던트 관련 설정은 어떤 항목들을 바꿀 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 조작 및 운용 설명서
+    pages:
+    - 175
+    page_tolerance: 15
+- id: cld-214-e75cc266
+  question: 안전 펜스와 게이트 외에 로봇 주변에 추가로 설치할 수 있는 보호 장치에는 뭐가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC 로봇 안전 핸드북
+    pages:
+    - 32
+    page_tolerance: 8
+- id: cld-215-d359e943
+  question: NTS-4800 RS-485 옵션
+  style: terse
+  expected:
+    type: technical
+    document: NTS-4800 모델 사양서
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-216-21927271
+  question: RI 인디케이터의 설정 데이터를 백업해두고 나중에 복원하는 기능이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 래디언큐바이오 디지털 인디케이터 RI 시리즈 사용 설명서
+    pages:
+    - 38
+    page_tolerance: 8
+- id: cld-217-4129765e
+  question: ZK2 내부 구조도
+  style: terse
+  expected:
+    type: technical
+    document: SMC ZK2 시리즈 진공 유니트 카탈로그
+    pages:
+    - 26
+    page_tolerance: 8
+- id: cld-218-bb218e4f
+  question: PLC에서 이상 발생 시 전자 메일을 보내려고 하는데 이더넷 모듈의 메일 기능은 어떤 순서로 처리되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 Ethernet 인터페이스 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 29
+    page_tolerance: 8
+- id: cld-219-e7ecaf77
+  question: CA-LHR 렌즈 시리즈는 어떤 용도에 적합한가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CA-L 시리즈 렌즈 카탈로그
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-220-85b560cd
+  question: LR-Z에서 검출 거리 500mm까지 대응하는 모델은 어떤 건가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 LR-Z 시리즈 앰프 내장형 CMOS 레이저 센서 카탈로그
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-221-e7fd758f
+  question: F381에 전압입력 옵션으로 변위센서를 연결하려면 배선을 어떻게 해야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F381 취급설명서
+    pages:
+    - 33
+    page_tolerance: 8
+- id: cld-222-70a6c5f4
+  question: 리니어 서보 시스템에서 자극 검출을 다시 하지 않고 서보앰프만 교환할 수 있는 방법이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSERVO-J4 시리즈 서보앰프 기술자료집
+    pages:
+    - 594
+    page_tolerance: 24
+- id: cld-223-d974ecfc
+  question: H5F 타임 스위치가 지원하는 동작 기능에는 어떤 것들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오므론 H5F 시리즈 디지털 데일리 타임 스위치 카탈로그
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-224-d974ecfc
+  question: H5F에서 설정한 스케줄이 제대로 도는지 실제 시간을 기다리지 않고 확인할 수 있는 테스트 모드가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오므론 H5F 시리즈 디지털 데일리 타임 스위치 카탈로그
+    pages:
+    - 11
+    page_tolerance: 8
+- id: cld-225-a8b74d85
+  question: iRVision 비전 오차 보정을 적용한 로봇 프로그램은 어떻게 작성하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 화낙 R-30iB Plus 컨트롤러 iRVision 2D 카메라 애플리케이션 사용 설명서
+    pages:
+    - 231
+    page_tolerance: 9
+- id: cld-226-bba30bd5
+  question: 외관 검사 설정을 처음 시작할 때 어떤 흐름으로 진행하면 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 125
+    page_tolerance: 40
+- id: cld-227-4129765e
+  question: ZK2 외형치수
+  style: terse
+  expected:
+    type: technical
+    document: SMC ZK2 시리즈 진공 유니트 카탈로그
+    pages:
+    - 30
+    page_tolerance: 8
+- id: cld-228-21927271
+  question: RI 인디케이터를 설치할 때 장소나 환경 관련해서 주의할 사항이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 래디언큐바이오 디지털 인디케이터 RI 시리즈 사용 설명서
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-229-fa19fa26
+  question: MU-N에서 튜닝 방식을 선택할 수 있다고 하는데 어떤 튜닝 종류들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 MU-N 시리즈 사용 설명서 (LR-T 시리즈편)
+    pages:
+    - 14
+    page_tolerance: 8
+- id: cld-230-bb218e4f
+  question: PLC CPU에서 메일 본문을 직접 작성해서 송신하는 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 Ethernet 인터페이스 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 49
+    page_tolerance: 8
+- id: cld-231-acbfba32
+  question: 에지 검출이 불안정한데 에지 검출 조건에서 조정할 수 있는 항목들이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 426
+    page_tolerance: 40
+- id: cld-232-a8b74d85
+  question: iRVision에서 카메라 데이터 생성과 티칭은 어떤 단계로 진행하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 화낙 R-30iB Plus 컨트롤러 iRVision 2D 카메라 애플리케이션 사용 설명서
+    pages:
+    - 115
+    page_tolerance: 9
+- id: cld-233-37c809d2
+  question: LS-R900 통신 인터페이스
+  style: terse
+  expected:
+    type: technical
+    document: Cosmo LS-R900 기밀시험기 카탈로그
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-234-d8a2c393
+  question: CC-Link 마스터국이 리모트 I/O 국과 교신하는 동작 흐름이 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 CC-Link 시스템 마스터·로컬 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 43
+    page_tolerance: 11
+- id: cld-235-bb218e4f
+  question: 이더넷 모듈의 파일 전송 기능으로는 어떤 파일을 주고받을 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 Ethernet 인터페이스 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 118
+    page_tolerance: 8
+- id: cld-236-06b35f99
+  question: 디바이스넷 모듈의 기능 버전과 시리얼 번호는 어디서 확인하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 Q 시리즈 디바이스넷 마스터·슬레이브 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 26
+    page_tolerance: 8
+- id: cld-237-e7fd758f
+  question: F381 SD카드 포맷
+  style: terse
+  expected:
+    type: technical
+    document: 유니펄스 F381 취급설명서
+    pages:
+    - 187
+    page_tolerance: 8
+- id: cld-238-d7f4a719
+  question: GS1 DataMatrix 코드는 일반 DataMatrix와 뭐가 다른가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 2D 코드의 기본 Vol.1 2D 코드의 종류
+    pages:
+    - 7
+    page_tolerance: 8
+- id: cld-239-681bba21
+  question: QD77MS 인칭 운전을 기동하는 시퀀스 프로그램은 어떻게 작성하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 549
+    page_tolerance: 37
+- id: cld-240-13c1b0ec
+  question: MELSERVO-J4 알람 일람표
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시 MELSERVO-J4 서보앰프 기술자료집 (트러블 슈팅 편)
+    pages:
+    - 8
+    page_tolerance: 8
+- id: cld-241-bb1a7876
+  question: QD74MH에서 발생하는 에러와 워닝 코드의 상세 내용을 확인하고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 QD74MH 시리즈 위치결정 모듈 사용 설명서
+    pages:
+    - 218
+    page_tolerance: 11
+- id: cld-242-e1467d6a
+  question: CV-X100 시리즈 컨트롤러의 출력 회로 사양과 결선 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 820
+    page_tolerance: 40
+- id: cld-243-e7ecaf77
+  question: CV-L 렌즈 시리즈
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CA-L 시리즈 렌즈 카탈로그
+    pages:
+    - 4
+    page_tolerance: 8
+- id: cld-244-681bba21
+  question: 심플모션 유닛의 원점복귀에 두 가지 제어 방식이 있다는데 각각 어떻게 다른가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 374
+    page_tolerance: 37
+- id: cld-245-e0be10ac
+  question: BW 센서 고장 진단
+  style: terse
+  expected:
+    type: technical
+    document: 오토닉스 BW 시리즈 취급설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-246-bb1a7876
+  question: QD74MH의 토크 제한 기능은 어떻게 설정하고 언제 적용되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 QD74MH 시리즈 위치결정 모듈 사용 설명서
+    pages:
+    - 196
+    page_tolerance: 11
+- id: cld-247-e75cc266
+  question: 안전 펜스 안으로 작업자가 들어가야 할 때 지켜야 하는 안전 절차가 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC 로봇 안전 핸드북
+    pages:
+    - 34
+    page_tolerance: 8
+- id: cld-248-e1467d6a
+  question: CV-X EtherCAT 접속 준비
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 951
+    page_tolerance: 40
+- id: cld-249-fa19fa26
+  question: MU-N의 거리 모드는 어떤 검출 방식이고 언제 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 MU-N 시리즈 사용 설명서 (LR-T 시리즈편)
+    pages:
+    - 7
+    page_tolerance: 8
+- id: cld-250-287bc708
+  question: 시리얼 커뮤니케이션 모듈 응용 기능에서 사용하는 버퍼 메모리 구성을 알고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 91
+    page_tolerance: 14
+- id: cld-251-531f035c
+  question: 태블릿 UI에서 비전 검출 결과만큼 위치를 보정하는 오프셋 동작은 어떻게 티칭하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Plus/R-30iB Mate Plus/R-30iB Mini Plus CONTROLLER TABLET UI 사용 설명서
+    pages:
+    - 154
+    page_tolerance: 12
+- id: cld-252-a187eba6
+  question: 근접센서의 기본 동작 원리와 종류가 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 오토닉스 근접센서 기술해설
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-253-d974ecfc
+  question: H5F에 등록해둔 설정 내용 중 일부만 골라서 삭제할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오므론 H5F 시리즈 디지털 데일리 타임 스위치 카탈로그
+    pages:
+    - 9
+    page_tolerance: 8
+- id: cld-254-68513725
+  question: FD-X의 풀 타임 레코딩 기능은 어떤 데이터를 얼마나 오래 기록하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 FD-X 시리즈 클램프온식 유량 센서
+    pages:
+    - 14
+    page_tolerance: 8
+- id: cld-255-85b560cd
+  question: LR-Z 배경 튜닝은 어떤 상황에서 쓰고 어떻게 실행하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 LR-Z 시리즈 앰프 내장형 CMOS 레이저 센서 카탈로그
+    pages:
+    - 6
+    page_tolerance: 8
+- id: cld-256-d359e943
+  question: NTS-4800 BCD 출력
+  style: terse
+  expected:
+    type: technical
+    document: NTS-4800 모델 사양서
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-257-8c711b1e
+  question: LCD 로드셀 사양
+  style: terse
+  expected:
+    type: technical
+    document: LCD 시리즈 로드셀 제품 사양서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-258-9bc110ac
+  question: HPPF 그리퍼에 공압 배관을 연결할 때 포트 위치와 배관 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 페스토 HPPF 평행 그리퍼 사용 설명서
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-259-eed5531f
+  question: 로봇 컨트롤러 전원이 아예 켜지지 않을 때 어떤 순서로 점검해야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Mate/R-30iB Mate Plus 컨트롤러 유지보수 매뉴얼
+    pages:
+    - 54
+    page_tolerance: 13
+- id: cld-260-f2dd2a23
+  question: 커플러 제품 목록
+  style: terse
+  expected:
+    type: technical
+    document: 네오정보시스템 NEO NETWORK 제품군 통합 사용 설명서
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-261-e75cc266
+  question: 안전 핸드북의 개정 이력은 어디서 확인할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC 로봇 안전 핸드북
+    pages:
+    - 51
+    page_tolerance: 8
+- id: cld-262-68513725
+  question: FD-X 라인업에서 배관 구경별로 어떤 모델을 선택해야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 FD-X 시리즈 클램프온식 유량 센서
+    pages:
+    - 7
+    page_tolerance: 8
+- id: cld-263-dd6ade58
+  question: LS-R900의 고정값 보정 기능은 언제 사용하고 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 코스모 LS-R900 에어 리크 테스터 취급설명서
+    pages:
+    - 88
+    page_tolerance: 8
+- id: cld-264-bb1a7876
+  question: QD74MH로 2축 직선 보간 운전을 하려면 보간축 설정을 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 QD74MH 시리즈 위치결정 모듈 사용 설명서
+    pages:
+    - 159
+    page_tolerance: 11
+- id: cld-265-9bc110ac
+  question: HPPF 그리퍼의 센서 케이블 같은 전기 배선은 어떻게 설치하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 페스토 HPPF 평행 그리퍼 사용 설명서
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-266-fe16af23
+  question: LT 시리즈 카운터를 사용할 때 일반적으로 지켜야 할 주의사항이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: Magnescale LT20A / LT30 시리즈 사용 설명서
+    pages:
+    - 61
+    page_tolerance: 8
+- id: cld-267-681bba21
+  question: SSCNETⅢ 케이블 사양
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 840
+    page_tolerance: 37
+- id: cld-268-06b35f99
+  question: 유틸리티 패키지 없이 시퀀스 프로그램만으로 디바이스넷 모듈을 제어하는 예제가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 Q 시리즈 디바이스넷 마스터·슬레이브 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 157
+    page_tolerance: 8
+- id: cld-269-f2688cef
+  question: QD77MS 시스템을 구성할 때 필요한 구성기기 목록을 확인하고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 57
+    page_tolerance: 37
+- id: cld-270-eed5531f
+  question: 로봇 공압 알람 PPABN을 비활성화하거나 다시 활성화하려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Mate/R-30iB Mate Plus 컨트롤러 유지보수 매뉴얼
+    pages:
+    - 256
+    page_tolerance: 13
+- id: cld-271-d974ecfc
+  question: H5F에서 월요일부터 금요일까지만 동작하게 특정 요일 설정은 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오므론 H5F 시리즈 디지털 데일리 타임 스위치 카탈로그
+    pages:
+    - 8
+    page_tolerance: 8
+- id: cld-272-f9517114
+  question: 고정 버퍼를 무수순 방식으로 교신하는 프로그램 예제를 보고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 Q 시리즈 Ethernet 인터페이스 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 218
+    page_tolerance: 14
+- id: cld-273-4129765e
+  question: ZK2 사양 질량
+  style: terse
+  expected:
+    type: technical
+    document: SMC ZK2 시리즈 진공 유니트 카탈로그
+    pages:
+    - 13
+    page_tolerance: 8
+- id: cld-274-bba30bd5
+  question: 검사 항목별로 OK/NG 판정 조건은 어떤 기준으로 설정하는 게 좋나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 1088
+    page_tolerance: 40
+- id: cld-275-78438c65
+  question: L7NH 서보를 Drive CM 소프트웨어로 설정하려면 어떻게 연결하고 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LS AC 서보 드라이브 L7NH 시리즈 사용 설명서
+    pages:
+    - 449
+    page_tolerance: 18
+- id: cld-276-e3cbb841
+  question: F388A 파형 표시의 Y축 스케일과 범위는 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F388A 웨이브 폼 체커 사용 설명서
+    pages:
+    - 46
+    page_tolerance: 8
+- id: cld-277-d89ee7e5
+  question: N1 E1400 궤적 알람
+  style: terse
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 알람코드 설명서
+    pages:
+    - 66
+    page_tolerance: 8
+- id: cld-278-a9e449ae
+  question: CV-X400 기본 사양
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X400/X300 시리즈 취급 설명서
+    pages:
+    - 8
+    page_tolerance: 8
+- id: cld-279-e0be10ac
+  question: BW 시리즈의 모델명 구성 체계는 어떻게 되나요? 광축 수와 검출 높이에 따라 어떻게 나뉘나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오토닉스 BW 시리즈 취급설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-280-e3cbb841
+  question: F388A와 상위 기기 간 통신을 처음 연결할 때 통신 확립 절차가 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F388A 웨이브 폼 체커 사용 설명서
+    pages:
+    - 30
+    page_tolerance: 8
+- id: cld-281-eed5531f
+  question: 6축 서보 앰프를 교환해야 하는데 교체 절차와 주의사항이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Mate/R-30iB Mate Plus 컨트롤러 유지보수 매뉴얼
+    pages:
+    - 162
+    page_tolerance: 13
+- id: cld-282-8fe3487e
+  question: 가전제품 사용 시 알아두면 좋은 전기안전 수칙에는 어떤 것들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LG 광파오븐 사용설명서
+    pages:
+    - 64
+    page_tolerance: 8
+- id: cld-283-ee586e0e
+  question: 너트런너 컨트롤러의 기본설정 메뉴에서는 어떤 항목들을 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SETech AC SERVO NUTRUNNER LOCAL CONTROL SYSTEM 사용 설명서
+    pages:
+    - 52
+    page_tolerance: 8
+- id: cld-284-e75cc266
+  question: 로봇의 운전 모드(AUTO/T1/T2)는 각각 어떤 안전 조건에서 사용하는 건가요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC 로봇 안전 핸드북
+    pages:
+    - 29
+    page_tolerance: 8
+- id: cld-285-e75cc266
+  question: 로봇의 EU 적합성 선언(CE) 관련 내용은 어디서 확인할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC 로봇 안전 핸드북
+    pages:
+    - 46
+    page_tolerance: 8
+- id: cld-286-f5d43510
+  question: SMC 디지털 압력 스위치의 기본적인 설정 방법을 처음부터 알려주는 자료가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC 디지털 압력 스위치 설정 매뉴얼
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-287-287bc708
+  question: 시리얼 커뮤니케이션 모듈로 외부 기기 데이터를 수신하는 프로그램 예제가 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 285
+    page_tolerance: 14
+- id: cld-288-77e576aa
+  question: RCS8000에서 이미 작성된 프로그램의 내용을 화면에서 확인하려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCS-8000 시리즈 RCS8000 설명서
+    pages:
+    - 57
+    page_tolerance: 12
+- id: cld-289-d8a2c393
+  question: CC-Link 마스터 모듈 기능 버전 B에서 추가되거나 변경된 기능이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 CC-Link 시스템 마스터·로컬 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 26
+    page_tolerance: 11
+- id: cld-290-c88e89db
+  question: 컬러 센서의 광원을 자동이 아니라 수동으로 선택하고 싶은데 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 디지털 컬러 센서 카탈로그
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-291-efc616f8
+  question: RCA4 사용 설명서 부록에는 어떤 참고 자료들이 포함되어 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCA(I)4 시리즈 사용 설명서
+    pages:
+    - 151
+    page_tolerance: 8
+- id: cld-292-e75cc266
+  question: 로봇 운용 시 일반적인 안전 수칙 외에 추가로 주의해야 할 사항들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC 로봇 안전 핸드북
+    pages:
+    - 44
+    page_tolerance: 8
+- id: cld-293-70a6c5f4
+  question: MELSERVO-J4 드라이브 레코더 같은 운전 지원 기능에는 어떤 것들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSERVO-J4 시리즈 서보앰프 기술자료집
+    pages:
+    - 419
+    page_tolerance: 24
+- id: cld-294-b13f828e
+  question: N1 로봇 프로그램에서 위치형 전역 변수는 어떻게 편집하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 조작 및 운용 설명서
+    pages:
+    - 331
+    page_tolerance: 15
+- id: cld-295-155b3678
+  question: 시리얼 모듈 입출력 신호 일람
+  style: terse
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 시리얼 통신 모듈 사용 설명서
+    pages:
+    - 81
+    page_tolerance: 17
+- id: cld-296-e7fd758f
+  question: F381 설정화면에는 어떤 메뉴 항목들이 있고 어떻게 진입하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F381 취급설명서
+    pages:
+    - 55
+    page_tolerance: 8
+- id: cld-297-e0be10ac
+  question: BW 센서의 동작 타이밍도를 보고 싶은데 출력 신호가 어떤 타이밍으로 나오나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오토닉스 BW 시리즈 취급설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-298-78438c65
+  question: L7NH CN1 출력접점
+  style: terse
+  expected:
+    type: technical
+    document: LS AC 서보 드라이브 L7NH 시리즈 사용 설명서
+    pages:
+    - 456
+    page_tolerance: 18
+- id: cld-299-06b35f99
+  question: 디바이스넷에서 각 슬레이브 국의 교신 이상 상태를 모니터링하려면 어떤 영역을 확인하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 Q 시리즈 디바이스넷 마스터·슬레이브 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 125
+    page_tolerance: 8
+- id: cld-300-a9e449ae
+  question: CV-X400 커넥터 핀 배열
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X400/X300 시리즈 취급 설명서
+    pages:
+    - 8
+    page_tolerance: 8
+- id: cld-301-c88e89db
+  question: 컬러 센서 화면에 표시되는 광량 수치는 어떤 의미이고 판정에 어떻게 활용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 디지털 컬러 센서 카탈로그
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-302-e0be10ac
+  question: BW 에어리어 센서를 설치할 때 상호 간섭이나 진동 관련해서 주의할 점이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오토닉스 BW 시리즈 취급설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-303-4ea9fcc4
+  question: LR-W 센서를 IO-Link 같은 통신 네트워크에 연결하면 어떤 기능을 쓸 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 LR-W 시리즈 화이트 스폿 광 센서 카탈로그
+    pages:
+    - 13
+    page_tolerance: 8
+- id: cld-304-87964430
+  question: 시리얼 커뮤니케이션 모듈 외형 치수
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 380
+    page_tolerance: 17
+- id: cld-305-f2688cef
+  question: QD77MS 위치결정 제어를 실행하는 운전 프로그램 작성 예를 보고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 311
+    page_tolerance: 37
+- id: cld-306-c88e89db
+  question: 컬러 센서의 슈퍼 I모드는 일반 모드와 비교해서 어떤 원리로 판별하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 디지털 컬러 센서 카탈로그
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-307-fe16af23
+  question: LT 카운터의 피크값 홀드 기능은 어떻게 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: Magnescale LT20A / LT30 시리즈 사용 설명서
+    pages:
+    - 124
+    page_tolerance: 8
+- id: cld-308-f2688cef
+  question: 블록 기동으로 고도의 위치결정 제어를 시작하려면 어떻게 기동하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 526
+    page_tolerance: 37
+- id: cld-309-a8b74d85
+  question: iRVision으로 팔레트에 쌓인 박스를 하나씩 집는 디팔레타이징 비전 프로세스는 어떻게 구성하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 화낙 R-30iB Plus 컨트롤러 iRVision 2D 카메라 애플리케이션 사용 설명서
+    pages:
+    - 103
+    page_tolerance: 9
+- id: cld-310-33041864
+  question: 압력스위치 메인 화면 옆의 서브 화면에 다른 값을 표시하고 싶은데 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZSE20B(F)/ISE20B 시리즈 디지털 압력스위치 취급설명서
+    pages:
+    - 50
+    page_tolerance: 8
+- id: cld-311-bb1a7876
+  question: QD74MH 속도·위치 전환 제어의 동작 내용이 구체적으로 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 QD74MH 시리즈 위치결정 모듈 사용 설명서
+    pages:
+    - 186
+    page_tolerance: 11
+- id: cld-312-8553eadb
+  question: 불량품 이미지를 학습시키는 AI 검사 기능은 어떤 식으로 동작하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 VS 시리즈 비전 시스템 카탈로그
+    pages:
+    - 8
+    page_tolerance: 8
+- id: cld-313-8553eadb
+  question: AI 검사와 별도로 룰 베이스 방식 검사는 어떤 경우에 쓰는 게 좋나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 VS 시리즈 비전 시스템 카탈로그
+    pages:
+    - 9
+    page_tolerance: 8
+- id: cld-314-37c809d2
+  question: LS-R900 표시 화면
+  style: terse
+  expected:
+    type: technical
+    document: Cosmo LS-R900 기밀시험기 카탈로그
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-315-dd6ade58
+  question: LS-R900에서 측정 채널을 다른 채널로 전환하려면 어떻게 조작하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 코스모 LS-R900 에어 리크 테스터 취급설명서
+    pages:
+    - 45
+    page_tolerance: 8
+- id: cld-316-bb218e4f
+  question: 이더넷 모듈 FTP 커맨드
+  style: terse
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 Ethernet 인터페이스 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 136
+    page_tolerance: 8
+- id: cld-317-ee586e0e
+  question: 너트런너의 간이 마스터로 지정 체결데이터를 읽어오려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SETech AC SERVO NUTRUNNER LOCAL CONTROL SYSTEM 사용 설명서
+    pages:
+    - 99
+    page_tolerance: 8
+- id: cld-318-d7f4a719
+  question: DataMatrix 코드의 크기별로 담을 수 있는 데이터 양이 얼마나 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 2D 코드의 기본 Vol.1 2D 코드의 종류
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-319-21927271
+  question: RI 인디케이터 보정 기능을 사용할 때 유의해야 할 점이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 래디언큐바이오 디지털 인디케이터 RI 시리즈 사용 설명서
+    pages:
+    - 35
+    page_tolerance: 8
+- id: cld-320-f2dd2a23
+  question: SMATV 광송장비 사양
+  style: terse
+  expected:
+    type: technical
+    document: 네오정보시스템 NEO NETWORK 제품군 통합 사용 설명서
+    pages:
+    - 6
+    page_tolerance: 8
+- id: cld-321-06b35f99
+  question: 디바이스넷 마스터 파라미터를 정리해서 기록해둘 수 있는 설정 용지 양식이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 Q 시리즈 디바이스넷 마스터·슬레이브 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 214
+    page_tolerance: 8
+- id: cld-322-fa19fa26
+  question: MU-N의 윈도 모드는 어떤 검출 방식이고 상한/하한은 어떻게 잡나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 MU-N 시리즈 사용 설명서 (LR-T 시리즈편)
+    pages:
+    - 8
+    page_tolerance: 8
+- id: cld-323-9bc110ac
+  question: HPPF 그리퍼의 설치·정비 작업은 어떤 자격을 갖춘 인력이 해야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 페스토 HPPF 평행 그리퍼 사용 설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-324-f2dd2a23
+  question: 통합멀티 수신장치 특등급
+  style: terse
+  expected:
+    type: technical
+    document: 네오정보시스템 NEO NETWORK 제품군 통합 사용 설명서
+    pages:
+    - 6
+    page_tolerance: 8
+- id: cld-325-fe16af23
+  question: LT 카운터에 측정 유닛 케이블을 연결하는 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: Magnescale LT20A / LT30 시리즈 사용 설명서
+    pages:
+    - 65
+    page_tolerance: 8
+- id: cld-326-70a6c5f4
+  question: 서보 모터를 실제 부하 없이 테스트 운전모드로 돌려보려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSERVO-J4 시리즈 서보앰프 기술자료집
+    pages:
+    - 131
+    page_tolerance: 24
+- id: cld-327-b13f828e
+  question: N1 컨트롤러를 전원 투입 후 자동으로 RUN 상태가 되게 하는 AUTO 자동 RUN 설정이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 조작 및 운용 설명서
+    pages:
+    - 199
+    page_tolerance: 15
+- id: cld-328-efc616f8
+  question: RCA4 로봇 본체와 컨트롤러 등 구성기기는 어떤 순서와 방법으로 설치하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCA(I)4 시리즈 사용 설명서
+    pages:
+    - 27
+    page_tolerance: 8
+- id: cld-329-fa19fa26
+  question: MU-N의 타이머 기능에는 어떤 종류가 있고 각각 언제 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 MU-N 시리즈 사용 설명서 (LR-T 시리즈편)
+    pages:
+    - 13
+    page_tolerance: 8
+- id: cld-330-70a6c5f4
+  question: MELSERVO-J4의 풀 클로즈드 루프 시스템은 어떤 기능과 구성으로 되어 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSERVO-J4 시리즈 서보앰프 기술자료집
+    pages:
+    - 464
+    page_tolerance: 24
+- id: cld-331-21927271
+  question: RI-10W나 RI-20W 인디케이터의 기능 설정 모드에는 어떻게 진입하고 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 래디언큐바이오 디지털 인디케이터 RI 시리즈 사용 설명서
+    pages:
+    - 19
+    page_tolerance: 8
+- id: cld-332-acbfba32
+  question: 위치 이동 보정 계측 결과가 생각대로 안 나올 때 확인해야 할 사항이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 486
+    page_tolerance: 40
+- id: cld-333-21927271
+  question: RI 인디케이터를 사용할 때 지켜야 할 주의사항에는 어떤 것들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 래디언큐바이오 디지털 인디케이터 RI 시리즈 사용 설명서
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-334-efc616f8
+  question: RCA4 로봇의 소모품 교환 같은 유지보수 작업 절차가 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCA(I)4 시리즈 사용 설명서
+    pages:
+    - 113
+    page_tolerance: 8
+- id: cld-335-85b560cd
+  question: 하이파워 CMOS 레이저 광원은 기존 레이저 센서와 뭐가 다른가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 LR-Z 시리즈 앰프 내장형 CMOS 레이저 센서 카탈로그
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-336-d89ee7e5
+  question: SV_MEMORY E2292 알람
+  style: terse
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 알람코드 설명서
+    pages:
+    - 95
+    page_tolerance: 8
+- id: cld-337-bb1a7876
+  question: QD74MH 토크 제한이 걸렸을 때의 제어 동작이 구체적으로 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 QD74MH 시리즈 위치결정 모듈 사용 설명서
+    pages:
+    - 196
+    page_tolerance: 11
+- id: cld-338-eed5531f
+  question: 로봇 컨트롤러 백업 회로 구성은 어떻게 되어 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Mate/R-30iB Mate Plus 컨트롤러 유지보수 매뉴얼
+    pages:
+    - 317
+    page_tolerance: 13
+- id: cld-339-78438c65
+  question: L7NH 매뉴얼에서 다이나믹 브레이크 관련 장의 개요 내용이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: LS AC 서보 드라이브 L7NH 시리즈 사용 설명서
+    pages:
+    - 226
+    page_tolerance: 18
+- id: cld-340-33041864
+  question: 압력 표시값이 미세하게 흔들리는데 디지털 필터를 걸어서 안정시킬 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZSE20B(F)/ISE20B 시리즈 디지털 압력스위치 취급설명서
+    pages:
+    - 44
+    page_tolerance: 8
+- id: cld-341-06b35f99
+  question: 디바이스넷 모듈을 슬레이브로 쓸 때 설정해야 하는 파라미터가 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 Q 시리즈 디바이스넷 마스터·슬레이브 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 172
+    page_tolerance: 8
+- id: cld-342-b13f828e
+  question: N1 컨트롤러의 JEDIT 모드에서 작업 프로그램은 어떻게 편집하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 조작 및 운용 설명서
+    pages:
+    - 231
+    page_tolerance: 15
+- id: cld-343-d8a2c393
+  question: CC-Link 링크 특수 레지스터 SW
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 CC-Link 시스템 마스터·로컬 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 174
+    page_tolerance: 11
+- id: cld-344-531f035c
+  question: 태블릿 UI 비전에서 워크 검출 조건 셋업은 어떤 항목들을 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Plus/R-30iB Mate Plus/R-30iB Mini Plus CONTROLLER TABLET UI 사용 설명서
+    pages:
+    - 131
+    page_tolerance: 12
+- id: cld-345-9bc110ac
+  question: HPPF 그리퍼에 맞는 그리퍼 핑거는 어떤 조건으로 준비해야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 페스토 HPPF 평행 그리퍼 사용 설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-346-b13f828e
+  question: N1 티치 펜던트 화면에 표시되는 위치좌표의 부호 방향을 바꿀 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 조작 및 운용 설명서
+    pages:
+    - 81
+    page_tolerance: 15
+- id: cld-347-efc616f8
+  question: RCA4 로봇을 안전하게 사용하기 위한 기본 안전 수칙들이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCA(I)4 시리즈 사용 설명서
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-348-eab3f637
+  question: 광택이 있는 대상물을 판별할 때 쓰는 광택판별모드는 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 설정 가이드
+    pages:
+    - 4
+    page_tolerance: 8
+- id: cld-349-f5d43510
+  question: SMC 디지털 스위치 셋팅 시스템은 어떤 구성으로 되어 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC 디지털 압력 스위치 설정 매뉴얼
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-350-b13f828e
+  question: N1 컨트롤러에서 채널별로 로봇 사용 유무를 선택하는 RENB 설정은 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 조작 및 운용 설명서
+    pages:
+    - 121
+    page_tolerance: 15
+- id: cld-351-e7fd758f
+  question: F381 배선이 제대로 됐는지 확인하는 방법이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F381 취급설명서
+    pages:
+    - 44
+    page_tolerance: 8
+- id: cld-352-9bc110ac
+  question: HPPF 그리퍼 핑거 조립
+  style: terse
+  expected:
+    type: technical
+    document: 페스토 HPPF 평행 그리퍼 사용 설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-353-eab3f637
+  question: CZ-V20에서 여러 채널에 저장된 설정을 전환하는 채널 변경 기능은 어떻게 쓰나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 설정 가이드
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-354-f2688cef
+  question: 기계 원점복귀를 보조하는 고유 기능에는 어떤 것들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 572
+    page_tolerance: 37
+- id: cld-355-dd6ade58
+  question: LS-R900 표준 계측화면에는 어떤 정보가 표시되고 각 항목은 무슨 의미인가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 코스모 LS-R900 에어 리크 테스터 취급설명서
+    pages:
+    - 50
+    page_tolerance: 8
+- id: cld-356-fa19fa26
+  question: MU-N 센서의 레이저 규제나 규격 관련 주의사항이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 MU-N 시리즈 사용 설명서 (LR-T 시리즈편)
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-357-b13f828e
+  question: N1 로봇의 원점 방향과 Move Direction은 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 조작 및 운용 설명서
+    pages:
+    - 386
+    page_tolerance: 15
+- id: cld-358-681bba21
+  question: QD77MS 인칭 운전 실행 순서
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 547
+    page_tolerance: 37
+- id: cld-359-155b3678
+  question: 시리얼 통신 모듈의 데이터 송신 방식에는 어떤 종류가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 시리얼 통신 모듈 사용 설명서
+    pages:
+    - 192
+    page_tolerance: 17
+- id: cld-360-a187eba6
+  question: 근접센서 스펙에 나오는 응차거리, 설정거리 같은 용어들이 무슨 뜻인가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오토닉스 근접센서 기술해설
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-361-d89ee7e5
+  question: N1 E1201 런타임 알람
+  style: terse
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 알람코드 설명서
+    pages:
+    - 35
+    page_tolerance: 8
+- id: cld-362-78438c65
+  question: L7NH 전자 기어 장의 세부 항목에는 어떤 내용이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LS AC 서보 드라이브 L7NH 시리즈 사용 설명서
+    pages:
+    - 223
+    page_tolerance: 18
+- id: cld-363-68513725
+  question: FD-X가 미세한 유량 변화도 안정적으로 잡아내는 신호 처리 방식이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 FD-X 시리즈 클램프온식 유량 센서
+    pages:
+    - 9
+    page_tolerance: 8
+- id: cld-364-85b560cd
+  question: LR-Z 관련 제품
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 LR-Z 시리즈 앰프 내장형 CMOS 레이저 센서 카탈로그
+    pages:
+    - 15
+    page_tolerance: 8
+- id: cld-365-13c1b0ec
+  question: 서보 알람이 발생했을 때 알람별 대처 방법을 정리한 자료가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSERVO-J4 서보앰프 기술자료집 (트러블 슈팅 편)
+    pages:
+    - 12
+    page_tolerance: 8
+- id: cld-366-e7ecaf77
+  question: CA-LMHR 렌즈 사양
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CA-L 시리즈 렌즈 카탈로그
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-367-85b560cd
+  question: LR-Z 시리즈는 어떤 특징을 가진 레이저 센서인가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 LR-Z 시리즈 앰프 내장형 CMOS 레이저 센서 카탈로그
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-368-4129765e
+  question: ZK2에 내장된 진공용 디지털 압력 스위치의 사양이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZK2 시리즈 진공 유니트 카탈로그
+    pages:
+    - 17
+    page_tolerance: 8
+- id: cld-369-87964430
+  question: MX Component로 시리얼 통신 모듈과 교신하는 PC 프로그램을 만들 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 385
+    page_tolerance: 17
+- id: cld-370-531f035c
+  question: 로봇 손목에 장착한 툴을 태블릿 UI의 툴 인터페이스로 제어하려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Plus/R-30iB Mate Plus/R-30iB Mini Plus CONTROLLER TABLET UI 사용 설명서
+    pages:
+    - 267
+    page_tolerance: 12
+- id: cld-371-a187eba6
+  question: 근접센서를 금속 패널에 매입 설치할 때 주변 금속의 영향을 피하는 방법이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오토닉스 근접센서 기술해설
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-372-a8b74d85
+  question: 고정 카메라로 툴 오프셋을 보정하는 셋업은 어떻게 진행하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 화낙 R-30iB Plus 컨트롤러 iRVision 2D 카메라 애플리케이션 사용 설명서
+    pages:
+    - 91
+    page_tolerance: 9
+- id: cld-373-8fe3487e
+  question: 광파오븐에 포함된 요리용 구성품에는 어떤 것들이 있고 각각 언제 쓰나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LG 광파오븐 사용설명서
+    pages:
+    - 22
+    page_tolerance: 8
+- id: cld-374-287bc708
+  question: 사용자등록 프레임으로 온디맨드 송신을 할 때 제어 순서가 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 217
+    page_tolerance: 14
+- id: cld-375-d7f4a719
+  question: GS1 복합 코드 구조
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 2D 코드의 기본 Vol.1 2D 코드의 종류
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-376-e0be10ac
+  question: BW 시리즈 정격 성능표
+  style: terse
+  expected:
+    type: technical
+    document: 오토닉스 BW 시리즈 취급설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-377-fe16af23
+  question: LT20A 커넥터 핀 배치
+  style: terse
+  expected:
+    type: technical
+    document: Magnescale LT20A / LT30 시리즈 사용 설명서
+    pages:
+    - 89
+    page_tolerance: 8
+- id: cld-378-c88e89db
+  question: 컬러 센서 헤드를 설치할 때 대상물과의 거리와 각도는 어떻게 잡아야 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 디지털 컬러 센서 카탈로그
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-379-acbfba32
+  question: 워크의 직선 에지를 기준으로 위치와 각도를 함께 보정하는 방법이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 497
+    page_tolerance: 40
+- id: cld-380-8c711b1e
+  question: LCD 로드셀 정격 사양
+  style: terse
+  expected:
+    type: technical
+    document: LCD 시리즈 로드셀 제품 사양서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-381-d8a2c393
+  question: CC-Link 마스터 모듈이 제공하는 기능 전체를 한눈에 보고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 CC-Link 시스템 마스터·로컬 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 41
+    page_tolerance: 11
+- id: cld-382-a8b74d85
+  question: 로봇이 이동하면서 촬상할 때 촬상 위치가 어긋나는 것을 보정하는 기능이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 화낙 R-30iB Plus 컨트롤러 iRVision 2D 카메라 애플리케이션 사용 설명서
+    pages:
+    - 228
+    page_tolerance: 9
+- id: cld-383-4129765e
+  question: ZK2 이젝터 단품으로 주문할 때 형식 표시는 어떻게 구성하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZK2 시리즈 진공 유니트 카탈로그
+    pages:
+    - 6
+    page_tolerance: 8
+- id: cld-384-eed5531f
+  question: Process I/O 보드 MA 타입의 주변장치 인터페이스 구성이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Mate/R-30iB Mate Plus 컨트롤러 유지보수 매뉴얼
+    pages:
+    - 198
+    page_tolerance: 13
+- id: cld-385-d7f4a719
+  question: PDF417 코드는 어떤 구조로 데이터를 담고 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 2D 코드의 기본 Vol.1 2D 코드의 종류
+    pages:
+    - 14
+    page_tolerance: 8
+- id: cld-386-d8a2c393
+  question: CC-Link에서 특정 로컬국만 데이터 링크를 정지시키고 다시 시작할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 CC-Link 시스템 마스터·로컬 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 96
+    page_tolerance: 11
+- id: cld-387-a8b74d85
+  question: 카메라 보정 후 로봇 프로그램에 비전 보정값을 반영해서 티칭하는 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 화낙 R-30iB Plus 컨트롤러 iRVision 2D 카메라 애플리케이션 사용 설명서
+    pages:
+    - 90
+    page_tolerance: 9
+- id: cld-388-681bba21
+  question: 스케일 원점신호 검출식 원점복귀는 어떤 동작으로 원점을 잡나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 386
+    page_tolerance: 37
+- id: cld-389-a187eba6
+  question: 고주파 발진형 근접센서는 어떤 원리로 금속을 검출하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오토닉스 근접센서 기술해설
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-390-33041864
+  question: 압력스위치 표시값이 기준기와 미세하게 다른데 표시값을 미세조정할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZSE20B(F)/ISE20B 시리즈 디지털 압력스위치 취급설명서
+    pages:
+    - 49
+    page_tolerance: 8
+- id: cld-391-d7f4a719
+  question: QR 코드 버전별 크기와 저장 가능한 데이터 양이 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 2D 코드의 기본 Vol.1 2D 코드의 종류
+    pages:
+    - 11
+    page_tolerance: 8
+- id: cld-392-33041864
+  question: 압력스위치 공장초기화 F99
+  style: terse
+  expected:
+    type: technical
+    document: SMC ZSE20B(F)/ISE20B 시리즈 디지털 압력스위치 취급설명서
+    pages:
+    - 68
+    page_tolerance: 8
+- id: cld-393-e7ecaf77
+  question: CA-LMHE 렌즈 시리즈의 특징과 대응 촬영 거리가 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CA-L 시리즈 렌즈 카탈로그
+    pages:
+    - 6
+    page_tolerance: 8
+- id: cld-394-e3bd9db1
+  question: CV-X300F 외형 치수
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X300F 데이터 시트
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-395-efc616f8
+  question: RCA4 컨트롤러의 입출력 인터페이스 커넥터 구성과 신호 배치가 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCA(I)4 시리즈 사용 설명서
+    pages:
+    - 39
+    page_tolerance: 8
+- id: cld-396-f9517114
+  question: 이더넷 모듈의 페어링 오픈은 어떤 기능이고 언제 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 Q 시리즈 Ethernet 인터페이스 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 153
+    page_tolerance: 14
+- id: cld-397-b13f828e
+  question: N1 작업 프로그램에서 복잡한 명령어는 어떻게 입력하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 조작 및 운용 설명서
+    pages:
+    - 329
+    page_tolerance: 15
+- id: cld-398-eab3f637
+  question: CZ-V20 C모드 화면에 표시되는 값들은 각각 무슨 의미인가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 설정 가이드
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-399-ee586e0e
+  question: 너트런너와 터치로더 간 통신 프로토콜 사양이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: SETech AC SERVO NUTRUNNER LOCAL CONTROL SYSTEM 사용 설명서
+    pages:
+    - 86
+    page_tolerance: 8
+- id: cld-400-8fe3487e
+  question: 광파오븐의 응용 조리 기능으로는 어떤 요리를 할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LG 광파오븐 사용설명서
+    pages:
+    - 55
+    page_tolerance: 8
+- id: cld-401-8fe3487e
+  question: 광파오븐의 현재 시각 설정은 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LG 광파오븐 사용설명서
+    pages:
+    - 54
+    page_tolerance: 8
+- id: cld-402-06b35f99
+  question: 디바이스넷 모듈 자체에 이상이 있는지 하드웨어 테스트로 확인하는 방법이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 Q 시리즈 디바이스넷 마스터·슬레이브 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 96
+    page_tolerance: 8
+- id: cld-403-33041864
+  question: 압력스위치의 OUT2 출력을 OUT1과 다른 조건으로 설정할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZSE20B(F)/ISE20B 시리즈 디지털 압력스위치 취급설명서
+    pages:
+    - 42
+    page_tolerance: 8
+- id: cld-404-e1467d6a
+  question: 양품 학습 유무 판별
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 99
+    page_tolerance: 40
+- id: cld-405-d89ee7e5
+  question: N1 E1301 컴파일 알람
+  style: terse
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 알람코드 설명서
+    pages:
+    - 56
+    page_tolerance: 8
+- id: cld-406-d359e943
+  question: NTS-4800 RS-232C 옵션
+  style: terse
+  expected:
+    type: technical
+    document: NTS-4800 모델 사양서
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-407-eed5531f
+  question: 로봇 컨트롤러 외관에서 각 부의 명칭과 위치를 확인하고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Mate/R-30iB Mate Plus 컨트롤러 유지보수 매뉴얼
+    pages:
+    - 46
+    page_tolerance: 13
+- id: cld-408-681bba21
+  question: QD77MS 기본 파라미터2에는 어떤 설정 항목들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 141
+    page_tolerance: 37
+- id: cld-409-f2dd2a23
+  question: PortFree 세대통신분배장치
+  style: terse
+  expected:
+    type: technical
+    document: 네오정보시스템 NEO NETWORK 제품군 통합 사용 설명서
+    pages:
+    - 8
+    page_tolerance: 8
+- id: cld-410-a9e449ae
+  question: 비전 컨트롤러 입력 단자의 회로 사양과 결선 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X400/X300 시리즈 취급 설명서
+    pages:
+    - 9
+    page_tolerance: 8
+- id: cld-411-37c809d2
+  question: LS-R900 기밀시험기의 주요 특징이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: Cosmo LS-R900 기밀시험기 카탈로그
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-412-4ea9fcc4
+  question: 화이트 스폿 광 센서를 현장에서 활용한 사례들이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 LR-W 시리즈 화이트 스폿 광 센서 카탈로그
+    pages:
+    - 7
+    page_tolerance: 8
+- id: cld-413-8c711b1e
+  question: LCD 로드셀 치수
+  style: terse
+  expected:
+    type: technical
+    document: LCD 시리즈 로드셀 제품 사양서
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-414-287bc708
+  question: 시리얼 커뮤니케이션 모듈로 데이터 교신할 때 프로그램 작성상 유의할 점이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 295
+    page_tolerance: 14
+- id: cld-415-f5d43510
+  question: 압력 스위치의 응차나 채터링 방지 같은 기술 개념을 설명해주는 자료가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC 디지털 압력 스위치 설정 매뉴얼
+    pages:
+    - 12
+    page_tolerance: 8
+- id: cld-416-e0be10ac
+  question: BW 에어리어 센서를 안전 목적으로 써도 되나요? 안전 관련 주의사항이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 오토닉스 BW 시리즈 취급설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-417-78438c65
+  question: L7NH 전자 기어 설정 절의 상세 내용이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: LS AC 서보 드라이브 L7NH 시리즈 사용 설명서
+    pages:
+    - 223
+    page_tolerance: 18
+- id: cld-418-08d2aa54
+  question: CC-Link IE에서 통신 이상이 발생했을 때 입출력 상태를 유지할지 클리어할지 설정할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 CC-Link IE Field Network Master/Local 모듈 사용 설명서
+    pages:
+    - 138
+    page_tolerance: 21
+- id: cld-419-e7ecaf77
+  question: CA-L 렌즈에 장착할 수 있는 옵션 필터나 익스텐션에는 뭐가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CA-L 시리즈 렌즈 카탈로그
+    pages:
+    - 7
+    page_tolerance: 8
+- id: cld-420-70a6c5f4
+  question: 서보앰프에서 발생하는 고조파를 억제하는 대책에는 어떤 것들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSERVO-J4 시리즈 서보앰프 기술자료집
+    pages:
+    - 593
+    page_tolerance: 24
+- id: cld-421-21927271
+  question: RI 인디케이터에서 실제 분동을 올려서 하는 실부하 보정은 어떤 순서로 진행하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 래디언큐바이오 디지털 인디케이터 RI 시리즈 사용 설명서
+    pages:
+    - 34
+    page_tolerance: 8
+- id: cld-422-077e9483
+  question: 높이 정보를 활용하는 3D 검사 애플리케이션에는 어떤 사례가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 비전 시스템 사용 설명서
+    pages:
+    - 13
+    page_tolerance: 8
+- id: cld-423-f5d43510
+  question: 디지털 압력 스위치의 압력 설정은 어떤 순서로 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC 디지털 압력 스위치 설정 매뉴얼
+    pages:
+    - 6
+    page_tolerance: 8
+- id: cld-424-f5d43510
+  question: 압력 센서의 기본 원리와 종류를 설명해주는 개요 자료가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC 디지털 압력 스위치 설정 매뉴얼
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-425-8fe3487e
+  question: MZ385EBTAD 모델 사양
+  style: terse
+  expected:
+    type: technical
+    document: LG 광파오븐 사용설명서
+    pages:
+    - 24
+    page_tolerance: 8
+- id: cld-426-77e576aa
+  question: RCS8000 로봇 케이블에는 어떤 종류가 있고 어떻게 선정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCS-8000 시리즈 RCS8000 설명서
+    pages:
+    - 294
+    page_tolerance: 12
+- id: cld-427-68513725
+  question: 기포가 섞인 액체나 점도가 다른 액체도 FD-X로 측정할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 FD-X 시리즈 클램프온식 유량 센서
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-428-eab3f637
+  question: CZ-V20 C모드에서 감도 설정은 어떤 방법으로 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 설정 가이드
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-429-fe16af23
+  question: LT20A 단자 배열
+  style: terse
+  expected:
+    type: technical
+    document: Magnescale LT20A / LT30 시리즈 사용 설명서
+    pages:
+    - 35
+    page_tolerance: 8
+- id: cld-430-87964430
+  question: 쌍방향 프로토콜로 데이터를 송신할 때 BIDOUT 명령은 어떻게 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 285
+    page_tolerance: 17
+- id: cld-431-e7ecaf77
+  question: CA-LM0210 렌즈 사양
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CA-L 시리즈 렌즈 카탈로그
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-432-68513725
+  question: 절삭유나 냉각수 라인에 유량 센서를 적용한 사례가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 FD-X 시리즈 클램프온식 유량 센서
+    pages:
+    - 5
+    page_tolerance: 8
+- id: cld-433-077e9483
+  question: 검사 안정성을 높이기 위한 하드웨어와 소프트웨어 기능에는 어떤 것들이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 비전 시스템 사용 설명서
+    pages:
+    - 9
+    page_tolerance: 8
+- id: cld-434-e3cbb841
+  question: F388A의 파형 비교 기능이란 어떤 기능인가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F388A 웨이브 폼 체커 사용 설명서
+    pages:
+    - 73
+    page_tolerance: 8
+- id: cld-435-e3cbb841
+  question: F388A 각 화면의 구성과 키 조작 방법을 알고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F388A 웨이브 폼 체커 사용 설명서
+    pages:
+    - 35
+    page_tolerance: 8
+- id: cld-436-efc616f8
+  question: RCA4 로봇과 컨트롤러를 처음 접속할 때 케이블 연결 순서가 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCA(I)4 시리즈 사용 설명서
+    pages:
+    - 29
+    page_tolerance: 8
+- id: cld-437-d7f4a719
+  question: DataMatrix ECC200 코드는 어떤 구조로 이루어져 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 2D 코드의 기본 Vol.1 2D 코드의 종류
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-438-08d2aa54
+  question: CC-Link IE 필드 네트워크를 다른 네트워크와 연결한 멀티 네트워크 시스템 구성이 가능한가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 CC-Link IE Field Network Master/Local 모듈 사용 설명서
+    pages:
+    - 56
+    page_tolerance: 21
+- id: cld-439-efc616f8
+  question: RCA4 컨트롤러의 외부 입출력 신호 인터페이스 사양을 확인하고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCA(I)4 시리즈 사용 설명서
+    pages:
+    - 48
+    page_tolerance: 8
+- id: cld-440-d974ecfc
+  question: H5F의 휴일 기능은 어떤 기능이고 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오므론 H5F 시리즈 디지털 데일리 타임 스위치 카탈로그
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-441-531f035c
+  question: 로봇 힘 제어의 FORCE.PUSH 설정 화면에서는 어떤 항목들을 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Plus/R-30iB Mate Plus/R-30iB Mini Plus CONTROLLER TABLET UI 사용 설명서
+    pages:
+    - 182
+    page_tolerance: 12
+- id: cld-442-681bba21
+  question: QD77MS 유닛을 취급하고 설치할 때 주의해야 할 사항이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 99
+    page_tolerance: 37
+- id: cld-443-ee586e0e
+  question: 너트런너 컨트롤러에서 과거 알람 이력은 어떻게 조회하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SETech AC SERVO NUTRUNNER LOCAL CONTROL SYSTEM 사용 설명서
+    pages:
+    - 85
+    page_tolerance: 8
+- id: cld-444-08d2aa54
+  question: 설정 툴 없이 버퍼 메모리에 직접 써서 CC-Link IE 파라미터를 설정할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 CC-Link IE Field Network Master/Local 모듈 사용 설명서
+    pages:
+    - 512
+    page_tolerance: 21
+- id: cld-445-a9e449ae
+  question: CA-E100LJ 엔코더 커넥터
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CV-X400/X300 시리즈 취급 설명서
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-446-bba30bd5
+  question: 비전 시스템 설정 화면에서 수치 입력은 어떤 방식으로 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 50
+    page_tolerance: 40
+- id: cld-447-e1467d6a
+  question: 현장 오퍼레이터가 검사 설정을 못 바꾸게 계정별로 조작 권한을 제한할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 737
+    page_tolerance: 40
+- id: cld-448-d7f4a719
+  question: MicroPDF417은 일반 PDF417과 어떤 차이가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 2D 코드의 기본 Vol.1 2D 코드의 종류
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-449-155b3678
+  question: 시리얼 통신 모듈의 기본적인 데이터 교신 절차가 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 시리얼 통신 모듈 사용 설명서
+    pages:
+    - 208
+    page_tolerance: 17
+- id: cld-450-eab3f637
+  question: CZ-V20 센서 헤드 종류별로 어떤 모드를 선택할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CZ-V20 시리즈 설정 가이드
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-451-a9e449ae
+  question: 비전 컨트롤러에 부착된 경고 라벨은 각각 무슨 의미인가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X400/X300 시리즈 취급 설명서
+    pages:
+    - 3
+    page_tolerance: 8
+- id: cld-452-f9517114
+  question: 이더넷 모듈이 정상인지 자기 진단 테스트로 확인하려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 Q 시리즈 Ethernet 인터페이스 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 98
+    page_tolerance: 14
+- id: cld-453-87964430
+  question: 시리얼 모듈 X Y 신호 일람
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 83
+    page_tolerance: 17
+- id: cld-454-9bc110ac
+  question: HPPF 그리퍼를 다룰 때 지켜야 할 안전 지침이 뭔가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 페스토 HPPF 평행 그리퍼 사용 설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-455-9bc110ac
+  question: HPPF 그리퍼를 윗면에서 직접 고정하는 방식의 장착 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 페스토 HPPF 평행 그리퍼 사용 설명서
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-456-077e9483
+  question: LumiTrax 설정을 처음 하는데 간단 설정 내비게이션 기능이 있다고 들었습니다. 어떻게 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 비전 시스템 사용 설명서
+    pages:
+    - 11
+    page_tolerance: 8
+- id: cld-457-e0be10ac
+  question: BW 센서 외형 치수
+  style: terse
+  expected:
+    type: technical
+    document: 오토닉스 BW 시리즈 취급설명서
+    pages:
+    - 1
+    page_tolerance: 8
+- id: cld-458-e1467d6a
+  question: 검사 모드 설정을 시작하면 어떤 단계들을 거쳐서 운용까지 가나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 199
+    page_tolerance: 40
+- id: cld-459-e3cbb841
+  question: F388A 입출력부 사양
+  style: terse
+  expected:
+    type: technical
+    document: 유니펄스 F388A 웨이브 폼 체커 사용 설명서
+    pages:
+    - 140
+    page_tolerance: 8
+- id: cld-460-f5d43510
+  question: 디지털 압력 스위치의 각 기능별 설정 방법을 정리한 자료가 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC 디지털 압력 스위치 설정 매뉴얼
+    pages:
+    - 4
+    page_tolerance: 8
+- id: cld-461-efc616f8
+  question: RCA4 로봇의 축 구성과 동작 범위 같은 기본 개요가 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCA(I)4 시리즈 사용 설명서
+    pages:
+    - 15
+    page_tolerance: 8
+- id: cld-462-4129765e
+  question: ZK2 전기 배선 사양과 옵션별 기능 차이를 알고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZK2 시리즈 진공 유니트 카탈로그
+    pages:
+    - 37
+    page_tolerance: 8
+- id: cld-463-78438c65
+  question: L7NH의 디지털 출력 신호에 다른 기능을 할당하려면 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LS AC 서보 드라이브 L7NH 시리즈 사용 설명서
+    pages:
+    - 212
+    page_tolerance: 18
+- id: cld-464-b13f828e
+  question: N1 PLC 프로그램에서 SET/RESET 명령은 어떻게 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 조작 및 운용 설명서
+    pages:
+    - 378
+    page_tolerance: 15
+- id: cld-465-70a6c5f4
+  question: MELSERVO-J4 입출력 신호의 표준 접속 예를 참고하고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSERVO-J4 시리즈 서보앰프 기술자료집
+    pages:
+    - 87
+    page_tolerance: 24
+- id: cld-466-dd6ade58
+  question: LS-R900 측정 도중에 중단하고 재시작하려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 코스모 LS-R900 에어 리크 테스터 취급설명서
+    pages:
+    - 67
+    page_tolerance: 8
+- id: cld-467-f2dd2a23
+  question: 무선랜 AP 라인업
+  style: terse
+  expected:
+    type: technical
+    document: 네오정보시스템 NEO NETWORK 제품군 통합 사용 설명서
+    pages:
+    - 8
+    page_tolerance: 8
+- id: cld-468-d974ecfc
+  question: H5F 시간 표시를 12시간제에서 24시간제로 바꿀 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오므론 H5F 시리즈 디지털 데일리 타임 스위치 카탈로그
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-469-e1467d6a
+  question: 자주 쓰는 기능만 모아서 커스텀 메뉴로 등록할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 CV-X 시리즈 사용자 매뉴얼
+    pages:
+    - 643
+    page_tolerance: 40
+- id: cld-470-f2688cef
+  question: QD77MS 수동 펄서 운전
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 554
+    page_tolerance: 37
+- id: cld-471-8553eadb
+  question: 양품 이미지만으로 학습시키는 AI 검사는 불량품 학습과 뭐가 다른가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 VS 시리즈 비전 시스템 카탈로그
+    pages:
+    - 8
+    page_tolerance: 8
+- id: cld-472-85b560cd
+  question: LR-Z 라인업 모델
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 LR-Z 시리즈 앰프 내장형 CMOS 레이저 센서 카탈로그
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-473-e7fd758f
+  question: F381에서 에러가 발생했을 때 에러를 해제하는 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F381 취급설명서
+    pages:
+    - 188
+    page_tolerance: 8
+- id: cld-474-ee586e0e
+  question: 너트런너 드라이브 각 부분의 명칭과 기능을 알고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: SETech AC SERVO NUTRUNNER LOCAL CONTROL SYSTEM 사용 설명서
+    pages:
+    - 17
+    page_tolerance: 8
+- id: cld-475-d8a2c393
+  question: CC-Link 국 정보 설정을 정리할 수 있는 설정 시트 양식이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 CC-Link 시스템 마스터·로컬 모듈 사용자 매뉴얼 (상세편)
+    pages:
+    - 276
+    page_tolerance: 11
+- id: cld-476-ee586e0e
+  question: 너트런너 컨트롤러의 신호 배선은 어떻게 연결하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SETech AC SERVO NUTRUNNER LOCAL CONTROL SYSTEM 사용 설명서
+    pages:
+    - 21
+    page_tolerance: 8
+- id: cld-477-78438c65
+  question: L7NH I/O 핀맵 배선예제
+  style: terse
+  expected:
+    type: technical
+    document: LS AC 서보 드라이브 L7NH 시리즈 사용 설명서
+    pages:
+    - 454
+    page_tolerance: 18
+- id: cld-478-8fe3487e
+  question: 광파오븐에서 신호음이 계속 울리는데 신호음 패턴으로 고장 원인을 진단할 수 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LG 광파오븐 사용설명서
+    pages:
+    - 56
+    page_tolerance: 8
+- id: cld-479-efc616f8
+  question: RCA4 시스템 입출력 신호의 타임차트를 확인하고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 로보스타 RCA(I)4 시리즈 사용 설명서
+    pages:
+    - 89
+    page_tolerance: 8
+- id: cld-480-bb218e4f
+  question: FTP로 QCPU의 사용자 파일 목록을 확인하려면 어떻게 하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 MELSEC-Q 시리즈 Q 대응 Ethernet 인터페이스 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 134
+    page_tolerance: 8
+- id: cld-481-681bba21
+  question: 심플모션 유닛의 인칭 운전은 어떤 동작이고 언제 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 544
+    page_tolerance: 37
+- id: cld-482-e7ecaf77
+  question: CA-LM 렌즈 시리즈
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CA-L 시리즈 렌즈 카탈로그
+    pages:
+    - 4
+    page_tolerance: 8
+- id: cld-483-78438c65
+  question: 전자 기어비를 실제로 계산해서 설정하는 예제를 보고 싶습니다.
+  style: sentence
+  expected:
+    type: technical
+    document: LS AC 서보 드라이브 L7NH 시리즈 사용 설명서
+    pages:
+    - 223
+    page_tolerance: 18
+- id: cld-484-e75cc266
+  question: 로봇 비상정지 버튼은 어디에 설치해야 하고 동작 요건이 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC 로봇 안전 핸드북
+    pages:
+    - 28
+    page_tolerance: 8
+- id: cld-485-e7ecaf77
+  question: CA-LHE 렌즈 라인업
+  style: terse
+  expected:
+    type: technical
+    document: 키엔스 CA-L 시리즈 렌즈 카탈로그
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-486-d7f4a719
+  question: QR 코드의 파인더 패턴 같은 구성 요소들은 각각 어떤 역할인가요?
+  style: sentence
+  expected:
+    type: technical
+    document: 키엔스 2D 코드의 기본 Vol.1 2D 코드의 종류
+    pages:
+    - 8
+    page_tolerance: 8
+- id: cld-487-70a6c5f4
+  question: 서보앰프 전면의 스위치와 7세그먼트 표시부는 어떻게 사용하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSERVO-J4 시리즈 서보앰프 기술자료집
+    pages:
+    - 125
+    page_tolerance: 24
+- id: cld-488-e7fd758f
+  question: F381에서 워크 번호를 선택하고 설정을 다른 워크로 복사하는 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 유니펄스 F381 취급설명서
+    pages:
+    - 72
+    page_tolerance: 8
+- id: cld-489-4129765e
+  question: ZK2 진공 유니트가 기존 이젝터와 비교해 어떤 특징이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SMC ZK2 시리즈 진공 유니트 카탈로그
+    pages:
+    - 2
+    page_tolerance: 8
+- id: cld-490-87964430
+  question: RS-232 인터페이스를 전이중 통신으로 접속할 때 배선 방법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 108
+    page_tolerance: 17
+- id: cld-491-f9517114
+  question: 멀티 CPU 시스템에서 이더넷 모듈을 사용할 때 제약사항이 있나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 Q 시리즈 Ethernet 인터페이스 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 46
+    page_tolerance: 14
+- id: cld-492-d974ecfc
+  question: H5F의 서머 타임 기능을 켜면 시간이 어떻게 조정되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 오므론 H5F 시리즈 디지털 데일리 타임 스위치 카탈로그
+    pages:
+    - 10
+    page_tolerance: 8
+- id: cld-493-d89ee7e5
+  question: N1 E2101 통신 알람
+  style: terse
+  expected:
+    type: technical
+    document: 로보스타 N1 시리즈 알람코드 설명서
+    pages:
+    - 74
+    page_tolerance: 8
+- id: cld-494-531f035c
+  question: 용접 로봇의 기본 위빙 동작은 태블릿 UI에서 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: FANUC Robot series R-30iB Plus/R-30iB Mate Plus/R-30iB Mini Plus CONTROLLER TABLET UI 사용 설명서
+    pages:
+    - 217
+    page_tolerance: 12
+- id: cld-495-f9517114
+  question: 이더넷 커넥션을 닫는 CLOSE 명령의 사용법이 궁금합니다.
+  style: sentence
+  expected:
+    type: technical
+    document: 미쯔비시 Q 시리즈 Ethernet 인터페이스 모듈 사용자 매뉴얼 (기본편)
+    pages:
+    - 248
+    page_tolerance: 14
+- id: cld-496-287bc708
+  question: 시리얼 모듈 전송 사양
+  style: terse
+  expected:
+    type: technical
+    document: 미쓰비시 MELSEC-Q 시리즈 Q 대응 시리얼 커뮤니케이션 모듈 사용자 매뉴얼 (응용편)
+    pages:
+    - 70
+    page_tolerance: 14
+- id: cld-497-f2dd2a23
+  question: GE-PON ONT 특등급
+  style: terse
+  expected:
+    type: technical
+    document: 네오정보시스템 NEO NETWORK 제품군 통합 사용 설명서
+    pages:
+    - 6
+    page_tolerance: 8
+- id: cld-498-f2688cef
+  question: 심플모션 유닛과 서보앰프 간 데이터 전송 처리는 어떤 타이밍으로 이루어지나요?
+  style: sentence
+  expected:
+    type: technical
+    document: 미쓰비시전기 MELSEC-Q 시리즈 QD77MS형 심플모션 유닛 사용자 매뉴얼
+    pages:
+    - 371
+    page_tolerance: 37
+- id: cld-499-8fe3487e
+  question: 광파오븐의 오븐 기능으로 요리할 때 온도와 시간은 어떻게 설정하나요?
+  style: sentence
+  expected:
+    type: technical
+    document: LG 광파오븐 사용설명서
+    pages:
+    - 30
+    page_tolerance: 8
+- id: cld-500-ee586e0e
+  question: 너트런너 로컬 컨트롤 시스템의 전체 시스템 구성이 어떻게 되나요?
+  style: sentence
+  expected:
+    type: technical
+    document: SETech AC SERVO NUTRUNNER LOCAL CONTROL SYSTEM 사용 설명서
+    pages:
+    - 18
+    page_tolerance: 8
