@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_KR, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import Toaster from "@/components/ui/Toaster";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -76,6 +78,8 @@ export default function RootLayout({
       <body className={`${inter.variable} ${notoSansKr.variable} ${plusJakartaSans.variable} ${jetBrainsMono.variable} font-sans bg-background text-foreground`}>
         <ServiceWorkerRegister />
         {children}
+        <Toaster />
+        <ConfirmDialog />
       </body>
     </html>
   );

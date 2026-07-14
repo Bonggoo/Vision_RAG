@@ -9,8 +9,10 @@ import LoginView from "@/components/layout/LoginView";
 import SparkleLogo from "@/components/layout/SparkleLogo";
 import { useChatStore } from "@/store/useChatStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useDocumentStore } from "@/store/useDocumentStore";
 import { useChatStream } from "@/hooks/useChatStream";
-import { MessageCircleQuestion } from "lucide-react";
+import { processUploadFiles } from "@/lib/upload";
+import { MessageCircleQuestion, UploadCloud, ArrowRight, Loader2 } from "lucide-react";
 
 export default function Home() {
   // 💡 Hydration 에러 방지: 마운트 상태 추가
@@ -25,10 +27,21 @@ export default function Home() {
     clearClarification,
   } = useChatStore();
 
+  const {
+    documents,
+    uploadDocuments,
+    fetchDocuments,
+    isUploading,
+    uploadingIndex,
+    uploadTotal,
+    uploadProgress,
+  } = useDocumentStore();
+
   const { submit: handleChatSubmit, stop: handleStopStreaming } = useChatStream();
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const welcomeFileRef = useRef<HTMLInputElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -44,12 +57,14 @@ export default function Home() {
     }
   }, [isMounted, verifySession]);
 
-  // 💡 로그인 + 세션 검증 완료 후 대화 세션 목록 로드
+  // 💡 로그인 + 세션 검증 완료 후 대화 세션 목록 + 문서 목록 로드
+  //    (문서 유무에 따라 웰컴 화면이 온보딩/질문 모드로 분기하므로 먼저 불러온다)
   useEffect(() => {
     if (isMounted && isAuthenticated && isSessionVerified) {
       loadSessions();
+      fetchDocuments();
     }
-  }, [isMounted, isAuthenticated, isSessionVerified, loadSessions]);
+  }, [isMounted, isAuthenticated, isSessionVerified, loadSessions, fetchDocuments]);
 
   // 💡 자동 스크롤 - 반드시 조건부 return 전에 선언 (React Hooks 규칙)
   useEffect(() => {
@@ -133,6 +148,26 @@ export default function Home() {
     { emoji: "🔌", text: "통신 에러 타임아웃 해결법" },
   ];
 
+  // 💡 문서 유무에 따른 웰컴 화면 분기용 상태
+  const readyDocs = documents.filter((d) => d.status !== "analyzing" && d.status !== "error");
+  const analyzingCount = documents.filter((d) => d.status === "analyzing").length;
+  const hasReadyDocs = readyDocs.length > 0;
+
+  // 첫 사용자 온보딩용 3단계 안내
+  const onboardingSteps = [
+    { icon: "📄", title: "매뉴얼 업로드", desc: "PDF를 올리면" },
+    { icon: "💬", title: "질문 입력", desc: "궁금한 걸 묻고" },
+    { icon: "✨", title: "즉시 답변", desc: "AI가 찾아드려요" },
+  ];
+
+  /** 웰컴 화면에서 바로 매뉴얼 업로드 */
+  const handleWelcomeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length === 0) return;
+    await processUploadFiles(files, uploadDocuments, fetchDocuments);
+    if (welcomeFileRef.current) welcomeFileRef.current.value = "";
+  };
+
   return (
     <div className="flex h-screen-mobile overflow-hidden bg-background animate-fade" style={{ animationDuration: '0.5s' }}>
       <Sidebar
@@ -151,6 +186,17 @@ export default function Home() {
             /* ── 프리미엄 웰컴 화면 ── */
             <div className="flex-1 flex flex-col justify-start md:justify-center items-center px-6 py-8 md:py-0 relative overflow-y-auto scrollbar-thin">
               <div className="hero-gradient absolute inset-0 pointer-events-none" />
+
+              {/* 웰컴 화면 전용 숨김 파일 선택기 */}
+              <input
+                type="file"
+                accept="application/pdf"
+                multiple
+                ref={welcomeFileRef}
+                onChange={handleWelcomeUpload}
+                className="hidden"
+              />
+
               <div className="relative z-10 text-center space-y-5 md:space-y-6 max-w-lg animate-slide-up my-auto">
                 {/* 3D 플로팅 로고 및 야광 링 */}
                 <div className="relative w-16 h-16 md:w-24 md:h-24 mx-auto mb-2 animate-float">
@@ -165,33 +211,104 @@ export default function Home() {
                     TechNote
                   </h2>
                   <p className="text-[12px] md:text-[14px] text-muted-foreground/80 leading-relaxed max-w-md mx-auto px-2 font-medium">
-                    산업용 매뉴얼을 AI가 분석하여 현장에서 바로 활용 가능한 답변을 제공합니다.
+                    {hasReadyDocs
+                      ? "산업용 매뉴얼을 AI가 분석하여 현장에서 바로 활용 가능한 답변을 제공합니다."
+                      : "PDF 매뉴얼을 올리면 AI가 대신 읽고 찾아드립니다. 딱 3단계면 시작할 수 있어요."}
                   </p>
                 </div>
 
-                {/* 💡 예시 질문 카드 */}
-                <div className="w-full mt-4 md:mt-8">
-                  <div className="flex items-center justify-center gap-1.5 mb-4 text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-widest">
-                    <MessageCircleQuestion className="w-3.5 h-3.5" />
-                    <span>이런 질문을 해보세요</span>
+                {hasReadyDocs ? (
+                  /* ── 재방문 사용자: 질문이 주인공 ── */
+                  <>
+                    <div className="w-full mt-4 md:mt-8">
+                      <div className="flex items-center justify-center gap-1.5 mb-4 text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-widest">
+                        <MessageCircleQuestion className="w-3.5 h-3.5" />
+                        <span>이런 질문을 해보세요</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 w-full">
+                        {examplePrompts.map((p, i) => (
+                          <button
+                            key={i}
+                            onClick={() => handleChatSubmit(p.text)}
+                            className="glass-subtle rounded-2xl px-4 py-3.5 text-left transition-all duration-300
+                              hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/10 border border-border/40 hover:border-primary/40
+                              active:scale-[0.98] cursor-pointer group flex flex-col gap-1.5"
+                          >
+                            <span className="text-lg block">{p.emoji}</span>
+                            <span className="text-[12px] md:text-[13px] font-medium text-muted-foreground/90 group-hover:text-foreground transition-colors leading-snug">
+                              {p.text}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 매뉴얼 추가 — 보조 동선 */}
+                    <button
+                      onClick={() => welcomeFileRef.current?.click()}
+                      disabled={isUploading}
+                      className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground/70 hover:text-primary transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <UploadCloud className="w-3.5 h-3.5" />
+                      )}
+                      <span>
+                        {isUploading
+                          ? `업로드 중... (${uploadingIndex + 1}/${uploadTotal})`
+                          : `매뉴얼 추가 · 현재 ${readyDocs.length}개 준비됨`}
+                      </span>
+                    </button>
+                  </>
+                ) : (
+                  /* ── 첫 사용자: 업로드 온보딩이 주인공 ── */
+                  <div className="w-full mt-4 md:mt-8 space-y-5">
+                    {/* 3단계 안내 */}
+                    <div className="grid grid-cols-3 gap-2.5">
+                      {onboardingSteps.map((s, i) => (
+                        <div
+                          key={i}
+                          className="flex flex-col items-center gap-1 p-3 rounded-2xl border border-border/40 bg-card/40 backdrop-blur-sm relative"
+                        >
+                          <span className="absolute top-1.5 left-2 text-[10px] font-bold text-primary/40">{i + 1}</span>
+                          <span className="text-xl">{s.icon}</span>
+                          <span className="text-[11px] md:text-[12px] font-bold text-foreground/90 leading-tight">{s.title}</span>
+                          <span className="text-[10px] text-muted-foreground/70 leading-tight">{s.desc}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 분석 중이면 안내 (문서는 올렸지만 아직 준비 전) */}
+                    {analyzingCount > 0 && (
+                      <div className="flex items-center justify-center gap-2 p-3.5 rounded-2xl border border-amber-500/20 bg-amber-500/5 text-[12px] md:text-[13px] font-medium text-amber-600 dark:text-amber-400">
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                        <span>AI가 매뉴얼 {analyzingCount}개를 분석 중이에요. 잠시 후 질문할 수 있어요.</span>
+                      </div>
+                    )}
+
+                    {/* 업로드 CTA */}
+                    <button
+                      onClick={() => welcomeFileRef.current?.click()}
+                      disabled={isUploading}
+                      className="btn-primary w-full flex items-center justify-center gap-2 py-3.5 px-5 rounded-2xl text-[14px] font-bold shadow-lg disabled:opacity-60 cursor-pointer"
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>업로드 중... ({uploadingIndex + 1}/{uploadTotal}) · {uploadProgress}%</span>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="w-5 h-5" />
+                          <span>{analyzingCount > 0 ? "매뉴얼 더 올리기" : "매뉴얼 업로드하고 시작하기"}</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                    <p className="text-[11px] text-muted-foreground/50">PDF 파일 · 사이드바에 드래그해서 올려도 돼요</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 w-full">
-                    {examplePrompts.map((p, i) => (
-                      <button
-                        key={i}
-                        onClick={() => handleChatSubmit(p.text)}
-                        className="glass-subtle rounded-2xl px-4 py-3.5 text-left transition-all duration-300
-                          hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/10 border border-border/40 hover:border-primary/40
-                          active:scale-[0.98] cursor-pointer group flex flex-col gap-1.5"
-                      >
-                        <span className="text-lg block">{p.emoji}</span>
-                        <span className="text-[12px] md:text-[13px] font-medium text-muted-foreground/90 group-hover:text-foreground transition-colors leading-snug">
-                          {p.text}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           ) : (
