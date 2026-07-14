@@ -53,7 +53,7 @@ export default function ConfirmDialog() {
       />
 
       {/* 다이얼로그 카드 */}
-      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-border/50 bg-card/95 backdrop-blur-2xl shadow-2xl p-6 animate-slide-up">
+      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-border/50 bg-popover backdrop-blur-2xl shadow-2xl p-6 animate-slide-up">
         <div className="flex flex-col gap-2 text-center">
           {icon && <div className="text-3xl mx-auto mb-1">{icon}</div>}
           <h3 className="text-[16px] font-bold text-foreground font-display leading-snug">{title}</h3>

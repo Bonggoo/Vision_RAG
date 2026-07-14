@@ -37,7 +37,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: (id: string) => 
       aria-live="polite"
       onClick={dismiss}
       className={`pointer-events-auto relative flex items-start gap-3 w-full overflow-hidden
-        rounded-2xl border border-border/50 bg-card/90 backdrop-blur-xl
+        rounded-2xl border border-border/50 bg-popover/95 backdrop-blur-xl
         pl-4 pr-3 py-3 shadow-xl cursor-pointer
         before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 ${accent}
         transition-all duration-200 ${leaving ? "opacity-0 translate-y-[-8px] scale-[0.97]" : "animate-in"}`}
