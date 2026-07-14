@@ -25,10 +25,15 @@ function getAuthHeaders(headers: Record<string, string> = {}): Record<string, st
 
 // 토큰 갱신 동시 요청 방지를 위한 플래그 및 대기열
 let isRefreshing = false;
-let refreshSubscribers: Array<(token: string) => void> = [];
+interface RefreshResult {
+  token: string | null;
+  /** true면 리프레시 토큰 자체가 만료/무효(401) — 로그아웃 필요. false면 네트워크/서버 일시 오류로 세션은 유지해야 함 */
+  hardFail: boolean;
+}
+let refreshSubscribers: Array<(result: RefreshResult) => void> = [];
 
 /** 리프레시 토큰으로 새 액세스 토큰 발급 시도 */
-async function tryRefreshToken(): Promise<string | null> {
+async function tryRefreshToken(): Promise<RefreshResult> {
   // 이미 갱신 중이면 대기열에 추가
   if (isRefreshing) {
     return new Promise((resolve) => {
@@ -44,7 +49,13 @@ async function tryRefreshToken(): Promise<string | null> {
       credentials: "include",
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // 리프레시 토큰이 실제로 만료/무효할 때만(401) 로그아웃 대상. 5xx 등 서버 일시 오류는 세션 유지.
+      const result: RefreshResult = { token: null, hardFail: res.status === 401 };
+      refreshSubscribers.forEach((cb) => cb(result));
+      refreshSubscribers = [];
+      return result;
+    }
 
     const data = await res.json();
     // 스토어에 새 Access Token 저장
@@ -52,13 +63,18 @@ async function tryRefreshToken(): Promise<string | null> {
       token: data.access_token,
     });
 
+    const result: RefreshResult = { token: data.access_token, hardFail: false };
     // 대기 중인 요청들에 새 토큰 전달
-    refreshSubscribers.forEach((cb) => cb(data.access_token));
+    refreshSubscribers.forEach((cb) => cb(result));
     refreshSubscribers = [];
 
-    return data.access_token;
+    return result;
   } catch {
-    return null;
+    // 네트워크 오류 — 서버 판단이 불가하므로 세션은 유지 (다음 요청에서 재시도)
+    const result: RefreshResult = { token: null, hardFail: false };
+    refreshSubscribers.forEach((cb) => cb(result));
+    refreshSubscribers = [];
+    return result;
   } finally {
     isRefreshing = false;
   }
@@ -75,12 +91,13 @@ async function authFetch(url: string, options: RequestInit = {}): Promise<Respon
   let res = await fetch(url, fetchOptions);
 
   if (res.status === 401) {
-    const newToken = await tryRefreshToken();
+    const { token: newToken, hardFail } = await tryRefreshToken();
     if (newToken) {
       const newHeaders = getAuthHeaders((options.headers as Record<string, string>) || {});
       newHeaders["Authorization"] = `Bearer ${newToken}`;
       res = await fetch(url, { ...fetchOptions, headers: newHeaders });
-    } else {
+    } else if (hardFail) {
+      // 리프레시 토큰 자체가 만료/무효할 때만 로그아웃 — 일시 오류로 세션을 끊지 않는다
       useAuthStore.getState().logout();
     }
   }
