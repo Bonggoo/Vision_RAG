@@ -17,7 +17,7 @@ import {
 import { useChatStore } from "@/store/useChatStore";
 import { useDocumentStore, Document } from "@/store/useDocumentStore";
 import { useAuthStore } from "@/store/useAuthStore";
-import { api } from "@/lib/api";
+import { api, authFetch, API_BASE_URL } from "@/lib/api";
 import { toast, confirmDialog } from "@/store/useUIStore";
 import { processUploadFiles } from "@/lib/upload";
 import SparkleLogo from "./SparkleLogo";
@@ -131,8 +131,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
   const handleRetryAnalysis = async (e: React.MouseEvent, doc: Document) => {
     e.stopPropagation();
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const res = await fetch(`${API_BASE_URL}/upload/analyze`, {
+      const res = await authFetch(`${API_BASE_URL}/upload/analyze`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ document_id: doc.document_id, filename: doc.filename, file_hash: doc.file_hash || "" })
       });
