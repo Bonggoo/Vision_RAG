@@ -29,6 +29,7 @@ export default function Home() {
 
   const {
     documents,
+    hasFetched: docsFetched,
     uploadDocuments,
     fetchDocuments,
     isUploading,
@@ -211,13 +212,22 @@ export default function Home() {
                     TechNote
                   </h2>
                   <p className="text-[12px] md:text-[14px] text-muted-foreground/80 leading-relaxed max-w-md mx-auto px-2 font-medium">
-                    {hasReadyDocs
+                    {!docsFetched || hasReadyDocs
                       ? "산업용 매뉴얼을 AI가 분석하여 현장에서 바로 활용 가능한 답변을 제공합니다."
                       : "PDF 매뉴얼을 올리면 AI가 대신 읽고 찾아드립니다. 딱 3단계면 시작할 수 있어요."}
                   </p>
                 </div>
 
-                {hasReadyDocs ? (
+                {!docsFetched ? (
+                  /* ── 문서 목록 로딩 중: 분기 확정 전 스켈레톤 (온보딩↔질문 화면 플래시 방지) ── */
+                  <div data-testid="welcome-skeleton" className="w-full mt-4 md:mt-8 animate-fade" aria-hidden="true">
+                    <div className="grid grid-cols-2 gap-3 w-full">
+                      {[0, 1, 2, 3].map((i) => (
+                        <div key={i} className="h-[76px] rounded-2xl border border-border/30 animate-shimmer" />
+                      ))}
+                    </div>
+                  </div>
+                ) : hasReadyDocs ? (
                   /* ── 재방문 사용자: 질문이 주인공 ── */
                   <>
                     <div className="w-full mt-4 md:mt-8">
