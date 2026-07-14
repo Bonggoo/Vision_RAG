@@ -199,10 +199,13 @@ async def _select_document(
     documents: list[dict],
     chat_history: list[dict] | None = None,
     previous_reference: dict | None = None,
+    toc_evidence: dict | None = None,
 ) -> dict:
     """
     1단계: 메타데이터만으로 문서 선택 + 일상대화 판별.
-    ToC를 제외하여 토큰을 절약합니다 (~2,500 토큰).
+    ToC 전체는 제외하여 토큰을 절약하되(~2,500 토큰), toc_evidence로 전달된
+    "질문 키워드와 겹친 ToC 제목"만 해당 문서에 한 줄 표기합니다 — 'SMATV'처럼
+    문서 제목에는 없고 목차에만 있는 단서로 문서를 골라야 하는 질문 대응.
 
     Returns:
         {
@@ -232,10 +235,11 @@ async def _select_document(
 
     llm = _create_flash_llm()
 
-    # 각 문서의 메타데이터 요약 (ToC 제외하여 토큰 절약)
+    # 각 문서의 메타데이터 요약 (ToC 전체는 제외하여 토큰 절약,
+    # 질문 키워드와 겹친 ToC 제목만 근거로 표기)
     doc_summaries = []
     for i, doc in enumerate(documents):
-        doc_summaries.append(
+        summary = (
             f"[문서 {i+1}]\n"
             f"  ID: {doc['document_id']}\n"
             f"  제목: {doc.get('filename', '알 수 없음')}\n"
@@ -244,6 +248,10 @@ async def _select_document(
             f"  문서 종류: {doc.get('document_type', '미상')}\n"
             f"  페이지 수: {doc.get('total_pages', 0)}"
         )
+        matched_titles = (toc_evidence or {}).get(str(doc.get("document_id", "")))
+        if matched_titles:
+            summary += f"\n  ★ 질문 키워드와 일치하는 목차 항목: {', '.join(matched_titles)}"
+        doc_summaries.append(summary)
 
     docs_text = "\n\n".join(doc_summaries)
 
@@ -628,14 +636,19 @@ def _strip_josa(token: str) -> str:
     return token
 
 
-def _filter_documents_by_keywords(question: str, all_docs: list[dict]) -> tuple[list[dict], str]:
+def _filter_documents_by_keywords(question: str, all_docs: list[dict]) -> tuple[list[dict], str, dict]:
     """질문 키워드로 문서 후보를 좁히는 1차 필터.
 
-    반환: (후보 문서 리스트, mode)
+    반환: (후보 문서 리스트, mode, toc_evidence)
       mode = "filtered"       — 증거가 충분해 후보를 좁혔음 (점수 내림차순 정렬)
              "fallback_weak"  — 매칭이 전부 미약(ToC 우연 매칭 1~2건)해 필터를
                                 신뢰하지 않고 전체 문서를 반환
              "fallback_none"  — 매칭된 문서가 없어 전체 문서를 반환
+      toc_evidence = {document_id: [질문 키워드와 겹친 ToC 제목, ...]}
+             — 변별 키워드가 ToC 제목에서 발견된 문서만 담김. 점수로 뭉개지 않고
+               문서 선택 LLM에게 그대로 전달해, 'SMATV'처럼 문서 제목에는 없고
+               목차에만 있는 단서로도 올바른 문서를 고를 수 있게 하는 근거 자료.
+               (점수만 넘기던 기존 구조에서는 이 발견이 전달 과정에서 증발했음)
 
     설계 (질문 품질 평가 107문항 실측에서 실패 8건이 전부 '정답 문서가 필터에서
     0점 탈락'한 recall 문제였던 것을 근거로 함):
@@ -692,20 +705,49 @@ def _filter_documents_by_keywords(question: str, all_docs: list[dict]) -> tuple[
     # DF 컷: 코퍼스의 1/3 초과 문서에 매칭되는 키워드는 변별력 없음 → 제외
     max_df = max(1, len(all_docs) // 3)
     discriminative = set()
+    kw_df: dict[str, int] = {}
     for kw in extended_keywords:
         df = sum(1 for (_, mt, mns, tt, tns) in doc_texts if _hit(kw, mt, mns, tt, tns))
+        kw_df[kw] = df
         if 0 < df <= max_df:
             discriminative.add(kw)
 
+    # 증거(쪽지)용 키워드는 한층 더 엄격하게: 극소수 문서에만 등장하는 단어만.
+    # '명령'·'있는'처럼 DF컷(1/3)은 통과하지만 10여 개 문서에 흔한 준범용어가
+    # 잡음 쪽지를 남발하는 것을 방지 — 'SMATV'(1개 문서)급 단서만 전달한다.
+    evidence_max_df = max(3, len(all_docs) // 10)
+    evidence_kws = {kw for kw in discriminative if kw_df[kw] <= evidence_max_df}
+
+    MAX_EVIDENCE_TITLES = 8  # 문서당 프롬프트에 전달할 매칭 ToC 제목 상한
+
     scored = []
+    toc_evidence: dict[str, list[str]] = {}
     for (d, mt, mns, tt, tns) in doc_texts:
         score = 0
+        toc_hit_kws = []
         for kw in discriminative:
             where = _hit(kw, mt, mns, tt, tns)
             if where == "meta":
                 score += META_WEIGHT
             elif where == "toc":
                 score += TOC_WEIGHT
+                if kw in evidence_kws:
+                    toc_hit_kws.append(kw)
+
+        # ToC에서 발견된 변별 키워드는 어느 제목에서 나왔는지까지 수집.
+        # (범용어는 discriminative 단계에서 이미 걸러졌으므로 쪽지가 남발되지 않음)
+        if toc_hit_kws:
+            titles = []
+            for entry in (d.get("toc") or []):
+                title = str(entry.get("title") or "")
+                tl = title.lower()
+                tl_ns = tl.replace(" ", "")
+                if any(kw.lower() in tl or kw.lower().replace(" ", "") in tl_ns for kw in toc_hit_kws):
+                    titles.append(title[:60])
+                    if len(titles) >= MAX_EVIDENCE_TITLES:
+                        break
+            if titles:
+                toc_evidence[str(d.get("document_id", ""))] = titles
 
         # 명시 모델번호 정확 일치 → 강한 가중 (예: 'F388A' 질문 → 'F388A' 매뉴얼)
         if question_model_codes:
@@ -717,13 +759,13 @@ def _filter_documents_by_keywords(question: str, all_docs: list[dict]) -> tuple[
             scored.append((d, score))
 
     if not scored:
-        return list(all_docs), "fallback_none"
+        return list(all_docs), "fallback_none", toc_evidence
 
     scored.sort(key=lambda x: x[1], reverse=True)
     if scored[0][1] < META_WEIGHT:
-        return list(all_docs), "fallback_weak"
+        return list(all_docs), "fallback_weak", toc_evidence
 
-    return [d for d, _ in scored], "filtered"
+    return [d for d, _ in scored], "filtered", toc_evidence
 
 
 async def _stage_resolve_document(ctx: "_PipelineContext"):
@@ -774,13 +816,14 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
 
         filtered_docs = all_docs
         filter_mode = "fallback_none"
+        toc_evidence: dict = {}
 
         if len(all_docs) == 1:
             yield ctx.reasoning(f"📄 '{all_docs[0].get('filename', '')}' 문서에서 관련 페이지를 찾고 있습니다...")
         else:
             # ─── 1차 필터링 (메타데이터 및 ToC 키워드 매칭) ───
             # 조사 스트리핑 + DF 컷 + 확신 게이트는 _filter_documents_by_keywords 참고
-            filtered_docs, filter_mode = _filter_documents_by_keywords(ctx.question, all_docs)
+            filtered_docs, filter_mode, toc_evidence = _filter_documents_by_keywords(ctx.question, all_docs)
 
             if filter_mode == "filtered":
                 # 이전 참조 문서가 있으면 필터링 후보군에 강제 포함 (소실 방지)
@@ -801,10 +844,13 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
 
             yield ctx.reasoning(reasoning_content)
 
-        # 1단계: 메타데이터로 문서 선택 (ToC 제외)
+        # 1단계: 메타데이터로 문서 선택 (ToC 전체 제외, 매칭된 ToC 제목만 근거로 첨부)
         # 필터가 확신할 때만 좁힌 후보를, 아니면 전체 문서를 LLM에 전달
         docs_for_selection = filtered_docs if len(all_docs) > 1 and filter_mode == "filtered" else all_docs
-        doc_result = await _select_document(ctx.question, docs_for_selection, ctx.chat_history, ctx.previous_reference)
+        doc_result = await _select_document(
+            ctx.question, docs_for_selection, ctx.chat_history, ctx.previous_reference,
+            toc_evidence=toc_evidence,
+        )
 
         if doc_result["classification"] == "general":
             # LLM이 일상대화로 판단 → Early Exit

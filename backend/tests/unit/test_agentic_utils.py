@@ -139,20 +139,20 @@ class TestFilterDocuments:
     def test_josa_stripped_keyword_matches(self):
         # '색상의' → '색상'... 은 '색으로'와 안 붙지만, '판별하려면'이 아닌
         # 명시적 케이스: '서보의' → '서보'가 파일명 '서보 드라이브'에 매칭
-        docs, mode = _filter_documents_by_keywords("서보의 알람 원인", self._corpus())
+        docs, mode, _ = _filter_documents_by_keywords("서보의 알람 원인", self._corpus())
         assert mode == "filtered"
         assert docs[0]["document_id"] == "servo"
 
     def test_df_cut_ignores_corpus_generic_words(self):
         # '설치 방법'은 4/4 문서 ToC에 있음(DF > 1/3) → 점수 기여 없음
         # → 남는 변별 키워드가 없어 전체 폴백
-        docs, mode = _filter_documents_by_keywords("설치 방법 알려줘", self._corpus())
+        docs, mode, _ = _filter_documents_by_keywords("설치 방법 알려줘", self._corpus())
         assert mode in ("fallback_none", "fallback_weak")
         assert len(docs) == 4
 
     def test_weak_evidence_falls_back_to_all(self):
         # ToC 우연 매칭 1~2점뿐이면(메타 직접 매칭 없음) 전체 문서 반환
-        docs, mode = _filter_documents_by_keywords("버퍼 메모리 읽기", self._corpus())
+        docs, mode, _ = _filter_documents_by_keywords("버퍼 메모리 읽기", self._corpus())
         if mode == "filtered":
             # 메타 매칭이 있으면 filtered여도 무방 — 이 경우 정답이 포함돼야 함
             assert any(d["document_id"] == "plc" for d in docs)
@@ -160,19 +160,73 @@ class TestFilterDocuments:
             assert len(docs) == 4
 
     def test_model_code_match_is_trusted(self):
-        docs, mode = _filter_documents_by_keywords("L7NH 알람 확인", self._corpus())
+        docs, mode, _ = _filter_documents_by_keywords("L7NH 알람 확인", self._corpus())
         assert mode == "filtered"
         assert docs[0]["document_id"] == "servo"
 
     def test_no_match_returns_all(self):
-        docs, mode = _filter_documents_by_keywords("김치찌개 끓이는 법", self._corpus())
+        docs, mode, _ = _filter_documents_by_keywords("김치찌개 끓이는 법", self._corpus())
         assert mode == "fallback_none"
         assert len(docs) == 4
 
     def test_never_returns_empty(self):
         for q in ["ㅁㄴㅇㄹ", "설정", "이 모델 나사산 규격", ""]:
-            docs, _ = _filter_documents_by_keywords(q, self._corpus())
+            docs, _, _ = _filter_documents_by_keywords(q, self._corpus())
             assert len(docs) >= 1
+
+
+class TestTocEvidence:
+    """매칭된 ToC 제목 수집 — 목차에만 있는 단서를 문서 선택 LLM에 전달하기 위함.
+
+    실측 배경: 'SMATV'처럼 문서 제목/모델명에는 없고 목차에만 있는 용어로
+    질문하면, 발견이 점수로 뭉개져 전달 과정에서 증발 → 정답 문서가 후보에
+    오르지 못했음 (NEO NETWORK 문서 5건 실패, 2026-07-13 500문항 평가).
+    """
+
+    def _corpus(self):
+        return [
+            {"document_id": "neo", "filename": "네오정보시스템 NEO NETWORK 제품군 통합 사용 설명서",
+             "manufacturer": "네오정보시스템", "model_series": "NEO NETWORK",
+             "toc": [{"title": "SMATV(광 송장비)", "page": 6},
+                     {"title": "광방송장비(SMATV) (Product Lineup)", "page": 10},
+                     {"title": "커플러 (Product Lineup)", "page": 10},
+                     {"title": "무선랜 AP (Product Lineup)", "page": 8}]},
+            {"document_id": "servo", "filename": "LS 서보 드라이브 L7NH 사용 설명서",
+             "manufacturer": "LS", "model_series": "L7NH",
+             "toc": [{"title": "설치 방법", "page": 1}, {"title": "알람 코드", "page": 2}]},
+            {"document_id": "vision", "filename": "키엔스 CV-X 비전 시스템 매뉴얼",
+             "manufacturer": "KEYENCE", "model_series": "CV-X",
+             "toc": [{"title": "설치 방법", "page": 1}, {"title": "카메라 설정", "page": 3}]},
+            {"document_id": "plc", "filename": "미쓰비시 MELSEC-Q 시리얼 통신 모듈",
+             "manufacturer": "MITSUBISHI", "model_series": "MELSEC-Q",
+             "toc": [{"title": "설치 방법", "page": 1}, {"title": "버퍼 메모리", "page": 5}]},
+        ]
+
+    def test_toc_only_term_collected_as_evidence(self):
+        # 핵심 시나리오: 'SMATV'는 어느 문서 제목에도 없고 NEO 목차에만 있음.
+        # 점수가 약해 폴백하더라도 evidence에는 매칭 제목이 살아있어야 한다.
+        docs, mode, ev = _filter_documents_by_keywords("SMATV 광방송장비 라인업", self._corpus())
+        assert "neo" in ev
+        assert any("SMATV" in t for t in ev["neo"])
+        # 다른 문서에는 쪽지가 붙지 않음
+        assert "servo" not in ev and "vision" not in ev
+
+    def test_generic_words_produce_no_evidence(self):
+        # '설치 방법'은 여러 문서 목차에 있어 DF컷으로 제외 → 쪽지 남발 방지
+        _, _, ev = _filter_documents_by_keywords("설치 방법 알려줘", self._corpus())
+        assert ev == {}
+
+    def test_no_match_no_evidence(self):
+        _, _, ev = _filter_documents_by_keywords("김치찌개 끓이는 법", self._corpus())
+        assert ev == {}
+
+    def test_evidence_capped_per_doc(self):
+        # 문서당 최대 8개 제한
+        big = {"document_id": "big", "filename": "대형 매뉴얼", "manufacturer": "X",
+               "model_series": "Y",
+               "toc": [{"title": f"위빙모드 활용 {i}", "page": i} for i in range(1, 30)]}
+        _, _, ev = _filter_documents_by_keywords("위빙모드 설정", [big] + self._corpus())
+        assert len(ev.get("big", [])) <= 8
 
 
 # ─── _find_section_page_range ────────────────────────────────────────────────
