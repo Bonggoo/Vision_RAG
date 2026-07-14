@@ -27,6 +27,9 @@
 | **빈 파일 검증** | 0바이트 파일 업로드 시 범용적이고 직관적인 경고 메시지 표출 |
 | **실시간 문서 검색** | 사이드바 상단 검색창에서 문서명, 제조사, 모델을 실시간 검색 필터링 |
 | **대화 마크다운 내보내기** | 활성 대화의 메시지 및 추론 과정(Reasoning Steps)까지 구조화된 마크다운(.md) 파일로 즉시 다운로드 |
+| **적응형 웰컴 온보딩** | 보유 문서가 없는 신규 사용자에게 온보딩/업로드 유도 화면을 노출하고, 문서 로딩 중에도 온보딩↔질문 화면 플래시 없이 매끄럽게 전환 |
+| **인앱 토스트 & 확인창** | 네이티브 `alert()/confirm()`를 대체하는 전역 토스트 알림 + 확인 다이얼로그 (성공/실패/중복 업로드 결과를 구조화해 안내, 파괴적 동작은 위험 스타일) |
+| **세션 갱신 회복력** | 토큰 리프레시 서버가 일시 오류(5xx/네트워크)일 때 강제 로그아웃하지 않고 기존 세션을 유지, 실제 만료(401)에서만 로그아웃 |
 | **PWA 지원** | 홈 화면 설치, 전체화면 모드, 오프라인 캐싱 (갤럭시/iOS 모두 지원) |
 | **프리미엄 UI** | 딥 네이비/바이올렛 다크모드, 글래스모피즘, 모바일 최적화 레이아웃 |
 
@@ -180,16 +183,20 @@ TechNote/
 │   │   │   ├── layout.tsx            # 루트 레이아웃 (메타, 폰트)
 │   │   │   └── globals.css           # 디자인 시스템 (oklch, 글래스모피즘)
 │   │   ├── components/
-│   │   │   ├── chat/ChatMessage.tsx   # 채팅 메시지 (마크다운, 참조 이미지)
-│   │   │   └── layout/               # Header, ChatInput, LoginView
-│   │   │       └── sidebar/          # Sidebar 분해 (DocSearchBar/SortToggle/DocItem/DocTree)
+│   │   │   ├── chat/                 # ChatMessage(마크다운/참조 이미지), ExportButton
+│   │   │   ├── layout/               # Header, ChatInput, LoginView, SparkleLogo
+│   │   │   │   └── sidebar/          # Sidebar 분해 (DocSearchBar/SortToggle/DocItem/DocTree)
+│   │   │   └── ui/                   # Toaster·ConfirmDialog (전역 토스트/확인창, layout에 마운트)
 │   │   ├── hooks/useChatStream.ts    # SSE 스트리밍 파싱 훅 (page.tsx에서 분리)
 │   │   ├── types/                    # 공유 타입 (chat/sse/api)
 │   │   ├── store/
-│   │   │   ├── useAuthStore.ts       # 구글 로그인 사용자 정보 및 JWT 토큰 보관
+│   │   │   ├── useAuthStore.ts       # 구글 로그인 사용자 정보 및 JWT 토큰 보관 (리프레시 일시 오류 관용)
 │   │   │   ├── useChatStore.ts       # 채팅 세션 상태 (GCS 연동)
-│   │   │   └── useDocumentStore.ts   # 문서 목록 상태
-│   │   └── lib/api.ts                # JWT 자동 갱신 + 401 재시도 API 클라이언트
+│   │   │   ├── useDocumentStore.ts   # 문서 목록 상태
+│   │   │   └── useUIStore.ts         # 전역 UI 상태 (toast.* / confirmDialog() 헬퍼)
+│   │   └── lib/
+│   │       ├── api.ts                # JWT 자동 갱신 + 401 재시도 API 클라이언트
+│   │       └── upload.ts             # 업로드 공통 처리 (사이드바+웰컴 온보딩 공용, 결과 토스트)
 │   └── package.json
 ├── doc/
 │   ├── PRD.md                        # 제품 요구사항 정의서
@@ -197,7 +204,12 @@ TechNote/
 │   ├── improvement_list.md           # 개선 및 고도화 요구사항 정의서
 │   ├── refactoring_plan.md           # 코드 구조 리팩토링 로드맵 및 진행 현황
 │   ├── remaining_tasks.md            # 잔여 작업 마스터 보드
-│   └── security_roadmap.md           # 중장기 보안 개선 로드맵
+│   ├── security_roadmap.md           # 중장기 보안 개선 로드맵
+│   ├── async_upload_roadmap.md       # 대용량 비동기 업로드 파이프라인 설계
+│   ├── gcs_signed_url_roadmap.md     # GCS Signed URL 다운로드 설계
+│   ├── near_duplicate_document_handling.md # 유사(중복) 문서 처리 ADR (L1 채택)
+│   └── custom_domain_mapping.md      # 커스텀 도메인 매핑 가이드
+├── backend/evals/                    # 질문 품질 자동 평가 하네스 (골든/생성/Claude 500문항)
 └── gcs_cors.json                     # GCS CORS 설정
 ```
 

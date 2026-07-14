@@ -44,4 +44,15 @@ python -m evals.run_eval --judge     # include LLM-as-judge scoring
 
 **Storage:** PDFs live in GCS. Pre-flight SHA-256 hash check prevents duplicate uploads (returns 409). Direct browser→GCS upload (server memory bypass) for large files.
 
-**Deployment:** `cloudbuild.yaml` + `Dockerfile` in `backend/`. Frontend has its own deploy config.
+**Deployment:** `cloudbuild.yaml` + `Dockerfile` in `backend/`. Frontend deploys to Vercel.
+
+## Frontend (`frontend/src/`)
+
+Next.js App Router + Zustand + Tailwind PWA. Chat streams over SSE.
+
+- **State (`store/`):** `useAuthStore` (Google OAuth + JWT refresh; tolerates transient refresh failures — only force-logs-out on a real 401), `useDocumentStore` (sidebar docs + upload), `useChatStore` (conversation), `useUIStore` (global toasts + confirm dialog).
+- **UX primitives — do NOT use native `alert()`/`confirm()`.** Use the `useUIStore` helpers, which work outside React too:
+  - `toast.success/error/info/warning(message, { title?, duration? })` — rendered by `components/ui/Toaster.tsx` (mounted in `app/layout.tsx`).
+  - `confirmDialog({ title, description?, danger?, ... })` → `Promise<boolean>` — rendered by `components/ui/ConfirmDialog.tsx`.
+- **Upload:** `lib/upload.ts` `processUploadFiles()` is the shared handler for both the sidebar and the welcome-screen onboarding; it summarizes success/duplicate/error counts into a toast and refreshes the doc list.
+- `app/page.tsx` shows an adaptive welcome/onboarding screen when the user has no documents yet.
