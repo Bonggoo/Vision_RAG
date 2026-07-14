@@ -132,25 +132,37 @@ export const useAuthStore = create<AuthStore>()(
             return;
           }
 
-          if (res.status === 401) {
-            // 2차: Access Token 만료 → Refresh Token(쿠키)으로 갱신 시도
-            const refreshRes = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-              method: "POST",
-              credentials: "include",
-            });
-
-            if (refreshRes.ok) {
-              const data = await refreshRes.json();
-              // ✅ 갱신 성공 — 새 토큰 저장
-              set({
-                token: data.access_token,
-                isSessionVerified: true,
-              });
-              return;
-            }
+          if (res.status !== 401) {
+            // 서버 일시 오류(콜드스타트 등) — 로그아웃하지 않고 기존 세션 유지, 이후 요청에서 재시도
+            console.warn(`🔒 세션 확인 일시 실패(HTTP ${res.status}) — 기존 세션 유지`);
+            set({ isSessionVerified: true });
+            return;
           }
 
-          // ❌ 둘 다 실패 → 세션 만료, 즉시 로그아웃
+          // 2차: Access Token 만료 → Refresh Token(쿠키)으로 갱신 시도
+          const refreshRes = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+            method: "POST",
+            credentials: "include",
+          });
+
+          if (refreshRes.ok) {
+            const data = await refreshRes.json();
+            // ✅ 갱신 성공 — 새 토큰 저장
+            set({
+              token: data.access_token,
+              isSessionVerified: true,
+            });
+            return;
+          }
+
+          if (refreshRes.status !== 401) {
+            // 리프레시 서버 일시 오류 — 리프레시 토큰 자체는 무효로 확인된 게 아니므로 세션 유지
+            console.warn(`🔒 세션 갱신 일시 실패(HTTP ${refreshRes.status}) — 기존 세션 유지`);
+            set({ isSessionVerified: true });
+            return;
+          }
+
+          // ❌ 리프레시 토큰까지 만료/무효(401) → 세션 만료, 로그아웃
           console.warn("🔒 세션 만료: 로그인 화면으로 이동합니다.");
           set({
             token: null,
