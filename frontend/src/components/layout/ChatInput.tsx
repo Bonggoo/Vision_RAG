@@ -2,6 +2,7 @@
 
 import React, { useState, KeyboardEvent, useRef, useEffect } from "react";
 import { SendHorizontal, Sparkles, Camera, X, Square } from "lucide-react";
+import { toast } from "@/store/useUIStore";
 
 interface ChatInputProps {
   onSubmit: (message: string, image?: string) => void;
@@ -29,7 +30,7 @@ export default function ChatInput({ onSubmit, disabled, isStreaming, onStop }: C
     if (!file) return;
 
     if (file.size > 10 * 1024 * 1024) {
-      alert("이미지 크기는 10MB 이하여야 합니다.");
+      toast.warning("이미지 크기는 10MB 이하여야 합니다.");
       return;
     }
 

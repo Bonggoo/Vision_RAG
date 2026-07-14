@@ -18,6 +18,8 @@ import { useChatStore } from "@/store/useChatStore";
 import { useDocumentStore, Document } from "@/store/useDocumentStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { api } from "@/lib/api";
+import { toast, confirmDialog } from "@/store/useUIStore";
+import { processUploadFiles } from "@/lib/upload";
 import SparkleLogo from "./SparkleLogo";
 import DocSearchBar from "./sidebar/DocSearchBar";
 import SortToggle from "./sidebar/SortToggle";
@@ -91,22 +93,26 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
     return () => clearInterval(interval);
   }, [isOpen, fetchDocuments, isUploading]);
 
-  const handleDownloadDoc = (e: React.MouseEvent, doc: any) => {
+  const handleDownloadDoc = async (e: React.MouseEvent, doc: any) => {
     e.stopPropagation();
     const displayFilename = getDisplayFilename(doc);
     const parts = [doc.manufacturer, doc.model_series, doc.doc_type || displayFilename].filter(Boolean);
     const fallbackName = displayFilename.endsWith(".pdf") ? displayFilename : `${displayFilename}.pdf`;
     let downloadName = parts.length > 0 ? `${parts.join("_")}` : fallbackName;
     if (parts.length > 0 && !downloadName.endsWith(".pdf")) downloadName += ".pdf";
-    if (window.confirm(`📥 "${downloadName}" 문서를 다운로드하시겠습니까?`)) {
-      downloadDoc(doc.document_id);
-    }
+    const ok = await confirmDialog({
+      title: "문서 다운로드",
+      description: `"${downloadName}" 문서를 다운로드할까요?`,
+      confirmText: "다운로드",
+      icon: "📥",
+    });
+    if (ok) downloadDoc(doc.document_id);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
     if (files.length === 0) return;
-    await processUploadFiles(files);
+    await handleUploadFiles(files);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -116,31 +122,11 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
     e.preventDefault(); setIsDragging(false);
     const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
     const pdfFiles = files.filter(f => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
-    if (pdfFiles.length === 0) { alert("PDF 파일만 업로드할 수 있습니다."); return; }
-    await processUploadFiles(pdfFiles);
+    if (pdfFiles.length === 0) { toast.warning("PDF 파일만 업로드할 수 있습니다."); return; }
+    await handleUploadFiles(pdfFiles);
   };
 
-  const processUploadFiles = async (files: File[]) => {
-    try {
-      const results = await uploadDocuments(files);
-      const successCount = results.filter(r => r.status === "success").length;
-      const dupCount = results.filter(r => r.status === "duplicate").length;
-      const errCount = results.filter(r => r.status === "error").length;
-      let alertMsg = `🎉 업로드 완료! (성공: ${successCount}개`;
-      if (dupCount > 0) alertMsg += `, 중복: ${dupCount}개`;
-      if (errCount > 0) alertMsg += `, 실패: ${errCount}개`;
-      alertMsg += `)`;
-      if (errCount > 0 || dupCount > 0) {
-        alertMsg += "\n\n──────────────────\n상세 내역:";
-        results.forEach(r => {
-          if (r.status === "duplicate") alertMsg += `\n⚠️ [중복 업로드 방지] ${r.filename}`;
-          if (r.status === "error") alertMsg += `\n❌ [업로드 실패] ${r.filename}: ${r.errorMsg}`;
-        });
-      }
-      alert(alertMsg);
-      fetchDocuments();
-    } catch (err: any) { alert(err.message || "파일 업로드 과정에서 오류가 발생했습니다."); }
-  };
+  const handleUploadFiles = (files: File[]) => processUploadFiles(files, uploadDocuments, fetchDocuments);
 
   const handleRetryAnalysis = async (e: React.MouseEvent, doc: Document) => {
     e.stopPropagation();
@@ -151,9 +137,9 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
         body: JSON.stringify({ document_id: doc.document_id, filename: doc.filename, file_hash: doc.file_hash || "" })
       });
       if (!res.ok) throw new Error("재분석 요청 실패");
-      alert("🔄 AI 분석을 다시 시작했습니다!");
+      toast.success("AI 분석을 다시 시작했습니다!");
       fetchDocuments();
-    } catch (err: any) { alert(`재분석 시작 실패: ${err.message}`); }
+    } catch (err: any) { toast.error(`재분석 시작 실패: ${err.message}`); }
   };
 
   const handleNewChat = async () => {
@@ -173,20 +159,33 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
         onToggleCollapse();
       }
       setActiveTab("chat");
-    } catch (err: any) { alert(err.message || "대화 세션 생성에 실패했습니다."); }
+    } catch (err: any) { toast.error(err.message || "대화 세션 생성에 실패했습니다."); }
   };
 
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
-    if (confirm("이 대화를 삭제하시겠습니까?")) {
-      try { await deleteSession(sessionId); }
-      catch (err: any) { alert(err.message || "대화 삭제에 실패했습니다."); }
-    }
+    const ok = await confirmDialog({
+      title: "대화 삭제",
+      description: "이 대화를 삭제할까요?",
+      confirmText: "삭제",
+      danger: true,
+      icon: "🗑️",
+    });
+    if (!ok) return;
+    try { await deleteSession(sessionId); }
+    catch (err: any) { toast.error(err.message || "대화 삭제에 실패했습니다."); }
   };
 
   const handleDeleteDoc = async (e: React.MouseEvent, docId: string) => {
     e.stopPropagation();
-    if (confirm("이 문서를 삭제하시겠습니까? 관련 데이터가 모두 영구 제거됩니다.")) await deleteDoc(docId);
+    const ok = await confirmDialog({
+      title: "문서 삭제",
+      description: "이 문서를 삭제할까요?\n관련 데이터가 모두 영구 제거됩니다.",
+      confirmText: "삭제",
+      danger: true,
+      icon: "🗑️",
+    });
+    if (ok) await deleteDoc(docId);
   };
 
   const handleStartRename = (e: React.MouseEvent, doc: Document) => {
@@ -197,26 +196,41 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
 
   const handleSaveMeta = async (docId: string) => {
     const trimmedName = editingName.trim();
-    if (!trimmedName) { alert("문서 제목은 필수입니다."); return; }
+    if (!trimmedName) { toast.warning("문서 제목은 필수입니다."); return; }
     try {
       await updateDocMeta(docId, { filename: trimmedName, manufacturer: editingMfg.trim() || undefined, model_series: editingModel.trim() || undefined });
       setEditingDocId(null);
-    } catch (err: any) { alert(err.message || "메타데이터 수정에 실패했습니다."); }
+      toast.success("문서 정보를 저장했어요.");
+    } catch (err: any) { toast.error(err.message || "메타데이터 수정에 실패했습니다."); }
   };
 
   const handleBatchDelete = async (e: React.MouseEvent, docs: Document[], groupLabel: string) => {
     e.stopPropagation();
     const targetDocs = docs.filter(d => d.status !== "analyzing");
     if (targetDocs.length === 0) return;
-    if (!confirm(`"${groupLabel}" 그룹의 문서 ${targetDocs.length}개를 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    const ok = await confirmDialog({
+      title: "그룹 문서 삭제",
+      description: `"${groupLabel}" 그룹의 문서 ${targetDocs.length}개를 모두 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`,
+      confirmText: `${targetDocs.length}개 삭제`,
+      danger: true,
+      icon: "🗑️",
+    });
+    if (!ok) return;
     for (const doc of targetDocs) await deleteDoc(doc.document_id);
+    toast.success(`문서 ${targetDocs.length}개를 삭제했어요.`);
   };
 
   const handleBatchDownload = async (e: React.MouseEvent, docs: Document[], groupLabel: string) => {
     e.stopPropagation();
     const targetDocs = docs.filter(d => d.status !== "analyzing" && d.status !== "error");
-    if (targetDocs.length === 0) { alert("다운로드 가능한 문서가 없습니다."); return; }
-    if (!confirm(`"${groupLabel}" 그룹의 문서 ${targetDocs.length}개를 순차 다운로드합니다.`)) return;
+    if (targetDocs.length === 0) { toast.info("다운로드 가능한 문서가 없습니다."); return; }
+    const ok = await confirmDialog({
+      title: "그룹 문서 다운로드",
+      description: `"${groupLabel}" 그룹의 문서 ${targetDocs.length}개를 순차 다운로드할까요?`,
+      confirmText: "다운로드",
+      icon: "📥",
+    });
+    if (!ok) return;
     for (const doc of targetDocs) { await downloadDoc(doc.document_id); await new Promise(r => setTimeout(r, 500)); }
   };
 
@@ -226,12 +240,12 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
     setIsReclassifying(true);
     try {
       const result = await api.reclassifyDocuments();
-      alert(result.message);
+      toast.info(result.message, { title: "문서 재분류" });
       if (result.count > 0) {
         setTimeout(() => fetchDocuments(), result.count * 2000 + 3000);
         setTimeout(() => fetchDocuments(), Math.min(result.count * 1000, 15000));
       }
-    } catch (err: any) { alert(err.message || "재분류 요청에 실패했습니다."); }
+    } catch (err: any) { toast.error(err.message || "재분류 요청에 실패했습니다."); }
     finally { setIsReclassifying(false); }
   };
 

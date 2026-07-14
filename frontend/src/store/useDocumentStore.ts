@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { api } from "@/lib/api";
+import { toast } from "@/store/useUIStore";
 import type { SimilarDocument } from "@/types/api";
 
 export interface Document {
@@ -204,7 +205,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       await api.downloadDocument(docId);
     } catch (error) {
       console.error("Failed to download document:", error);
-      alert("문서 다운로드에 실패했습니다.");
+      toast.error("문서 다운로드에 실패했습니다.");
     }
   }
 }));

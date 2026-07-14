@@ -3,26 +3,31 @@
 import React from "react";
 import { Share } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
+import { toast, confirmDialog } from "@/store/useUIStore";
 
 export default function ExportButton() {
   const { sessions, activeSessionId } = useChatStore();
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const session = sessions.find((s) => s.id === activeSessionId);
     if (!session) {
-      alert("내보낼 대화가 없습니다.");
+      toast.info("내보낼 대화가 없습니다.");
       return;
     }
 
     if (session.messages.length === 0) {
-      alert("대화 기록이 비어 있습니다.");
+      toast.info("대화 기록이 비어 있습니다.");
       return;
     }
 
     // 💡 내보내기 전 다운로드 여부 확인 (사용자 취소 지원)
-    if (!confirm(`'${session.title}' 대화 기록을 마크다운(.md) 파일로 내보내시겠습니까?`)) {
-      return;
-    }
+    const ok = await confirmDialog({
+      title: "대화 내보내기",
+      description: `'${session.title}' 대화 기록을 마크다운(.md) 파일로 저장할까요?`,
+      confirmText: "내보내기",
+      icon: "📑",
+    });
+    if (!ok) return;
 
     // 1. 마크다운 생성
     const today = new Date().toISOString().split("T")[0];
@@ -71,9 +76,10 @@ export default function ExportButton() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      toast.success("대화 기록을 저장했어요.");
     } catch (error) {
       console.error("대화 내보내기 실패:", error);
-      alert("대화 내보내기에 실패했습니다.");
+      toast.error("대화 내보내기에 실패했습니다.");
     }
   };
 
