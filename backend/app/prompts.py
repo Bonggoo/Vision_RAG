@@ -61,8 +61,10 @@ def select_document_prompt(docs_text: str, context_section: str, previous_refere
 - 여러 문서가 비슷한 수준으로 해당될 수 있는 경우
 - 어떤 문서에서도 명확하게 해당 내용을 다루는지 확신하기 어려운 경우
 
-[Step 4] needs_clarification이 true일 때, 사용자가 선택할 수 있는 보강 질문 3개를 생성하세요.
-보강 질문은 질문을 구체화할 수 있도록 제조사, 모델, 장비 종류 등을 특정하는 질문이어야 합니다.
+[Step 4] needs_clarification이 true일 때, 사용자가 탭 한 번으로 그대로 전송할 수 있는 "구체화된 질문" 3개를 생성하세요.
+- 반드시 사용자 입장에서 작성된 질문이어야 합니다. AI가 사용자에게 묻는 문장은 금지입니다 (예: "제조사가 어디인가요?", "모델명을 알려주실 수 있나요?" ❌)
+- 사용자의 원래 질문 의도와 표현을 유지한 채, 후보 문서의 제조사/모델명을 덧붙여 재작성하세요 (예: 원 질문이 "통신 에러 타임아웃 해결법"이면 → "미쓰비시 MELSEC-Q 통신 에러 타임아웃 해결법" ✅)
+- 각 질문은 서로 다른 후보 문서를 향하도록 작성하세요
 
 {docs_text}
 {context_section}
@@ -78,9 +80,9 @@ def select_document_prompt(docs_text: str, context_section: str, previous_refere
         {{"document_id": "...", "confidence": 0.35, "reason": "같은 제조사이나 다른 모델"}}
     ],
     "suggested_questions": [
-        "어떤 제조사의 서보 드라이브인가요? (예: 미쓰비시, 야스카와)",
-        "장비의 모델명을 알고 계신가요?",
-        "알람이 표시된 화면을 사진으로 첨부해 주시겠어요?"
+        "미쓰비시 MELSEC-Q 시리얼 통신 모듈 통신 에러 타임아웃 해결법",
+        "미쓰비시 Q 시리즈 Ethernet 모듈 통신 에러 타임아웃 해결법",
+        "로보스타 RCS-8000 컨트롤러 통신 에러 타임아웃 해결법"
     ],
     "reasoning": "판별 및 추론 과정을 한국어로 간략히 설명"
 }}
@@ -92,7 +94,7 @@ def select_document_prompt(docs_text: str, context_section: str, previous_refere
 - candidates는 confidence 내림차순으로 정렬
 - 질문에 제조사/모델 정보가 없고 적합한 문서가 불명확하면 반드시 needs_clarification을 true로
 - needs_clarification이 true일 때만 suggested_questions를 생성 (3개), false이면 빈 배열 []
-- suggested_questions는 사용자 문서 목록에 존재하는 제조사/모델을 구체적으로 언급하세요
+- suggested_questions는 사용자 문서 목록에 실제로 존재하는 제조사/모델을 구체적으로 언급한, "사용자가 그대로 전송할 수 있는" 재작성 질문이어야 합니다 (Step 4 참고)
 - 만약 "이전에 참조한 문서" 정보가 제공되었고, 사용자의 질문이 짧거나 생략된 형태(예: "2050은?", "그럼 이건 어떻게 해?")로 이전 매뉴얼 맥락을 잇고 있다면, 이전 참조 문서의 confidence 점수를 가장 높게(예: 0.9 이상) 부여하세요.
 - [장비 연관성 규칙] 알람코드나 에러코드가 포함된 질문일 경우, 산업 자동화 장비의 제어 계층을 반드시 고려하세요. 예를 들어 "서보 알람"이라고 해도 실제 알람은 서보앰프 자체가 아니라 상위 제어 장비(위치결정모듈, 모션컨트롤러, PLC 등)에서 발생시킨 코드일 수 있습니다. 마찬가지로 하위 장비(엔코더, 모터 등)의 문서도 관련될 수 있습니다. 이처럼 질문에 명시된 장비뿐 아니라, 해당 장비와 제어 관계에 있는 상위/하위 장비의 문서에도 적절한 confidence 점수(0.4 이상)를 부여하세요."""
 

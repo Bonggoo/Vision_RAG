@@ -51,32 +51,28 @@ def _quick_classify(question: str) -> str | None:
 def _generate_default_clarification_questions(question: str, documents: list[dict]) -> list[str]:
     """
     LLM이 보강 질문을 생성하지 못했을 때 기본 보강 질문을 생성합니다.
-    사용자의 문서 목록에서 제조사/모델을 추출하여 구체적인 선택지를 만듭니다.
+
+    주의: 이 문장들은 프론트에서 탭하면 '사용자 메시지'로 그대로 전송됩니다.
+    따라서 AI가 사용자에게 묻는 문장("제조사가 어디인가요?")이 아니라,
+    원 질문에 후보 문서의 제조사/모델을 덧붙여 재작성한 '사용자 입장의 질문'
+    이어야 합니다. 예: "통신 에러 해결법" → "MITSUBISHI MELSEC-Q 통신 에러 해결법"
     """
-    # 문서에서 고유한 제조사/모델 수집
-    manufacturers = set()
-    models = set()
+    questions = []
+    seen_prefixes = set()
     for d in documents:
         m = str(d.get("manufacturer", "")).strip()
         s = str(d.get("model_series", "")).strip()
-        if m and m != "미상":
-            manufacturers.add(m)
-        if s and s != "미상":
-            models.add(s)
-
-    questions = []
-
-    if manufacturers:
-        manuf_list = ", ".join(list(manufacturers)[:5])
-        questions.append(f"어떤 제조사의 장비인가요? (보유 매뉴얼: {manuf_list})")
-
-    if models:
-        model_list = ", ".join(list(models)[:5])
-        questions.append(f"장비의 모델명을 알고 계신가요? (보유 매뉴얼: {model_list})")
-
-    questions.append("알람이 표시된 장비 화면을 사진으로 찍어 첨부해 주시겠어요?")
-
-    return questions[:3]
+        parts = [p for p in (m, s) if p and p != "미상"]
+        if not parts:
+            continue
+        prefix = " ".join(parts)
+        if prefix in seen_prefixes:
+            continue
+        seen_prefixes.add(prefix)
+        questions.append(f"{prefix} {question}")
+        if len(questions) >= 3:
+            break
+    return questions
 
 
 def _sse_event(event_type: str, **kwargs) -> str:
@@ -942,8 +938,10 @@ async def _stage_resolve_document(ctx: "_PipelineContext"):
                 suggested_questions = doc_result.get("suggested_questions", [])
 
                 # LLM이 보강 질문을 생성하지 않았으면 기본 보강 질문 생성
+                # (화면에 함께 뜨는 후보 문서 기준으로 재작성 질문을 만들어 일관성 유지)
                 if not suggested_questions:
-                    suggested_questions = _generate_default_clarification_questions(ctx.question, all_docs)
+                    suggested_questions = _generate_default_clarification_questions(
+                        ctx.question, clarification_candidates)
 
                 clarification_content = (
                     "질문을 좀 더 구체화하면 정확한 답변을 드릴 수 있어요. "

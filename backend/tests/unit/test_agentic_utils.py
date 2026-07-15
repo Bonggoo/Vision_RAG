@@ -340,17 +340,31 @@ class TestGenerateDefaultClarificationQuestions:
         questions = _generate_default_clarification_questions("알람 확인", self._docs())
         assert len(questions) <= 3
 
-    def test_includes_manufacturer_hint(self):
+    def test_user_perspective_rewrite(self):
+        # 탭하면 사용자 메시지로 전송되므로, 원 질문 + 제조사/모델 재작성 형태여야 함
         questions = _generate_default_clarification_questions("알람 확인", self._docs())
-        # 제조사 질문이 포함돼야 함
-        assert any("제조사" in q for q in questions)
+        assert questions[0] == "MITSUBISHI MELSERVO 알람 확인"
+        # 모든 질문이 원 질문을 포함해야 함 (AI가 사용자에게 묻는 문장 금지)
+        assert all("알람 확인" in q for q in questions)
+        assert not any(q.endswith("가요?") or q.endswith("나요?") for q in questions)
 
     def test_ignores_misang_values(self):
         questions = _generate_default_clarification_questions("알람", self._docs())
         combined = " ".join(questions)
         assert "미상" not in combined
+        # 미상인 필드만 빼고 나머지는 활용: "FANUC 알람", "Q-Series 알람"
+        assert "FANUC 알람" in questions
+        assert "Q-Series 알람" in questions
+
+    def test_dedupes_same_prefix(self):
+        docs = [
+            {"manufacturer": "LS산전", "model_series": "L7NH"},
+            {"manufacturer": "LS산전", "model_series": "L7NH"},
+        ]
+        questions = _generate_default_clarification_questions("알람", docs)
+        assert questions == ["LS산전 L7NH 알람"]
 
     def test_empty_docs(self):
+        # 재작성할 근거가 없으면 빈 리스트 (프론트에서 추천 질문 섹션 숨김)
         questions = _generate_default_clarification_questions("알람", [])
-        # 문서가 없어도 마지막 기본 질문(사진 첨부)은 포함
-        assert any("사진" in q for q in questions)
+        assert questions == []
