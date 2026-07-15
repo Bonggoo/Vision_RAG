@@ -16,7 +16,7 @@ from app.services.metadata_service import (
     get_document_async, get_document_path_async, get_all_documents_async,
 )
 from app.services.agent_service import analyze_pages_with_vision, _create_flash_llm, _clean_json_response, _extract_text_content
-from app.services.pdf_service import render_page_thumbnail
+from app.services.pdf_service import render_page_thumbnail, normalize_manufacturer
 from app.prompts import general_chat_prompt, refine_pages_prompt, select_document_prompt, select_pages_prompt
 from app.utils.logger import logger
 from langchain_core.messages import HumanMessage
@@ -56,15 +56,26 @@ def _generate_default_clarification_questions(question: str, documents: list[dic
     따라서 AI가 사용자에게 묻는 문장("제조사가 어디인가요?")이 아니라,
     원 질문에 후보 문서의 제조사/모델을 덧붙여 재작성한 '사용자 입장의 질문'
     이어야 합니다. 예: "통신 에러 해결법" → "MITSUBISHI MELSEC-Q 통신 에러 해결법"
+
+    질문에 이미 들어있는 제조사(별칭 포함)/모델은 다시 붙이지 않으며
+    ("미쓰비시 Q 시리즈..." 질문에 "MITSUBISHI Q 시리즈"를 중복 부착 방지),
+    덧붙일 정보가 없는 후보는 건너뜁니다. 전부 건너뛰면 빈 리스트를 반환해
+    프론트가 추천 질문 섹션을 숨기고 문서 선택 카드만 노출하게 합니다.
     """
+    q_lower = question.lower()
+    q_manufacturer = normalize_manufacturer(question)  # 질문에 이미 언급된 제조사 (별칭 흡수)
     questions = []
     seen_prefixes = set()
     for d in documents:
         m = str(d.get("manufacturer", "")).strip()
         s = str(d.get("model_series", "")).strip()
-        parts = [p for p in (m, s) if p and p != "미상"]
+        parts = []
+        if m and m != "미상" and normalize_manufacturer(m) != q_manufacturer:
+            parts.append(m)
+        if s and s != "미상" and s.lower() not in q_lower:
+            parts.append(s)
         if not parts:
-            continue
+            continue  # 이 후보로는 질문에 더할 정보가 없음
         prefix = " ".join(parts)
         if prefix in seen_prefixes:
             continue

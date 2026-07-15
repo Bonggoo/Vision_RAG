@@ -364,6 +364,25 @@ class TestGenerateDefaultClarificationQuestions:
         questions = _generate_default_clarification_questions("알람", docs)
         assert questions == ["LS산전 L7NH 알람"]
 
+    def test_skips_parts_already_in_question(self):
+        # 질문에 이미 제조사(별칭 "미쓰비시"→MITSUBISHI)와 모델이 들어있으면 중복 부착 금지
+        docs = [
+            {"manufacturer": "MITSUBISHI", "model_series": "Q 시리즈"},
+            {"manufacturer": "MITSUBISHI", "model_series": "MELSEC-Q"},
+        ]
+        question = "미쓰비시 Q 시리즈 Ethernet 모듈 통신 에러 해결법"
+        questions = _generate_default_clarification_questions(question, docs)
+        # 후보 1: 제조사·모델 모두 질문에 이미 존재 → 건너뜀
+        # 후보 2: MELSEC-Q만 새 정보 → "MELSEC-Q {질문}" 1개
+        assert questions == [f"MELSEC-Q {question}"]
+
+    def test_returns_empty_when_nothing_to_add(self):
+        # 모든 후보가 질문에 이미 든 정보뿐이면 빈 리스트 (섹션 숨김)
+        docs = [{"manufacturer": "MITSUBISHI", "model_series": "Q 시리즈"}]
+        questions = _generate_default_clarification_questions(
+            "미쯔비시 Q 시리즈 통신 에러", docs)
+        assert questions == []
+
     def test_empty_docs(self):
         # 재작성할 근거가 없으면 빈 리스트 (프론트에서 추천 질문 섹션 숨김)
         questions = _generate_default_clarification_questions("알람", [])
