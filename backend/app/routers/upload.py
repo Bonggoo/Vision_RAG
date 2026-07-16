@@ -6,6 +6,8 @@ from app.services.pdf_service import process_document_upload, extract_pages_as_p
 from app.services.agent_service import extract_toc_with_gemini
 from app.services import metadata_service
 from app.services import dedup_service
+from app.services import document_conversion
+from app.services.document_conversion import ConversionError
 from app.services.auth_service import get_current_user
 from app.exceptions import DuplicateDocumentError, EmptyFileError
 from app.config import settings
@@ -18,12 +20,18 @@ from datetime import datetime, timezone
 router = APIRouter()
 
 
+UNSUPPORTED_FORMAT_MESSAGE = (
+    "지원하지 않는 파일 형식입니다. "
+    "(지원: PDF, Word, Excel, PowerPoint, 텍스트/마크다운, 이미지)"
+)
+
+
 @router.post("", response_model=UploadResponse)
 async def upload_document(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
-    """PDF 파일을 업로드하고 목차(ToC)를 추출합니다."""
-    if not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="PDF 파일만 지원합니다.")
-    
+    """문서 파일을 업로드하고 (비-PDF는 PDF로 변환 후) 목차(ToC)를 추출합니다."""
+    if document_conversion.get_category(file.filename) is None:
+        raise HTTPException(status_code=400, detail=UNSUPPORTED_FORMAT_MESSAGE)
+
     try:
         result = await process_document_upload(file, owner_email=current_user["email"])
         return result
@@ -37,8 +45,10 @@ async def upload_document(file: UploadFile = File(...), current_user: dict = Dep
             status_code=400,
             detail="파일이 로컬에 저장되어 있지 않거나 손상되었습니다. 파일을 확인한 후 다시 시도해 주세요."
         )
+    except ConversionError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"PDF 처리 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"문서 처리 실패: {str(e)}")
 
 
 @router.post("/preflight", response_model=PreflightResponse)
@@ -48,7 +58,10 @@ async def upload_preflight(request: PreflightRequest, current_user: dict = Depen
     로컬 모드(USE_LOCAL_STORAGE=True)일 경우 upload_url은 None을 반환하여
     프론트엔드가 기존 동기식 업로드로 fallback하도록 유도합니다.
     """
-    # 1. 파일 크기 검증
+    # 1. 파일 형식·크기 검증 (미지원 확장자는 Signed URL 발급 전에 조기 거부)
+    content_type = document_conversion.content_type_for(request.filename)
+    if content_type is None:
+        raise HTTPException(status_code=400, detail=UNSUPPORTED_FORMAT_MESSAGE)
     if request.file_size == 0:
         raise HTTPException(status_code=400, detail="빈 파일은 업로드할 수 없습니다.")
 
@@ -66,15 +79,17 @@ async def upload_preflight(request: PreflightRequest, current_user: dict = Depen
     upload_url = None
 
     # 4. GCS Signed Upload URL 생성 (로컬 모드가 아닐 때만)
+    #    비-PDF는 source_original{ext}로 업로드받고, 분석 단계에서 PDF로 변환됩니다.
     if not settings.USE_LOCAL_STORAGE:
         try:
-            blob_name = metadata_service.gcs_blob_path(current_user["email"], str(doc_id), "original.pdf")
+            source_name = document_conversion.source_blob_filename(request.filename)
+            blob_name = metadata_service.gcs_blob_path(current_user["email"], str(doc_id), source_name)
             upload_url = await metadata_service.generate_gcs_signed_url_async(
                 bucket_name=settings.GCS_BUCKET_NAME,
                 blob_name=blob_name,
                 method="PUT",
                 expiration_minutes=15,
-                content_type="application/pdf"
+                content_type=content_type
             )
             if upload_url:
                 logger.info(f"🔑 GCS Signed Upload URL 발급 성공: {doc_id}")
@@ -88,7 +103,8 @@ async def upload_preflight(request: PreflightRequest, current_user: dict = Depen
     return PreflightResponse(
         status="approved",
         document_id=doc_id,
-        upload_url=upload_url
+        upload_url=upload_url,
+        content_type=content_type
     )
 
 
@@ -99,6 +115,22 @@ async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str
     """
     logger.info(f"🚀 비동기 PDF 분석 파이프라인 시작: {document_id} ({filename})")
     try:
+        # 0. 비-PDF 원본이면 PDF로 변환하여 original.pdf 자리에 저장 (PDF 정규화)
+        category = document_conversion.get_category(filename)
+        if category and category != "pdf":
+            source_name = document_conversion.source_blob_filename(filename)
+            source_path = await metadata_service.get_document_path_async(
+                document_id, owner_email=owner_email, blob_filename=source_name
+            )
+            if not source_path or not os.path.exists(source_path):
+                raise FileNotFoundError(f"원본 파일을 찾을 수 없습니다: {document_id}")
+
+            pdf_bytes = await document_conversion.convert_to_pdf(source_path, filename)
+            await metadata_service.store_document_file_async(
+                document_id, owner_email, "original.pdf", pdf_bytes, "application/pdf"
+            )
+            logger.info(f"📄 PDF 변환 완료: {filename} → original.pdf ({len(pdf_bytes)} bytes)")
+
         # 1. 원본 PDF 경로 확보 (GCS 사용 시 /tmp에 자동 캐싱 다운로드됨)
         pdf_path = await metadata_service.get_document_path_async(document_id, owner_email=owner_email)
         if not pdf_path or not os.path.exists(pdf_path):
@@ -128,6 +160,7 @@ async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str
             "manufacturer": classification.get("manufacturer"),
             "model_series": classification.get("model_series"),
             "doc_type": classification.get("doc_type"),
+            "source_format": document_conversion.get_extension(filename).lstrip(".") or None,
             "owner_email": owner_email,
         }
 
@@ -165,22 +198,23 @@ async def trigger_analysis(request: AnalyzeRequest, current_user: dict = Depends
     즉시 202 Accepted 응답을 보냅니다.
     """
     doc_id = str(request.document_id)
+    source_name = document_conversion.source_blob_filename(request.filename)
 
-    # 1. 파일 존재 여부 선제적 검증
+    # 1. 파일 존재 여부 선제적 검증 (비-PDF는 source_original{ext} 기준)
     if settings.USE_LOCAL_STORAGE:
         doc_dir = os.path.join(settings.PDF_UPLOAD_DIR, doc_id)
-        pdf_path = os.path.join(doc_dir, "original.pdf")
-        if not os.path.exists(pdf_path):
-            raise HTTPException(status_code=404, detail="로컬에 원본 PDF 파일이 존재하지 않습니다.")
+        source_path = os.path.join(doc_dir, source_name)
+        if not os.path.exists(source_path):
+            raise HTTPException(status_code=404, detail="로컬에 원본 파일이 존재하지 않습니다.")
     else:
         try:
             from google.cloud import storage
             client = storage.Client()
             bucket = client.bucket(settings.GCS_BUCKET_NAME)
-            blob_name = metadata_service.gcs_blob_path(current_user["email"], doc_id, "original.pdf")
+            blob_name = metadata_service.gcs_blob_path(current_user["email"], doc_id, source_name)
             blob = bucket.blob(blob_name)
             if not blob.exists():
-                raise HTTPException(status_code=404, detail="GCS에 원본 PDF 파일이 존재하지 않습니다.")
+                raise HTTPException(status_code=404, detail="GCS에 원본 파일이 존재하지 않습니다.")
         except HTTPException:
             raise
         except Exception as e:
@@ -199,6 +233,7 @@ async def trigger_analysis(request: AnalyzeRequest, current_user: dict = Depends
         "manufacturer": None,
         "model_series": None,
         "doc_type": None,
+        "source_format": document_conversion.get_extension(request.filename).lstrip(".") or None,
         "owner_email": current_user["email"],
     }
 

@@ -9,7 +9,7 @@ export const getDisplayFilename = (doc: any): string => {
 
   if (doc.filename && badTitlePattern.test(doc.filename)) {
     if (doc.original_filename) {
-      return doc.original_filename.replace(/\.pdf$/i, "");
+      return doc.original_filename.replace(/\.(pdf|docx?|pptx?|xlsx?|txt|md|png|jpe?g|webp|bmp)$/i, "");
     }
   }
   return doc.filename;

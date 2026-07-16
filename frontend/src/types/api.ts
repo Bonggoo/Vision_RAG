@@ -25,6 +25,8 @@ export interface DocumentInfo {
   manufacturer?: string;
   model_series?: string;
   doc_type?: string;
+  /** 업로드 원본 확장자 (예: "pdf", "docx") — 비-PDF는 서버에서 PDF로 변환됨 */
+  source_format?: string;
   similar_documents?: SimilarDocument[];
 }
 
@@ -45,6 +47,8 @@ export interface UploadDocumentResponse {
   status: string;
   file_hash?: string;
   uploaded_at?: string;
+  /** 업로드 원본 확장자 (예: "pdf", "docx") */
+  source_format?: string;
 }
 
 // ─── 대화 (conversations) ────────────────────────────────────────

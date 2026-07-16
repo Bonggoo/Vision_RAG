@@ -253,11 +253,39 @@ async def reindex_document(document_id: UUID, current_user: dict = Depends(get_c
         raise HTTPException(status_code=500, detail=f"ToC 보강 실패: {str(e)}")
 
 
+def _resolve_download_target(meta: dict) -> tuple[str, str, str]:
+    """
+    다운로드 대상 (blob 파일명, 확장자, media_type)을 결정합니다.
+    비-PDF 업로드 문서는 변환된 PDF가 아니라 보관된 원본 파일을 제공합니다.
+    """
+    from app.services import document_conversion
+
+    source_format = (meta.get("source_format") or "pdf").lower()
+    if source_format != "pdf":
+        blob_filename = document_conversion.source_blob_name_from_format(source_format)
+        ext = f".{source_format}"
+        media_type = document_conversion.CONTENT_TYPE_MAP.get(ext, "application/octet-stream")
+        return blob_filename, ext, media_type
+    return "original.pdf", ".pdf", "application/pdf"
+
+
+def _build_download_name(meta: dict, ext: str) -> str:
+    """다운로드 파일명 조합: 제조사_모델시리즈_문서유형{ext} (특수문자 제거)."""
+    import re
+    parts = filter(None, [
+        meta.get("manufacturer"),
+        meta.get("model_series"),
+        meta.get("doc_type") or meta.get("filename")
+    ])
+    download_name = "_".join(parts) + ext
+    return re.sub(r'[\\/*?:"<>|]', "", download_name)
+
+
 @router.get("/{document_id}/download")
 async def download_document(document_id: UUID, current_user: dict = Depends(get_current_user)):
     """
-    문서 PDF를 다운로드합니다.
-    파일명 형식: 제조사_모델시리즈_문서유형.pdf
+    문서 파일을 다운로드합니다. (비-PDF 업로드 문서는 원본 파일 제공)
+    파일명 형식: 제조사_모델시리즈_문서유형{확장자}
     """
     doc_id = str(document_id)
     if not await metadata_service.verify_document_owner_async(doc_id, current_user["email"]):
@@ -265,31 +293,29 @@ async def download_document(document_id: UUID, current_user: dict = Depends(get_
     meta = await metadata_service.get_document_async(doc_id, owner_email=current_user["email"])
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
-    
-    pdf_path = await metadata_service.get_document_path_async(doc_id, owner_email=current_user["email"])
-    if pdf_path is None or not os.path.isfile(pdf_path):
-        raise HTTPException(status_code=404, detail="PDF 파일을 찾을 수 없습니다.")
-    
-    # 다운로드 파일명 조합
-    parts = filter(None, [
-        meta.get("manufacturer"),
-        meta.get("model_series"),
-        meta.get("doc_type") or meta.get("filename")
-    ])
-    download_name = "_".join(parts) + ".pdf"
-    
-    # 특수문자 제거하여 안전한 파일명 생성
-    import re
-    download_name = re.sub(r'[\\/*?:"<>|]', "", download_name)
-    
+
+    blob_filename, ext, media_type = _resolve_download_target(meta)
+    file_path = await metadata_service.get_document_path_async(
+        doc_id, owner_email=current_user["email"], blob_filename=blob_filename
+    )
+    if (file_path is None or not os.path.isfile(file_path)) and blob_filename != "original.pdf":
+        # 원본이 유실된 레거시 문서는 변환된 PDF로 폴백
+        logger.warning(f"⚠️ 원본 파일 유실, 변환 PDF로 폴백: {doc_id} ({blob_filename})")
+        blob_filename, ext, media_type = "original.pdf", ".pdf", "application/pdf"
+        file_path = await metadata_service.get_document_path_async(doc_id, owner_email=current_user["email"])
+    if file_path is None or not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="문서 파일을 찾을 수 없습니다.")
+
+    download_name = _build_download_name(meta, ext)
+
     from urllib.parse import quote
     encoded_filename = quote(download_name)
     # filename에는 안전한 ASCII fallback 값을 제공하고, 실제 한글명은 URL 인코딩된 filename*를 사용해 UnicodeEncodeError 방지
     headers = {
-        "Content-Disposition": f"attachment; filename=\"document.pdf\"; filename*=UTF-8''{encoded_filename}"
+        "Content-Disposition": f"attachment; filename=\"document{ext}\"; filename*=UTF-8''{encoded_filename}"
     }
-    
-    return FileResponse(pdf_path, media_type="application/pdf", headers=headers)
+
+    return FileResponse(file_path, media_type=media_type, headers=headers)
 
 
 @router.get("/{document_id}/download-url")
@@ -304,21 +330,15 @@ async def download_document_url(document_id: UUID, current_user: dict = Depends(
     meta = await metadata_service.get_document_async(doc_id, owner_email=current_user["email"])
     if meta is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
-    
-    # 다운로드 파일명 조합
-    parts = filter(None, [
-        meta.get("manufacturer"),
-        meta.get("model_series"),
-        meta.get("doc_type") or meta.get("filename")
-    ])
-    download_name = "_".join(parts) + ".pdf"
-    
-    # 특수문자 제거하여 안전한 파일명 생성
-    import re
-    download_name = re.sub(r'[\\/*?:"<>|]', "", download_name)
-    
+
+    blob_filename, ext, media_type = _resolve_download_target(meta)
+    download_name = _build_download_name(meta, ext)
+
     # Signed URL 생성 시도
-    signed_url = await metadata_service.get_document_signed_url_async(doc_id, download_name, owner_email=current_user["email"])
+    signed_url = await metadata_service.get_document_signed_url_async(
+        doc_id, download_name, owner_email=current_user["email"],
+        blob_filename=blob_filename, content_type=media_type
+    )
     
     if signed_url:
         return {

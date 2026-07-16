@@ -10,8 +10,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=8080
 
 # Install system dependencies (PyMuPDF might need some)
+# LibreOffice(Writer/Calc/Impress): Office 문서(docx/xlsx/pptx 등) → PDF 변환용.
+# fonts-noto-cjk: 변환 시 한글/한자/일본어가 깨지지 않도록 CJK 글리프 제공.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    libreoffice-writer \
+    libreoffice-calc \
+    libreoffice-impress \
+    fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies

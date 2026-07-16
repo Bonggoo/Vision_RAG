@@ -42,7 +42,7 @@ python -m evals.run_eval --judge     # include LLM-as-judge scoring
 
 **Auth:** Google OAuth → JWT (access + refresh). `backend/app/routers/auth.py` + `services/auth_service.py`. All routes require JWT except health check.
 
-**Storage:** PDFs live in GCS. Pre-flight SHA-256 hash check prevents duplicate uploads (returns 409). Direct browser→GCS upload (server memory bypass) for large files.
+**Storage:** PDFs live in GCS. Pre-flight SHA-256 hash check prevents duplicate uploads (returns 409). Direct browser→GCS upload (server memory bypass) for large files. Non-PDF uploads (docx/xlsx/pptx/txt/md/images) are normalized to PDF at ingestion (`backend/app/services/document_conversion.py` — LibreOffice headless / PyMuPDF) and stored as `original.pdf` so the ToC/Vision pipeline runs unchanged; the raw upload is kept as `source_original.{ext}` and served on download.
 
 **Deployment:** `cloudbuild.yaml` + `Dockerfile` in `backend/`. Frontend deploys to Vercel.
 

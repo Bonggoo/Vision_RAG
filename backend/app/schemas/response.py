@@ -25,6 +25,7 @@ class UploadResponse(BaseModel):
     manufacturer: Optional[str] = None
     model_series: Optional[str] = None
     doc_type: Optional[str] = None
+    source_format: Optional[str] = None  # 업로드 원본 확장자 (예: "pdf", "docx")
     similar_documents: List[SimilarDocument] = []
 
 class DocumentInfo(BaseModel):
@@ -36,6 +37,7 @@ class DocumentInfo(BaseModel):
     manufacturer: Optional[str] = None
     model_series: Optional[str] = None
     doc_type: Optional[str] = None
+    source_format: Optional[str] = None  # 업로드 원본 확장자 (예: "pdf", "docx")
     similar_documents: List[SimilarDocument] = []
 
 class DocumentListResponse(BaseModel):
@@ -57,6 +59,9 @@ class PreflightResponse(BaseModel):
     status: str
     document_id: UUID
     upload_url: Optional[str] = None
+    # GCS Signed URL 서명에 사용된 Content-Type. 브라우저는 PUT 시 이 값을
+    # 헤더에 그대로 설정해야 서명 검증(403)을 통과합니다.
+    content_type: Optional[str] = None
 
 
 class AnalyzeResponse(BaseModel):

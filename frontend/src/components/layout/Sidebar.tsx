@@ -20,6 +20,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { api, authFetch, API_BASE_URL } from "@/lib/api";
 import { toast, confirmDialog } from "@/store/useUIStore";
 import { processUploadFiles } from "@/lib/upload";
+import { isSupportedUploadFile, UPLOAD_ACCEPT_ATTR, UNSUPPORTED_FORMAT_MESSAGE } from "@/lib/fileTypes";
 import SparkleLogo from "./SparkleLogo";
 import DocSearchBar from "./sidebar/DocSearchBar";
 import SortToggle from "./sidebar/SortToggle";
@@ -97,9 +98,11 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
     e.stopPropagation();
     const displayFilename = getDisplayFilename(doc);
     const parts = [doc.manufacturer, doc.model_series, doc.doc_type || displayFilename].filter(Boolean);
-    const fallbackName = displayFilename.endsWith(".pdf") ? displayFilename : `${displayFilename}.pdf`;
+    // 비-PDF 업로드 문서는 보관된 원본(원래 확장자)이 다운로드됨
+    const ext = doc.source_format && doc.source_format !== "pdf" ? `.${doc.source_format}` : ".pdf";
+    const fallbackName = displayFilename.endsWith(ext) ? displayFilename : `${displayFilename}${ext}`;
     let downloadName = parts.length > 0 ? `${parts.join("_")}` : fallbackName;
-    if (parts.length > 0 && !downloadName.endsWith(".pdf")) downloadName += ".pdf";
+    if (parts.length > 0 && !downloadName.endsWith(ext)) downloadName += ext;
     const ok = await confirmDialog({
       title: "문서 다운로드",
       description: `"${downloadName}" 문서를 다운로드할까요?`,
@@ -121,9 +124,9 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault(); setIsDragging(false);
     const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
-    const pdfFiles = files.filter(f => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
-    if (pdfFiles.length === 0) { toast.warning("PDF 파일만 업로드할 수 있습니다."); return; }
-    await handleUploadFiles(pdfFiles);
+    const supportedFiles = files.filter(isSupportedUploadFile);
+    if (supportedFiles.length === 0) { toast.warning(UNSUPPORTED_FORMAT_MESSAGE); return; }
+    await handleUploadFiles(supportedFiles);
   };
 
   const handleUploadFiles = (files: File[]) => processUploadFiles(files, uploadDocuments, fetchDocuments);
@@ -328,7 +331,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
   const renderDocsTab = () => (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="px-4 py-3 space-y-3">
-        <input type="file" accept="application/pdf" multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+        <input type="file" accept={UPLOAD_ACCEPT_ATTR} multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
@@ -339,7 +342,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
           {isUploading && <div className="absolute left-0 top-0 bottom-0 bg-primary/10 transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />}
           <div className="flex items-center gap-2 relative z-10 w-full justify-center">
             {isUploading ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : <UploadCloud className="w-4 h-4 shrink-0" />}
-            <span className="truncate text-[13px] font-semibold">{isUploading ? `업로드 중... (${uploadingIndex + 1}/${uploadTotal})` : "PDF 매뉴얼 업로드"}</span>
+            <span className="truncate text-[13px] font-semibold">{isUploading ? `업로드 중... (${uploadingIndex + 1}/${uploadTotal})` : "문서 업로드"}</span>
           </div>
         </button>
 
@@ -397,7 +400,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
       {isDragging && (
         <div className="absolute inset-0 bg-primary/5 backdrop-blur-[1px] flex flex-col items-center justify-center pointer-events-none z-50 rounded-xl">
           <UploadCloud className="w-12 h-12 text-primary animate-bounce mb-2" />
-          <p className="text-sm font-bold text-primary">PDF를 놓아 업로드하세요</p>
+          <p className="text-sm font-bold text-primary">문서를 놓아 업로드하세요</p>
         </div>
       )}
 
