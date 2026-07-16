@@ -114,12 +114,16 @@ async function calculateFileHash(file: File): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** GCS Signed URL로 파일 직접 업로드 (진행률 추적) - OAuth 대상 아님 */
-function uploadToGCS(file: File, signedUrl: string, onProgress?: (percent: number) => void): Promise<void> {
+/**
+ * GCS Signed URL로 파일 직접 업로드 (진행률 추적) - OAuth 대상 아님
+ * Content-Type은 서명 시점 값(preflight 응답의 content_type)과 정확히 일치해야
+ * GCS 서명 검증(403)을 통과하므로, 브라우저의 file.type 대신 서버 값을 사용합니다.
+ */
+function uploadToGCS(file: File, signedUrl: string, contentType: string, onProgress?: (percent: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", signedUrl);
-    xhr.setRequestHeader("Content-Type", "application/pdf");
+    xhr.setRequestHeader("Content-Type", contentType);
     
     if (onProgress) {
       xhr.upload.onprogress = (e) => {
@@ -178,16 +182,16 @@ export const api = {
         throw error;
       }
       
-      const { document_id, upload_url } = await preflightRes.json();
-      
+      const { document_id, upload_url, content_type } = await preflightRes.json();
+
       // 3. 로컬 모드 등으로 Signed URL이 없으면 동기식 업로드로 Fallback
       if (!upload_url) {
         console.warn("[Upload] GCS Signed URL이 누락되어 동기식 업로드로 Fallback합니다.");
         return await api._uploadDocumentSync(file, onProgress);
       }
-      
+
       // 4. GCS 다이렉트 업로드 (Phase B)
-      await uploadToGCS(file, upload_url, onProgress);
+      await uploadToGCS(file, upload_url, content_type || "application/pdf", onProgress);
       
       // 5. 비동기 AI 분석 파이프라인 트리거 (Phase C)
       const analyzeRes = await authFetch(`${API_BASE_URL}/upload/analyze`, {

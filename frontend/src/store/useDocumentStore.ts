@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "@/lib/api";
 import { toast } from "@/store/useUIStore";
+import { isSupportedUploadFile, UNSUPPORTED_FORMAT_MESSAGE } from "@/lib/fileTypes";
 import type { SimilarDocument } from "@/types/api";
 
 export interface Document {
@@ -14,6 +15,7 @@ export interface Document {
   manufacturer?: string;
   model_series?: string;
   doc_type?: string;
+  source_format?: string; // 업로드 원본 확장자 (예: "pdf", "docx")
   similar_documents?: SimilarDocument[]; // 근접 중복 감지 결과 (비차단)
 }
 
@@ -69,14 +71,18 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   uploadDocument: async (file: File) => {
     set({ isUploading: true, uploadingIndex: 0, uploadTotal: 1, uploadProgress: 0, uploadResults: [] });
     try {
+      if (!isSupportedUploadFile(file)) {
+        throw new Error(UNSUPPORTED_FORMAT_MESSAGE);
+      }
+
       if (file.size === 0) {
         throw new Error("파일이 로컬에 저장되어 있지 않거나 손상되었습니다. 파일을 확인한 후 다시 시도해 주세요.");
       }
-      
+
       // 💡 대용량 지원을 위해 파일 제한 크기를 200MB로 완화
       const MAX_SIZE = 200 * 1024 * 1024;
       if (file.size > MAX_SIZE) {
-        throw new Error("파일 크기가 200MB를 초과하여 업로드할 수 없습니다. PDF를 분할하거나 용량을 줄인 후 다시 시도해 주세요.");
+        throw new Error("파일 크기가 200MB를 초과하여 업로드할 수 없습니다. 파일을 분할하거나 용량을 줄인 후 다시 시도해 주세요.");
       }
       
       const data = await api.uploadDocument(file, (p) => set({ uploadProgress: p }));
@@ -113,6 +119,17 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       const file = files[i];
       set({ uploadingIndex: i, uploadProgress: 0 });
 
+      // 지원하지 않는 파일 형식 감지
+      if (!isSupportedUploadFile(file)) {
+        results.push({
+          filename: file.name,
+          status: "error",
+          errorMsg: UNSUPPORTED_FORMAT_MESSAGE
+        });
+        set({ uploadResults: [...results] });
+        continue;
+      }
+
       // 빈 파일 감지 (0바이트)
       if (file.size === 0) {
         const errorMsg = "파일이 로컬에 저장되어 있지 않거나 손상되었습니다. 파일을 확인한 후 다시 시도해 주세요.";
@@ -128,7 +145,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       // 💡 대용량 지원을 위해 파일 제한 크기를 200MB로 완화
       const MAX_SIZE = 200 * 1024 * 1024;
       if (file.size > MAX_SIZE) {
-        const errorMsg = "파일 크기가 200MB를 초과하여 업로드할 수 없습니다. PDF를 분할하거나 용량을 줄인 후 다시 시도해 주세요.";
+        const errorMsg = "파일 크기가 200MB를 초과하여 업로드할 수 없습니다. 파일을 분할하거나 용량을 줄인 후 다시 시도해 주세요.";
         results.push({
           filename: file.name,
           status: "error",

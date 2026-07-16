@@ -387,3 +387,34 @@ class TestGenerateDefaultClarificationQuestions:
         # 재작성할 근거가 없으면 빈 리스트 (프론트에서 추천 질문 섹션 숨김)
         questions = _generate_default_clarification_questions("알람", [])
         assert questions == []
+
+
+# ── ToC 없는 소형 문서 전체 스캔 폴백 ────────────────────────────────────────
+
+class TestResolveTargetPagesWithoutToc:
+    """이미지·짧은 일반문서처럼 ToC가 없는 소형 문서는 전체 페이지를 Vision 분석."""
+
+    def test_small_doc_returns_all_pages(self):
+        from app.services.agentic_graph import _resolve_target_pages_without_toc
+        assert _resolve_target_pages_without_toc(1) == [1]
+        assert _resolve_target_pages_without_toc(3) == [1, 2, 3]
+
+    def test_at_limit_returns_all_pages(self):
+        from app.services.agentic_graph import (
+            _resolve_target_pages_without_toc,
+            SMALL_DOC_FULL_SCAN_PAGES,
+        )
+        pages = _resolve_target_pages_without_toc(SMALL_DOC_FULL_SCAN_PAGES)
+        assert pages == list(range(1, SMALL_DOC_FULL_SCAN_PAGES + 1))
+
+    def test_large_doc_returns_none(self):
+        from app.services.agentic_graph import (
+            _resolve_target_pages_without_toc,
+            SMALL_DOC_FULL_SCAN_PAGES,
+        )
+        assert _resolve_target_pages_without_toc(SMALL_DOC_FULL_SCAN_PAGES + 1) is None
+        assert _resolve_target_pages_without_toc(300) is None
+
+    def test_zero_pages_returns_none(self):
+        from app.services.agentic_graph import _resolve_target_pages_without_toc
+        assert _resolve_target_pages_without_toc(0) is None

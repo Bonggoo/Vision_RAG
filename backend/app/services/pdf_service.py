@@ -181,11 +181,24 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
     doc_id = uuid.uuid4()
     doc_dir = os.path.join(settings.PDF_UPLOAD_DIR, str(doc_id))
     os.makedirs(doc_dir, exist_ok=True)
-    
-    file_path = os.path.join(doc_dir, "original.pdf")
-    with open(file_path, "wb") as f:
+
+    # 업로드 원본 저장 — PDF는 original.pdf, 비-PDF는 source_original{ext}
+    from app.services import document_conversion
+    source_name = document_conversion.source_blob_filename(file.filename)
+    source_path = os.path.join(doc_dir, source_name)
+    with open(source_path, "wb") as f:
         f.write(content)
-        
+
+    # 비-PDF는 PDF로 변환하여 original.pdf 자리에 저장 (PDF 정규화)
+    if source_name != "original.pdf":
+        pdf_bytes = await document_conversion.convert_to_pdf(source_path, file.filename)
+        file_path = os.path.join(doc_dir, "original.pdf")
+        with open(file_path, "wb") as f:
+            f.write(pdf_bytes)
+    else:
+        pdf_bytes = content
+        file_path = source_path
+
     doc = fitz.open(file_path)
     total_pages = doc.page_count
     
@@ -208,6 +221,7 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
         "manufacturer": classification.get("manufacturer"),
         "model_series": classification.get("model_series"),
         "doc_type": classification.get("doc_type"),
+        "source_format": document_conversion.get_extension(file.filename).lstrip(".") or None,
         "owner_email": owner_email,
     }
 
@@ -233,8 +247,16 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
             bucket = client.bucket(settings.GCS_BUCKET_NAME)
             
             blob_pdf = bucket.blob(metadata_service.gcs_blob_path(owner_email, str(doc_id), "original.pdf"))
-            blob_pdf.upload_from_string(content, content_type="application/pdf")
-            
+            blob_pdf.upload_from_string(pdf_bytes, content_type="application/pdf")
+
+            # 비-PDF 업로드는 원본도 함께 보관 (다운로드 시 원본 제공, 재변환 대비)
+            if source_name != "original.pdf":
+                blob_src = bucket.blob(metadata_service.gcs_blob_path(owner_email, str(doc_id), source_name))
+                blob_src.upload_from_string(
+                    content,
+                    content_type=document_conversion.content_type_for(file.filename) or "application/octet-stream"
+                )
+
             blob_meta = bucket.blob(metadata_service.gcs_blob_path(owner_email, str(doc_id), "metadata.json"))
             blob_meta.upload_from_string(json.dumps(metadata, ensure_ascii=False, indent=2), content_type="application/json")
             logger.info(f"✅ GCS 업로드 성공: {doc_id}")
@@ -245,6 +267,15 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
     metadata_service.invalidate_documents_cache(owner_email)
 
     return metadata
+
+
+def _strip_known_extension(filename: str) -> str:
+    """제목 fallback용: 지원 포맷 확장자(.pdf/.docx/.txt 등)를 제거합니다."""
+    from app.services import document_conversion
+    name, ext = os.path.splitext(filename or "")
+    if ext.lower() in document_conversion.SUPPORTED_EXTENSIONS:
+        return name
+    return filename
 
 
 async def _extract_document_classification(pdf_path: str, fallback: str) -> dict:
@@ -361,19 +392,13 @@ async def _extract_document_classification(pdf_path: str, fallback: str) -> dict
             
             # 최종 fallback: 파일명 사용
             if not result["title"]:
-                name = fallback
-                if name.lower().endswith(".pdf"):
-                    name = name[:-4]
-                result["title"] = name
+                result["title"] = _strip_known_extension(fallback)
 
         doc.close()
     except Exception as e:
         logger.error(f"⚠️ 문서 분류 및 제목 추출 실패: {e}")
         # 예외 발생 시 최종 fallback
-        name = fallback
-        if name.lower().endswith(".pdf"):
-            name = name[:-4]
-        result["title"] = name
+        result["title"] = _strip_known_extension(fallback)
 
     # 정규화: null/미분류 값 통일 및 제조사 표준 영문화 적용
     result["manufacturer"] = normalize_manufacturer(result["manufacturer"])

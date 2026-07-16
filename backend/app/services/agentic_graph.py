@@ -119,6 +119,21 @@ def _normalize_page(page_value) -> int:
     return 1
 
 
+# ToC가 없는 문서에서 전체 페이지를 그대로 Vision 분석할 수 있는 최대 페이지 수.
+# 이미지 업로드(1페이지)나 짧은 일반 문서(회의록·점검표 등)가 여기에 해당합니다.
+SMALL_DOC_FULL_SCAN_PAGES = 5
+
+
+def _resolve_target_pages_without_toc(total_pages: int) -> list[int] | None:
+    """
+    ToC 없는 문서의 전체 페이지 폴백을 계산합니다.
+    소형 문서면 전체 페이지 목록(1-indexed)을, 대형이면 None(기존 에러 유지)을 반환합니다.
+    """
+    if 0 < total_pages <= SMALL_DOC_FULL_SCAN_PAGES:
+        return list(range(1, total_pages + 1))
+    return None
+
+
 def _find_section_page_range(toc: list[dict], target_pages: list[int], total_pages: int) -> tuple[int, int]:
     """
     Phase 2 텍스트 검색 범위를 결정합니다.
@@ -1028,12 +1043,6 @@ async def _stage_answer(ctx: "_PipelineContext"):
         yield await ctx.finish()
         return
 
-    toc = meta.get("toc", [])
-    if not toc:
-        yield _sse_event("error", content="목차(ToC)가 없는 문서입니다. 먼저 ToC를 추출해주세요.")
-        yield await ctx.finish()
-        return
-
     try:
         doc = fitz.open(pdf_path)
         total_pages = doc.page_count
@@ -1043,12 +1052,27 @@ async def _stage_answer(ctx: "_PipelineContext"):
         yield await ctx.finish()
         return
 
+    toc = meta.get("toc", [])
+    small_doc_pages = None
+    if not toc:
+        # 소형 문서(이미지·짧은 일반문서)는 ToC 없이 전체 페이지를 Vision으로 분석
+        small_doc_pages = _resolve_target_pages_without_toc(total_pages)
+        if small_doc_pages is None:
+            doc.close()
+            yield _sse_event("error", content="목차(ToC)가 없는 문서입니다. 먼저 ToC를 추출해주세요.")
+            yield await ctx.finish()
+            return
+
     # 섹션 범위 계산 (ToC 기반으로 정확한 섹션 끝 찾기)
     section_start, section_end = _find_section_page_range(toc, ctx.coarse_pages, total_pages)
     section_size = section_end - section_start + 1
 
     # ─── Step 2: 텍스트 기반 정밀 탐색 (Phase 2) ───
-    if section_size > 3:
+    if small_doc_pages is not None:
+        # ToC 없는 소형 문서: 페이지 선택 단계를 건너뛰고 전체 페이지를 분석
+        target_pages = small_doc_pages
+        yield ctx.reasoning(f"[전체 분석] 목차 없는 소형 문서({total_pages}페이지)로 판단되어 전체 페이지를 분석합니다.")
+    elif section_size > 3:
         yield ctx.reasoning(f"[세부 탐색] '{ctx.coarse_title}' 섹션(p.{section_start}~{section_end})의 텍스트를 분석하여 정확한 페이지를 찾고 있습니다...")
 
         # C-3: 비동기 호출

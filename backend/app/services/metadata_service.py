@@ -240,45 +240,65 @@ def get_document_toc(document_id: str) -> List[Dict[str, Any]]:
         return []
     return meta.get("toc", [])
 
-def get_document_path(document_id: str, owner_email: Optional[str] = None) -> Optional[str]:
+def get_document_path(document_id: str, owner_email: Optional[str] = None, blob_filename: str = "original.pdf") -> Optional[str]:
     """
-    특정 문서의 원본 PDF 경로를 반환합니다.
+    특정 문서의 파일 경로를 반환합니다. (기본: 원본 PDF)
     로컬인 경우 로컬 경로를 반환하고, GCS인 경우 캐시(/tmp) 경로를 확인 후 다운로드합니다.
+    blob_filename으로 비-PDF 원본(source_original.docx 등)도 조회할 수 있습니다.
     """
     doc_dir = os.path.join(settings.PDF_UPLOAD_DIR, document_id)
-    pdf_path = os.path.join(doc_dir, "original.pdf")
-    
+    file_path = os.path.join(doc_dir, blob_filename)
+
     if settings.USE_LOCAL_STORAGE:
-        if os.path.isfile(pdf_path):
-            return pdf_path
+        if os.path.isfile(file_path):
+            return file_path
         return None
-        
+
     # GCS 환경에서의 로직 (캐시 확인 및 다운로드)
-    if os.path.isfile(pdf_path):
-        return pdf_path
-        
+    if os.path.isfile(file_path):
+        return file_path
+
     try:
         os.makedirs(doc_dir, exist_ok=True)
         bucket = _get_bucket()
-        
+
         # owner_email이 있으면 직접 경로, 없으면 탐색
         if owner_email:
-            blob_name = gcs_blob_path(owner_email, document_id, "original.pdf")
+            blob_name = gcs_blob_path(owner_email, document_id, blob_filename)
             blob = bucket.blob(blob_name)
         else:
             prefix = _find_gcs_prefix_for_document(bucket, document_id)
             if prefix is None:
                 return None
-            blob = bucket.blob(f"{prefix}/original.pdf")
-        
+            blob = bucket.blob(f"{prefix}/{blob_filename}")
+
         if not blob.exists():
             return None
-            
-        blob.download_to_filename(pdf_path)
-        return pdf_path
+
+        blob.download_to_filename(file_path)
+        return file_path
     except Exception as e:
         logger.error(f"GCS download error: {e}")
         return None
+
+
+def store_document_file(document_id: str, owner_email: Optional[str], blob_filename: str, data: bytes, content_type: str) -> str:
+    """
+    문서 디렉토리에 파일을 기록합니다.
+    로컬 경로에 항상 쓰고(GCS 모드에서는 캐시 역할), GCS 모드면 GCS에도 업로드합니다.
+    """
+    doc_dir = os.path.join(settings.PDF_UPLOAD_DIR, document_id)
+    os.makedirs(doc_dir, exist_ok=True)
+    local_path = os.path.join(doc_dir, blob_filename)
+    with open(local_path, "wb") as f:
+        f.write(data)
+
+    if not settings.USE_LOCAL_STORAGE:
+        bucket = _get_bucket()
+        blob = bucket.blob(gcs_blob_path(owner_email or "", document_id, blob_filename))
+        blob.upload_from_string(data, content_type=content_type)
+
+    return local_path
 
 def generate_gcs_signed_url(bucket_name: str, blob_name: str, method: str, expiration_minutes: int, content_type: str = None, response_content_disposition: str = None) -> Optional[str]:
     """
@@ -328,9 +348,9 @@ def generate_gcs_signed_url(bucket_name: str, blob_name: str, method: str, expir
         logger.error(f"❌ generate_gcs_signed_url 실패: {e}")
         return None
 
-def get_document_signed_url(document_id: str, download_name: str, owner_email: Optional[str] = None) -> Optional[str]:
+def get_document_signed_url(document_id: str, download_name: str, owner_email: Optional[str] = None, blob_filename: str = "original.pdf", content_type: str = "application/pdf") -> Optional[str]:
     """
-    GCS에 저장된 원본 PDF 파일의 5분 만료 임시 다운로드 서명 링크(Signed URL)를 생성합니다.
+    GCS에 저장된 문서 파일(기본: 원본 PDF)의 5분 만료 임시 다운로드 서명 링크(Signed URL)를 생성합니다.
     로컬 모드인 경우 None을 반환합니다.
     """
     if settings.USE_LOCAL_STORAGE:
@@ -338,14 +358,15 @@ def get_document_signed_url(document_id: str, download_name: str, owner_email: O
 
     try:
         from urllib.parse import quote
-        
-        # RFC 5987 표준 한글 파일명 헤더 세팅 주입
+
+        # RFC 5987 표준 한글 파일명 헤더 세팅 주입 (ASCII fallback은 blob 확장자 유지)
+        fallback_ext = os.path.splitext(blob_filename)[1] or ".pdf"
         encoded_filename = quote(download_name)
-        content_disposition = f"attachment; filename=\"document.pdf\"; filename*=UTF-8''{encoded_filename}"
-        
+        content_disposition = f"attachment; filename=\"document{fallback_ext}\"; filename*=UTF-8''{encoded_filename}"
+
         # blob 경로 결정
         if owner_email:
-            blob_name = gcs_blob_path(owner_email, document_id, "original.pdf")
+            blob_name = gcs_blob_path(owner_email, document_id, blob_filename)
         else:
             # owner_email 없으면 탐색
             bucket = _get_bucket()
@@ -353,14 +374,14 @@ def get_document_signed_url(document_id: str, download_name: str, owner_email: O
             if prefix is None:
                 logger.error(f"❌ GCS에서 문서를 찾을 수 없습니다: {document_id}")
                 return None
-            blob_name = f"{prefix}/original.pdf"
-        
+            blob_name = f"{prefix}/{blob_filename}"
+
         url = generate_gcs_signed_url(
             bucket_name=settings.GCS_BUCKET_NAME,
             blob_name=blob_name,
             method="GET",
             expiration_minutes=5,
-            content_type="application/pdf",
+            content_type=content_type,
             response_content_disposition=content_disposition
         )
         return url
@@ -529,8 +550,11 @@ async def get_all_documents_async(owner_email: Optional[str] = None) -> List[Dic
 async def get_document_async(document_id: str, owner_email: Optional[str] = None) -> Optional[Dict[str, Any]]:
     return await asyncio.to_thread(get_document, document_id, owner_email)
 
-async def get_document_path_async(document_id: str, owner_email: Optional[str] = None) -> Optional[str]:
-    return await asyncio.to_thread(get_document_path, document_id, owner_email)
+async def get_document_path_async(document_id: str, owner_email: Optional[str] = None, blob_filename: str = "original.pdf") -> Optional[str]:
+    return await asyncio.to_thread(get_document_path, document_id, owner_email, blob_filename)
+
+async def store_document_file_async(document_id: str, owner_email: Optional[str], blob_filename: str, data: bytes, content_type: str) -> str:
+    return await asyncio.to_thread(store_document_file, document_id, owner_email, blob_filename, data, content_type)
 
 async def verify_document_owner_async(document_id: str, owner_email: str) -> bool:
     return await asyncio.to_thread(verify_document_owner, document_id, owner_email)
@@ -544,8 +568,8 @@ async def update_document_metadata_async(document_id: str, updates: Dict[str, An
 async def delete_document_async(document_id: str, owner_email: Optional[str] = None) -> bool:
     return await asyncio.to_thread(delete_document, document_id, owner_email)
 
-async def get_document_signed_url_async(document_id: str, download_name: str, owner_email: Optional[str] = None) -> Optional[str]:
-    return await asyncio.to_thread(get_document_signed_url, document_id, download_name, owner_email)
+async def get_document_signed_url_async(document_id: str, download_name: str, owner_email: Optional[str] = None, blob_filename: str = "original.pdf", content_type: str = "application/pdf") -> Optional[str]:
+    return await asyncio.to_thread(get_document_signed_url, document_id, download_name, owner_email, blob_filename, content_type)
 
 async def create_document_metadata_async(document_id: str, metadata: Dict[str, Any], owner_email: str) -> bool:
     return await asyncio.to_thread(create_document_metadata, document_id, metadata, owner_email)

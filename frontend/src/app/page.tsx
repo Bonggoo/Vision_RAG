@@ -12,6 +12,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useDocumentStore } from "@/store/useDocumentStore";
 import { useChatStream } from "@/hooks/useChatStream";
 import { processUploadFiles } from "@/lib/upload";
+import { UPLOAD_ACCEPT_ATTR } from "@/lib/fileTypes";
 import { MessageCircleQuestion, UploadCloud, ArrowRight, Loader2 } from "lucide-react";
 
 export default function Home() {
@@ -156,7 +157,7 @@ export default function Home() {
 
   // 첫 사용자 온보딩용 3단계 안내
   const onboardingSteps = [
-    { icon: "📄", title: "매뉴얼 업로드", desc: "PDF를 올리면" },
+    { icon: "📄", title: "매뉴얼 업로드", desc: "문서를 올리면" },
     { icon: "💬", title: "질문 입력", desc: "궁금한 걸 묻고" },
     { icon: "✨", title: "즉시 답변", desc: "AI가 찾아드려요" },
   ];
@@ -191,7 +192,7 @@ export default function Home() {
               {/* 웰컴 화면 전용 숨김 파일 선택기 */}
               <input
                 type="file"
-                accept="application/pdf"
+                accept={UPLOAD_ACCEPT_ATTR}
                 multiple
                 ref={welcomeFileRef}
                 onChange={handleWelcomeUpload}
@@ -214,7 +215,7 @@ export default function Home() {
                   <p className="text-[12px] md:text-[14px] text-muted-foreground/80 leading-relaxed max-w-md mx-auto px-2 font-medium">
                     {!docsFetched || hasReadyDocs
                       ? "산업용 매뉴얼을 AI가 분석하여 현장에서 바로 활용 가능한 답변을 제공합니다."
-                      : "PDF 매뉴얼을 올리면 AI가 대신 읽고 찾아드립니다. 딱 3단계면 시작할 수 있어요."}
+                      : "PDF·Word·Excel 등 문서를 올리면 AI가 대신 읽고 찾아드립니다. 딱 3단계면 시작할 수 있어요."}
                   </p>
                 </div>
 
@@ -316,7 +317,7 @@ export default function Home() {
                         </>
                       )}
                     </button>
-                    <p className="text-[11px] text-muted-foreground/50">PDF 파일 · 사이드바에 드래그해서 올려도 돼요</p>
+                    <p className="text-[11px] text-muted-foreground/50">PDF·Word·Excel·이미지 · 사이드바에 드래그해서 올려도 돼요</p>
                   </div>
                 )}
               </div>
