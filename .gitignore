@@ -4,6 +4,7 @@
 
 # Uploads (사용자 데이터)
 backend/uploads/
+backend/conversations/
 backend/logs/
 
 # Test files
