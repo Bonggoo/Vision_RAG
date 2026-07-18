@@ -23,7 +23,8 @@ class ChatRequest(BaseModel):
     question: str = Field(..., alias="message")
     chat_history: Optional[List[ChatHistoryItem]] = None
     image: Optional[str] = None  # Base64 이미지 데이터 URL (선택 사항)
-    session_id: Optional[str] = None  # 대화 GCS 저장용
+    # UUID 강제: 로컬 스토리지 모드에서 session_id가 파일 경로에 들어가므로 경로 조작 문자열 차단
+    session_id: Optional[UUID] = None  # 대화 GCS 저장용
     previous_reference: Optional[PreviousReference] = None  # 맥락 유지용
     
     model_config = {"populate_by_name": True}

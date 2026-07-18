@@ -2,6 +2,8 @@
 
 본 문서는 Vision RAG 시스템의 장기적인 운영 안전성과 사용자의 개인정보 보안 수준을 엔터프라이즈 급으로 격상하기 위해 필요한 **중·장기 보안 설계 및 기술적 조치 로드맵**입니다.
 
+> **관련 문서**: 2026-07-18 전면 코드 감사에서 발견된 구체적 보안 취약점(즉시 조치 필요 Critical/High 포함)은 [audit_findings_2026-07.md](./audit_findings_2026-07.md) 참고. 아래 Phase 1(Refresh Token 쿠키화)·Phase 2(Secret Manager)는 감사의 H-3·L-3 항목과 직접 연결됩니다.
+
 ---
 
 ## 📅 로드맵 개요 (Roadmap Overview)

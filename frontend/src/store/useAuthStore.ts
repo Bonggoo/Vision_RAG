@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useChatStore } from "@/store/useChatStore";
+import { toast } from "@/store/useUIStore";
 
 interface UserProfile {
   email: string;
@@ -164,6 +165,7 @@ export const useAuthStore = create<AuthStore>()(
 
           // ❌ 리프레시 토큰까지 만료/무효(401) → 세션 만료, 로그아웃
           console.warn("🔒 세션 만료: 로그인 화면으로 이동합니다.");
+          toast.info("세션이 만료되어 로그아웃되었습니다. 다시 로그인해 주세요.", { title: "세션 만료" });
           set({
             token: null,
             user: null,

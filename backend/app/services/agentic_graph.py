@@ -12,7 +12,6 @@ import re
 import fitz  # PyMuPDF
 from typing import AsyncGenerator
 from app.services.metadata_service import (
-    get_document, get_document_path, get_all_documents,
     get_document_async, get_document_path_async, get_all_documents_async,
 )
 from app.services.agent_service import analyze_pages_with_vision, _create_flash_llm, _clean_json_response, _extract_text_content

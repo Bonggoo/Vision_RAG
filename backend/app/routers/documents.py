@@ -225,12 +225,17 @@ async def reindex_document(document_id: UUID, current_user: dict = Depends(get_c
         raise HTTPException(status_code=500, detail="PDF 파일을 찾을 수 없습니다.")
     
     try:
-        doc = fitz.open(pdf_path)
-        total_pages = doc.page_count
-        
         from app.services.agent_service import find_and_extract_toc
-        enriched = find_and_extract_toc(doc, total_pages)
-        doc.close()
+
+        # PDF 열기 + 동기 Gemini ToC 추출 전체를 to_thread로 — 이벤트 루프 블로킹 방지
+        def _reindex_sync() -> list:
+            doc = fitz.open(pdf_path)
+            try:
+                return find_and_extract_toc(doc, doc.page_count)
+            finally:
+                doc.close()
+
+        enriched = await asyncio.to_thread(_reindex_sync)
         
         if not enriched:
             raise HTTPException(status_code=400, detail="목차를 찾을 수 없습니다.")
