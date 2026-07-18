@@ -24,6 +24,14 @@ async def lifespan(app: FastAPI):
         import sys
         sys.exit("Critical Security Error: Please set a secure JWT_SECRET environment variable.")
 
+    # 1-2. INTERNAL_TASK_SECRET 미설정 위협 검증 (fail-closed)
+    # /internal/analyze는 --allow-unauthenticated로 인터넷에 노출되며, 이 시크릿이 유일한 관문.
+    # 미설정 시 헤더 검증이 통째로 스킵되어 무인증 노출되므로 프로덕션 부팅을 차단한다.
+    if not settings.INTERNAL_TASK_SECRET and not settings.USE_LOCAL_STORAGE:
+        logger.critical("❌ [보안 위협] 프로덕션 환경에서 INTERNAL_TASK_SECRET이 비어 있습니다. /internal/analyze 무인증 노출을 방지하기 위해 서버 실행을 중단합니다.")
+        import sys
+        sys.exit("Critical Security Error: Please set the INTERNAL_TASK_SECRET environment variable.")
+
     # 2. 서버 기동 시 기존 레거시 제조사 정규화 마이그레이션 자동 수행 (부팅 지연 예방을 위해 백그라운드 태스크로 처리)
     try:
         import asyncio
