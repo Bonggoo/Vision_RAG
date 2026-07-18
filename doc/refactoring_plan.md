@@ -5,7 +5,7 @@
 > 상태: **전 Phase 완료** — H2·pytest·Phase 5 포함 모든 트랙 완료
 
 본 문서는 기능 고도화가 아닌 **코드 구조·유지보수성 개선**을 위한 리팩토링 로드맵입니다.
-기능 요구사항 현황은 [`improvement_list.md`](./improvement_list.md)를 참고하세요.
+기능 요구사항 현황 및 잔여 작업은 [`remaining_tasks.md`](./remaining_tasks.md)를 참고하세요.
 
 ---
 

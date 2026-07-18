@@ -9,7 +9,7 @@
   PATCH  /{session_id}/rename  대화 제목 변경
 """
 from fastapi import APIRouter, HTTPException, Depends
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from app.services.auth_service import get_current_user
 from app.services import conversation_service
@@ -42,11 +42,11 @@ async def list_conversations(current_user: dict = Depends(get_current_user)):
 
 @router.get("/{session_id}")
 async def get_conversation(
-    session_id: str,
+    session_id: UUID,
     current_user: dict = Depends(get_current_user),
 ):
     """단건 대화를 조회합니다 (메시지 포함)."""
-    result = await conversation_service.get_conversation_async(current_user["email"], session_id)
+    result = await conversation_service.get_conversation_async(current_user["email"], str(session_id))
     if result is None:
         raise HTTPException(status_code=404, detail="대화를 찾을 수 없습니다.")
     return result
@@ -54,26 +54,26 @@ async def get_conversation(
 
 @router.delete("/{session_id}")
 async def delete_conversation(
-    session_id: str,
+    session_id: UUID,
     current_user: dict = Depends(get_current_user),
 ):
     """대화를 삭제합니다."""
-    success = await conversation_service.delete_conversation_async(current_user["email"], session_id)
+    success = await conversation_service.delete_conversation_async(current_user["email"], str(session_id))
     if not success:
         raise HTTPException(status_code=404, detail="대화를 찾을 수 없습니다.")
-    return {"status": "deleted", "session_id": session_id}
+    return {"status": "deleted", "session_id": str(session_id)}
 
 
 @router.patch("/{session_id}/rename")
 async def rename_conversation(
-    session_id: str,
+    session_id: UUID,
     request: RenameConversationRequest,
     current_user: dict = Depends(get_current_user),
 ):
     """대화 제목을 변경합니다."""
     success = await conversation_service.rename_conversation_async(
-        current_user["email"], session_id, request.title
+        current_user["email"], str(session_id), request.title
     )
     if not success:
         raise HTTPException(status_code=404, detail="대화를 찾을 수 없습니다.")
-    return {"status": "renamed", "session_id": session_id, "title": request.title}
+    return {"status": "renamed", "session_id": str(session_id), "title": request.title}

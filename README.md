@@ -199,16 +199,19 @@ TechNote/
 │   │       └── upload.ts             # 업로드 공통 처리 (사이드바+웰컴 온보딩 공용, 결과 토스트)
 │   └── package.json
 ├── doc/
+│   ├── README.md                     # 📖 문서 인덱스 (여기부터 시작)
 │   ├── PRD.md                        # 제품 요구사항 정의서
 │   ├── API_Contract.md               # API 규약
-│   ├── improvement_list.md           # 개선 및 고도화 요구사항 정의서
-│   ├── refactoring_plan.md           # 코드 구조 리팩토링 로드맵 및 진행 현황
-│   ├── remaining_tasks.md            # 잔여 작업 마스터 보드
+│   ├── remaining_tasks.md            # 잔여 작업 + 완료 현황 + 향후 로드맵 마스터 보드
+│   ├── audit_findings_2026-07.md     # 전체 코드 감사(UI/UX·보안·백엔드) 결과
+│   ├── refactoring_plan.md           # 코드 구조 리팩토링 로드맵 및 진행 현황 (완료)
 │   ├── security_roadmap.md           # 중장기 보안 개선 로드맵
-│   ├── async_upload_roadmap.md       # 대용량 비동기 업로드 파이프라인 설계
-│   ├── gcs_signed_url_roadmap.md     # GCS Signed URL 다운로드 설계
+│   ├── async_upload_roadmap.md       # 대용량 비동기 업로드 파이프라인 설계 (완료)
+│   ├── gcs_signed_url_roadmap.md     # GCS Signed URL 다운로드 설계 (완료)
 │   ├── near_duplicate_document_handling.md # 유사(중복) 문서 처리 ADR (L1 채택)
-│   └── custom_domain_mapping.md      # 커스텀 도메인 매핑 가이드
+│   ├── custom_domain_mapping.md      # 커스텀 도메인 매핑 가이드
+│   ├── content_plan.md               # 데모 영상·기술 블로그 콘텐츠 플랜
+│   └── 질문.md                        # 대화 품질 평가용 골든 질문셋
 ├── backend/evals/                    # 질문 품질 자동 평가 하네스 (골든/생성/Claude 500문항)
 └── gcs_cors.json                     # GCS CORS 설정
 ```

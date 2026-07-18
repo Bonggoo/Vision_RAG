@@ -44,6 +44,8 @@ python -m evals.run_eval --judge     # include LLM-as-judge scoring
 
 **Storage:** PDFs live in GCS. Pre-flight SHA-256 hash check prevents duplicate uploads (returns 409). Direct browser→GCS upload (server memory bypass) for large files. Non-PDF uploads (docx/xlsx/pptx/txt/md/images) are normalized to PDF at ingestion (`backend/app/services/document_conversion.py` — LibreOffice headless / PyMuPDF) and stored as `original.pdf` so the ToC/Vision pipeline runs unchanged; the raw upload is kept as `source_original.{ext}` and served on download.
 
+**Local dev mode (`USE_LOCAL_STORAGE=True`):** all storage — documents (`metadata_service`, `pdf_service`, `upload`) **and** conversation history (`conversation_service`) — falls back to the local filesystem, so the full pipeline (upload → ToC → chat → conversation save) runs offline with only the Gemini API as an external dependency. Docs write under `PDF_UPLOAD_DIR`; conversations under a sibling `conversations/{email}/{session_id}.json`. GCS is never touched in this mode. Every GCS call site is gated behind this flag.
+
 **Deployment:** `cloudbuild.yaml` + `Dockerfile` in `backend/`. Frontend deploys to Vercel.
 
 ## Frontend (`frontend/src/`)

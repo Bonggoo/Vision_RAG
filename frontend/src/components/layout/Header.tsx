@@ -58,6 +58,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         <div className="flex items-center gap-3">
           <button
             onClick={onMenuClick}
+            aria-label="메뉴 열기"
             className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg transition-colors"
           >
             <Menu className="w-5 h-5" />

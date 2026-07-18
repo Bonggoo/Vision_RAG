@@ -92,7 +92,7 @@ async def chat_stream(request: ChatRequest, http_request: Request, current_user:
     pipeline = run_agentic_pipeline(
         doc_id, request.question, chat_history=history, image=request.image,
         user_email=current_user["email"],
-        session_id=request.session_id,
+        session_id=str(request.session_id) if request.session_id else None,
         previous_reference=prev_ref,
     )
 

@@ -10,7 +10,9 @@ export default function ConfirmDialog() {
 
   const options = confirmState?.options;
 
-  // 키보드 지원: Esc = 취소, Enter = 확인. 열릴 때 확인 버튼에 포커스.
+  // 키보드 지원: Esc = 취소. 열릴 때 확인 버튼에 포커스.
+  // Enter는 전역 처리하지 않음 — 취소 버튼에 포커스가 있어도 확인이 실행되는 사고 방지.
+  // (포커스된 버튼의 네이티브 Enter 동작(click)에 맡긴다)
   useEffect(() => {
     if (!confirmState) return;
     confirmBtnRef.current?.focus();
@@ -19,9 +21,6 @@ export default function ConfirmDialog() {
       if (e.key === "Escape") {
         e.preventDefault();
         resolveConfirm(false);
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        resolveConfirm(true);
       }
     };
     window.addEventListener("keydown", onKey);

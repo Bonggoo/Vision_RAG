@@ -83,6 +83,7 @@ export default function ChatInput({ onSubmit, disabled, isStreaming, onStop }: C
               />
               <button
                 onClick={() => setImage(null)}
+                aria-label="첨부 이미지 제거"
                 className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-black/70 hover:bg-black/90 flex items-center justify-center transition-colors cursor-pointer shadow-md"
               >
                 <X className="w-3 h-3 text-white" />
@@ -128,6 +129,7 @@ export default function ChatInput({ onSubmit, disabled, isStreaming, onStop }: C
           {isStreaming ? (
             <button
               onClick={onStop}
+              aria-label="응답 중단"
               className="absolute right-2.5 bottom-2 p-2.5 rounded-full flex-shrink-0 transition-all bg-destructive/90 hover:bg-destructive shadow-lg shadow-destructive/20 animate-pulse"
               title="응답 중단"
             >
@@ -137,6 +139,7 @@ export default function ChatInput({ onSubmit, disabled, isStreaming, onStop }: C
             <button
               onClick={handleSubmit}
               disabled={(!text.trim() && !image) || disabled}
+              aria-label="메시지 전송"
               className="absolute right-2.5 bottom-2 btn-primary p-2.5 rounded-full disabled:opacity-30 disabled:cursor-default disabled:transform-none disabled:shadow-none flex-shrink-0 transition-all shadow-md shadow-primary/20"
             >
               <SendHorizontal className="w-4 h-4" />

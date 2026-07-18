@@ -12,6 +12,7 @@ from app.services.auth_service import get_current_user
 from app.exceptions import DuplicateDocumentError, EmptyFileError
 from app.config import settings
 from app.utils.logger import logger
+import asyncio
 import fitz
 import uuid
 import os
@@ -140,7 +141,8 @@ async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str
         total_pages = doc.page_count
 
         # 2. ToC 추출 전략 (Case A-1/A-2/B/C) — build_toc로 일원화
-        toc, status = build_toc(doc, total_pages)
+        # build_toc은 내부에서 동기 Gemini 호출을 하므로 to_thread로 이벤트 루프 블로킹 방지
+        toc, status = await asyncio.to_thread(build_toc, doc, total_pages)
 
         doc.close()
 
@@ -289,7 +291,8 @@ async def extract_toc_with_range(request: TocRangeRequest, current_user: dict = 
         mini_pdf_bytes = extract_pages_as_pdf(doc, start, end)
         doc.close()
         
-        toc = extract_toc_with_gemini(mini_pdf_bytes)
+        # 동기 Gemini 호출 → to_thread로 이벤트 루프 블로킹 방지
+        toc = await asyncio.to_thread(extract_toc_with_gemini, mini_pdf_bytes)
         
         # 메타데이터 업데이트
         updated = await metadata_service.update_document_metadata_async(doc_id, {

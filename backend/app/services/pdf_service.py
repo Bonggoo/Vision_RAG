@@ -1,3 +1,4 @@
+import asyncio
 import fitz  # PyMuPDF
 from typing import List, Dict, Any, Optional
 import uuid
@@ -203,7 +204,8 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
     total_pages = doc.page_count
     
     # 1. ToC 추출 (Case A-1/A-2/B/C) — build_toc로 일원화
-    toc, status = build_toc(doc, total_pages)
+    # build_toc은 내부에서 동기 Gemini 호출을 하므로 to_thread로 이벤트 루프 블로킹 방지
+    toc, status = await asyncio.to_thread(build_toc, doc, total_pages)
     doc.close()
     
     # 3. AI 기반 자동 분류 및 제목 추출
@@ -237,31 +239,25 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
     with open(os.path.join(doc_dir, "metadata.json"), "w", encoding="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
         
-    # GCS 업로드 추가
-    if settings.USE_LOCAL_STORAGE:
-        logger.info(f"📁 로컬 스토리지 모드: GCS 업로드를 건너뜁니다. (ID: {doc_id})")
-    else:
-        try:
-            from google.cloud import storage
-            client = storage.Client()
-            bucket = client.bucket(settings.GCS_BUCKET_NAME)
-            
-            blob_pdf = bucket.blob(metadata_service.gcs_blob_path(owner_email, str(doc_id), "original.pdf"))
-            blob_pdf.upload_from_string(pdf_bytes, content_type="application/pdf")
-
-            # 비-PDF 업로드는 원본도 함께 보관 (다운로드 시 원본 제공, 재변환 대비)
-            if source_name != "original.pdf":
-                blob_src = bucket.blob(metadata_service.gcs_blob_path(owner_email, str(doc_id), source_name))
-                blob_src.upload_from_string(
-                    content,
-                    content_type=document_conversion.content_type_for(file.filename) or "application/octet-stream"
-                )
-
-            blob_meta = bucket.blob(metadata_service.gcs_blob_path(owner_email, str(doc_id), "metadata.json"))
-            blob_meta.upload_from_string(json.dumps(metadata, ensure_ascii=False, indent=2), content_type="application/json")
-            logger.info(f"✅ GCS 업로드 성공: {doc_id}")
-        except Exception as e:
-            logger.error(f"❌ GCS 업로드 실패: {e}")
+    # GCS 업로드 — store_document_file_async 헬퍼로 일원화 (로컬 모드 분기 내장).
+    # 실패 시 예외를 전파해 클라이언트가 성공(200)으로 오인하지 않게 한다.
+    # (Cloud Run의 로컬 /tmp는 인스턴스 재활용 시 사라지므로 GCS 쓰기 실패 = 데이터 유실)
+    await metadata_service.store_document_file_async(
+        str(doc_id), owner_email, "original.pdf", pdf_bytes, "application/pdf"
+    )
+    # 비-PDF 업로드는 원본도 함께 보관 (다운로드 시 원본 제공, 재변환 대비)
+    if source_name != "original.pdf":
+        await metadata_service.store_document_file_async(
+            str(doc_id), owner_email, source_name, content,
+            document_conversion.content_type_for(file.filename) or "application/octet-stream",
+        )
+    await metadata_service.store_document_file_async(
+        str(doc_id), owner_email, "metadata.json",
+        json.dumps(metadata, ensure_ascii=False, indent=2).encode("utf-8"),
+        "application/json",
+    )
+    if not settings.USE_LOCAL_STORAGE:
+        logger.info(f"✅ GCS 업로드 성공: {doc_id}")
 
     # 업로드 직후 목록 캐시 무효화 (동기 업로드 경로의 stale 캐시 방지)
     metadata_service.invalidate_documents_cache(owner_email)

@@ -318,6 +318,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
             <span className="truncate flex-1 text-[13px]">{session.title}</span>
             <button
               onClick={(e) => handleDeleteSession(e, session.id)}
+              aria-label="대화 삭제"
               className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"
             >
               <Trash2 className="w-3 h-3" />
@@ -412,7 +413,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
             <span className="text-[17px] font-semibold tracking-tight font-display">TechNote</span>
           </div>
           <div className="flex items-center gap-1">
-            {onClose && <button onClick={onClose} className="md:hidden p-1.5 rounded-full hover:bg-accent/50 text-muted-foreground"><X className="w-4 h-4" /></button>}
+            {onClose && <button onClick={onClose} aria-label="사이드바 닫기" className="md:hidden p-1.5 rounded-full hover:bg-accent/50 text-muted-foreground"><X className="w-4 h-4" /></button>}
             {onToggleCollapse && <button onClick={onToggleCollapse} title="사이드바 접기" className="hidden md:flex p-1.5 rounded-full hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-all"><PanelLeftClose className="w-4 h-4" /></button>}
           </div>
         </div>
