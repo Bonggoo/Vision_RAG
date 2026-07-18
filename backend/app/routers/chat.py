@@ -6,8 +6,10 @@ SSE(Server-Sent Events)로 결과를 스트리밍합니다.
 """
 import asyncio
 import json
+import time
 from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse
+from app.config import settings
 from app.schemas.request import ChatRequest
 from app.services.agentic_graph import run_agentic_pipeline
 from app.services import metadata_service
@@ -24,12 +26,21 @@ async def _stream_with_disconnect_check(
     """
     SSE 스트리밍 중 클라이언트 연결 끊김을 감지하여
     파이프라인을 조기 종료하는 래퍼 제너레이터입니다.
+    PIPELINE_TIMEOUT 종합 데드라인을 초과하면 안내 후 중단합니다(런어웨이 방지).
     """
+    deadline = time.monotonic() + settings.PIPELINE_TIMEOUT
     try:
         async for chunk in generator:
             # 클라이언트 연결 끊김 감지
             if await http_request.is_disconnected():
                 logger.info("🛑 [Stream] 클라이언트 연결 끊김 감지 → 파이프라인 중단")
+                break
+            # 종합 타임아웃 감지 (청크 사이에서 확인 — 누적 지연 상한)
+            if time.monotonic() > deadline:
+                logger.warning(f"⏱️ [Stream] 파이프라인 타임아웃({settings.PIPELINE_TIMEOUT}s) 초과 → 중단")
+                timeout_msg = {"type": "answer", "content": "\n\n> ⏱️ 응답이 지연되어 중단했습니다. 질문을 더 구체적으로 나눠서 다시 시도해 주세요."}
+                yield f"data: {json.dumps(timeout_msg, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
                 break
             yield chunk
     except asyncio.CancelledError:

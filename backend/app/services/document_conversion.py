@@ -311,8 +311,11 @@ def _run_soffice(source_path: str, out_dir: str) -> str:
     base = os.path.splitext(os.path.basename(source_path))[0]
     pdf_path = os.path.join(out_dir, f"{base}.pdf")
     if result.returncode != 0 or not os.path.isfile(pdf_path):
+        # 원본 stderr/stdout에는 컨테이너 내부 경로가 섞일 수 있어 서버 로그로만 남기고,
+        # 사용자에게는 일반 메시지만 반환한다 (audit M-4).
         detail = (result.stderr or result.stdout or "").strip()[-300:]
-        raise ConversionError(f"Office 문서 변환에 실패했습니다. 파일이 손상되었거나 지원되지 않는 서식입니다. ({detail})")
+        logger.error(f"❌ soffice 변환 실패 (rc={result.returncode}): {detail}")
+        raise ConversionError("Office 문서 변환에 실패했습니다. 파일이 손상되었거나 지원되지 않는 서식일 수 있습니다.")
     return pdf_path
 
 

@@ -32,6 +32,14 @@ async def lifespan(app: FastAPI):
         import sys
         sys.exit("Critical Security Error: Please set the INTERNAL_TASK_SECRET environment variable.")
 
+    # 1-3. GOOGLE_CLIENT_ID 미설정 위협 검증 (fail-closed)
+    # 비어 있으면 verify_oauth2_token의 audience=None으로 aud 검증이 스킵되어,
+    # 다른 OAuth 클라이언트용 구글 ID 토큰도 통과할 수 있다. 프로덕션 부팅을 차단한다.
+    if not settings.GOOGLE_CLIENT_ID and not settings.USE_LOCAL_STORAGE:
+        logger.critical("❌ [보안 위협] 프로덕션 환경에서 GOOGLE_CLIENT_ID가 비어 있습니다. OAuth audience 검증 우회를 방지하기 위해 서버 실행을 중단합니다.")
+        import sys
+        sys.exit("Critical Security Error: Please set the GOOGLE_CLIENT_ID environment variable.")
+
     # 2. 서버 기동 시 기존 레거시 제조사 정규화 마이그레이션 자동 수행 (부팅 지연 예방을 위해 백그라운드 태스크로 처리)
     try:
         import asyncio

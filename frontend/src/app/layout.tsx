@@ -55,7 +55,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko">
+    // suppressHydrationWarning: <head>의 사전 다크모드 스크립트가 SSR 이후 <html>의
+    // className을 직접 바꾸므로 hydration mismatch가 정상적으로 발생 → 경고 억제(표준 패턴)
+    <html lang="ko" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{

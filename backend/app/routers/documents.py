@@ -255,7 +255,8 @@ async def reindex_document(document_id: UUID, current_user: dict = Depends(get_c
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"ToC 보강 실패: {str(e)}")
+        logger.error(f"❌ ToC 보강 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="목차 보강 중 오류가 발생했습니다.")
 
 
 def _resolve_download_target(meta: dict) -> tuple[str, str, str]:

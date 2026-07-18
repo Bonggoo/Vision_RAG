@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     USE_LOCAL_STORAGE: bool = False
     GEMINI_TIMEOUT: float = 90.0
+    # 리소스 고갈 방어용 상한 (병적인 파일만 거르고 실제 대용량 매뉴얼은 통과하도록 관대하게 설정)
+    MAX_PDF_PAGES: int = 3000          # PyMuPDF/Vision 처리 전 페이지 수 상한
+    MAX_UPLOAD_MB: int = 100           # 업로드 파일 크기 상한 (MB)
+    PIPELINE_TIMEOUT: float = 240.0    # 채팅 파이프라인 1회 요청 종합 타임아웃 (초)
     GOOGLE_CLIENT_ID: str = ""
     JWT_SECRET: str = "vision-rag-jwt-secret-key-change-in-production-12345"
     JWT_ALGORITHM: str = "HS256"
