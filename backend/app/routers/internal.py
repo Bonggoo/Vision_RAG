@@ -2,6 +2,7 @@
 Cloud Tasks → Cloud Run 내부 콜백 엔드포인트.
 X-Task-Secret 헤더로 요청을 검증합니다.
 """
+import hmac
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from typing import Optional
@@ -25,9 +26,12 @@ async def internal_analyze(
 ):
     """
     Cloud Tasks가 호출하는 PDF 분석 콜백.
-    INTERNAL_TASK_SECRET이 설정된 경우 헤더 검증.
+    INTERNAL_TASK_SECRET이 설정된 경우 헤더 검증 (프로덕션에선 main.py 부팅 가드로 항상 설정 보장).
+    로컬 모드(빈 시크릿)에서는 검증을 건너뛴다.
     """
-    if settings.INTERNAL_TASK_SECRET and x_task_secret != settings.INTERNAL_TASK_SECRET:
+    if settings.INTERNAL_TASK_SECRET and not hmac.compare_digest(
+        x_task_secret or "", settings.INTERNAL_TASK_SECRET
+    ):
         logger.warning(f"⛔ /internal/analyze 인증 실패 (document_id={payload.document_id})")
         raise HTTPException(status_code=401, detail="Unauthorized")
 
