@@ -216,8 +216,11 @@ def get_document(document_id: str, owner_email: Optional[str] = None) -> Optiona
                 if blob.exists():
                     content = blob.download_as_text()
                     return json.loads(content)
-            
-            # 느린 경로: owner_email 없이 탐색
+                # 소유자 스코프 미스: 전체 사용자 탐색으로 폴백하지 않고 None 반환.
+                # (폴백하면 타 사용자 문서 메타데이터가 유출될 수 있음 — audit M-3)
+                return None
+
+            # 느린 경로: owner_email 없이 탐색 (관리자/마이그레이션 전용)
             prefix = _find_gcs_prefix_for_document(bucket, document_id)
             if prefix is None:
                 return None

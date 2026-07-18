@@ -9,7 +9,7 @@ from app.services import dedup_service
 from app.services import document_conversion
 from app.services.document_conversion import ConversionError
 from app.services.auth_service import get_current_user
-from app.exceptions import DuplicateDocumentError, EmptyFileError
+from app.exceptions import DuplicateDocumentError, EmptyFileError, FileTooLargeError, TooManyPagesError
 from app.config import settings
 from app.utils.logger import logger
 import asyncio
@@ -46,10 +46,15 @@ async def upload_document(file: UploadFile = File(...), current_user: dict = Dep
             status_code=400,
             detail="파일이 로컬에 저장되어 있지 않거나 손상되었습니다. 파일을 확인한 후 다시 시도해 주세요."
         )
+    except FileTooLargeError as e:
+        raise HTTPException(status_code=413, detail=str(e))
+    except TooManyPagesError as e:
+        raise HTTPException(status_code=413, detail=str(e))
     except ConversionError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"문서 처리 실패: {str(e)}")
+        logger.error(f"❌ 문서 처리 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="문서 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.")
 
 
 @router.post("/preflight", response_model=PreflightResponse)
@@ -65,6 +70,11 @@ async def upload_preflight(request: PreflightRequest, current_user: dict = Depen
         raise HTTPException(status_code=400, detail=UNSUPPORTED_FORMAT_MESSAGE)
     if request.file_size == 0:
         raise HTTPException(status_code=400, detail="빈 파일은 업로드할 수 없습니다.")
+    if request.file_size > settings.MAX_UPLOAD_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=413,
+            detail=f"파일이 너무 큽니다. 최대 {settings.MAX_UPLOAD_MB}MB까지 업로드할 수 있습니다.",
+        )
 
     # 2. SHA-256 해시 중복 체크 (사용자 소유 문서 범위 내에서만)
     existing_docs = await metadata_service.get_all_documents_async(owner_email=current_user["email"])
@@ -139,6 +149,11 @@ async def _run_analysis_pipeline(document_id: str, filename: str, file_hash: str
 
         doc = fitz.open(pdf_path)
         total_pages = doc.page_count
+
+        # 페이지 수 상한 검사 (리소스 고갈 방어)
+        if total_pages > settings.MAX_PDF_PAGES:
+            doc.close()
+            raise TooManyPagesError(settings.MAX_PDF_PAGES)
 
         # 2. ToC 추출 전략 (Case A-1/A-2/B/C) — build_toc로 일원화
         # build_toc은 내부에서 동기 Gemini 호출을 하므로 to_thread로 이벤트 루프 블로킹 방지
@@ -220,7 +235,8 @@ async def trigger_analysis(request: AnalyzeRequest, current_user: dict = Depends
         except HTTPException:
             raise
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"GCS 연결 확인 실패: {e}")
+            logger.error(f"❌ GCS 연결 확인 실패: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="원본 파일 확인 중 오류가 발생했습니다.")
 
     # 2. 임시 메타데이터 생성 ("status": "analyzing")
     initial_metadata = {
@@ -305,5 +321,6 @@ async def extract_toc_with_range(request: TocRangeRequest, current_user: dict = 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"ToC 추출 실패: {str(e)}")
+        logger.error(f"❌ ToC 추출 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="목차 추출 중 오류가 발생했습니다.")
 

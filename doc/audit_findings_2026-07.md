@@ -23,16 +23,30 @@
 
 > 위 7개 처리 후: `pytest` 143 passed / 2 skipped, `tsc --noEmit` 0 errors, 브라우저 실사용 검증 완료.
 
+### C그룹 — Critical + Low 보안 (2026-07-18, PR #16)
+8. **C-1 `/internal/analyze` 무인증 노출** — 배포 환경에 `INTERNAL_TASK_SECRET`이 설정돼 있음을 확인 후, `main.py`에 미설정 시 부팅 차단(fail-closed) 가드 추가(`JWT_SECRET` 패턴). `L-1` 상수시간 비교(`hmac.compare_digest`)도 함께 처리, `None` 헤더 안전 처리.
+
+### D그룹 — Medium + Low 일괄 (2026-07-18)
+9. **M-1 GOOGLE_CLIENT_ID fail-closed** — 배포값 설정 확인 후 `main.py`에 미설정 시 부팅 차단 가드 추가(aud 검증 우회 방지).
+10. **M-3 `get_document()` owner 폴백 제거** — owner_email이 주어졌는데 소유자 스코프 미스면 전체 사용자 검색으로 폴백하지 않고 `None` 반환(타 사용자 메타데이터 유출 함정 제거).
+11. **M-4 예외 원문 노출 제거** — `upload.py`·`documents.py`의 500 핸들러 3곳, `document_conversion.py`의 LibreOffice stderr 노출을 서버 로깅 + 일반 메시지로 교체.
+12. **M-5 업로드 크기/페이지 상한** — `MAX_UPLOAD_MB=100`, `MAX_PDF_PAGES=3000` 설정 추가(관대한 기본값). preflight·동기·비동기 업로드 경로 모두에 적용. (검증: 101MB→413, 50MB→통과)
+13. **M-6 파이프라인 종합 타임아웃** — `PIPELINE_TIMEOUT=240s` 설정, 채팅 SSE 래퍼에 데드라인 체크 추가(런어웨이 누적 지연 방지).
+14. **M-7 대화 목록 캐시** — `get_conversations()`에 60초 TTLCache + 생성/저장/삭제/제목변경 시 무효화(documents와 동일 패턴). (검증: 캐시 히트 + 무효화 반영 확인)
+15. **M-9 hydration mismatch 경고 제거** — `<html>`에 `suppressHydrationWarning` 추가. (검증: 콘솔 에러 0건)
+16. **M-10 대화 목록 키보드 접근** — 대화 항목에 `role="button"`·`tabIndex`·`onKeyDown`·`aria-current` 추가. (검증: 키보드 접근 가능)
+17. **M-11 닫힌 모바일 드로어 접근 차단** — 닫힘 시 `inert`+`aria-hidden`. (검증: 닫힘 시 내부 버튼 포커스 불가, 열림 시 정상 복원)
+18. **L-5 다크모드 상태 이중 관리 통합** — `Header`가 localStorage를 재차 읽어 재적용하던 로직 제거, `layout.tsx` 사전 스크립트가 적용한 DOM 상태를 미러링만. (검증: 토글 정상)
+19. **L-6 일괄 삭제 부분 실패 집계** — for 루프에 try/catch + 성공/실패 카운트 후 결과 토스트.
+
+> D그룹 처리 후: `pytest` 143 passed / 2 skipped, `tsc --noEmit` 0 errors, 브라우저 실사용 검증(M-5/7/9/10/11, L-5) 완료.
+
 ---
 
-## 🔴 Critical — 즉시 확인 필요 (배포 환경 값 확인 선행)
+## 🔴 Critical — ✅ 처리 완료 (PR #16, 위 8번 참고)
 
-### C-1. `/internal/analyze` 무인증 노출 위험
-- **위치**: `backend/app/routers/internal.py:30`
-- **내용**: `if settings.INTERNAL_TASK_SECRET and x_task_secret != ...` — `INTERNAL_TASK_SECRET`이 빈 문자열(기본값)이면 `and` 단락평가로 **검증이 통째로 스킵**됨. Cloud Run이 `--allow-unauthenticated`로 배포되므로 이 엔드포인트는 인터넷에 직접 노출되고, 공유 시크릿이 유일한 관문.
-- **익스플로잇**: 무인증 상태로 `{document_id, filename, file_hash, owner_email}`를 POST → Gemini 다회 호출 파이프라인 실행 → **유료 API 쿼터 무제한 소모**.
-- **선행 확인**: 배포 트리거의 `_INTERNAL_TASK_SECRET` substitution 변수가 실제로 설정돼 있는지 GCP 콘솔에서 먼저 확인 필요. (비어있는데 fail-closed 코드를 넣으면 다음 배포 시 서버가 크래시 루프에 빠짐)
-- **근본 수정**: `JWT_SECRET`처럼 미설정 시 부팅 차단(fail-closed) + `hmac.compare_digest` 비교.
+### ~~C-1. `/internal/analyze` 무인증 노출 위험~~ → **해결됨**
+`main.py` fail-closed 가드 + `hmac.compare_digest` 비교로 수정 완료. 배포 환경에 `INTERNAL_TASK_SECRET` 설정 확인됨.
 
 ---
 
@@ -57,6 +71,9 @@
 
 ## 🟡 Medium
 
+> ✅ **처리 완료**: M-1, M-3, M-4, M-5, M-6, M-7, M-9, M-10, M-11 (위 "처리 완료" D그룹 참고). 아래는 참고용 상세.
+> ⏳ **미처리**: M-2(설계 필요), M-8(의도된 동일 모델 설정 — 조치 불필요).
+
 ### 보안
 - **M-1. `GOOGLE_CLIENT_ID` 미설정 시 OAuth `aud` 검증 스킵** — `auth_service.py:20-24`. 빈 값이면 `audience=None`이 되어 다른 앱용 구글 ID 토큰도 통과. 주석은 "차단"이라 하지만 실제로는 아님. → `JWT_SECRET`처럼 미설정 시 fail-closed. (프로덕션에 값이 설정돼 있다면 방어적 코드일 뿐)
 - **M-2. `JWT_SECRET` 기본값 방어가 `USE_LOCAL_STORAGE=True`로 우회됨** — `main.py:20-25`. 실배포에 `USE_LOCAL_STORAGE=True`가 남으면 하드코딩 기본 시크릿이 조용히 활성화 + 더미 유저 우회까지 겹침. → `ENVIRONMENT` 같은 독립 변수로 프로덕션 판정, 또는 스토리지 모드와 무관하게 기본값 금지.
@@ -78,7 +95,9 @@
 
 ## 🟢 Low
 
-- **L-1. 비상수시간 시크릿 비교** — `internal.py:30` `!=` 사용. 타이밍 side-channel(실효성 낮음). → `hmac.compare_digest`.
+> ✅ **처리 완료**: L-1(PR #16), L-5, L-6. ⏳ **미처리**: L-2(CSRF·규모 큼), L-3(Secret Manager→[security_roadmap.md](./security_roadmap.md)), L-4(조치 대상 아님), L-7(의도된 동작).
+
+- **L-1. 비상수시간 시크릿 비교** — `internal.py:30` `!=` 사용. 타이밍 side-channel(실효성 낮음). → `hmac.compare_digest`. ✅ **완료(PR #16)**
 - **L-2. `/api/auth/refresh` CSRF 토큰 없음** — `auth.py:56-79`. SameSite 쿠키 + CORS allowlist에만 의존. 영향 제한적이나 방어심화 차원에서 CSRF 토큰 권장.
 - **L-3. 시크릿을 Secret Manager 아닌 평문 env로 주입** — `cloudbuild.yaml:20-21`. `GEMINI_API_KEY`/`JWT_SECRET`/`INTERNAL_TASK_SECRET`/`GOOGLE_CLIENT_ID`가 `--set-env-vars` 평문. IAM 뷰어·배포 로그에 노출. → `--set-secrets` + Secret Manager. (관련: [security_roadmap.md](./security_roadmap.md) Phase 2)
 - **L-4. GCS 버킷명에 내부 프로젝트 ID 노출** — `config.py:11`. 시크릿은 아니나 에러 메시지로 새면 minor 정보 노출.

@@ -218,8 +218,20 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
       icon: "🗑️",
     });
     if (!ok) return;
-    for (const doc of targetDocs) await deleteDoc(doc.document_id);
-    toast.success(`문서 ${targetDocs.length}개를 삭제했어요.`);
+    let failed = 0;
+    for (const doc of targetDocs) {
+      try {
+        await deleteDoc(doc.document_id);
+      } catch {
+        failed += 1;
+      }
+    }
+    const succeeded = targetDocs.length - failed;
+    if (failed === 0) {
+      toast.success(`문서 ${succeeded}개를 삭제했어요.`);
+    } else {
+      toast.warning(`${succeeded}개 삭제 완료, ${failed}개 실패했어요. 잠시 후 다시 시도해 주세요.`);
+    }
   };
 
   const handleBatchDownload = async (e: React.MouseEvent, docs: Document[], groupLabel: string) => {
@@ -305,12 +317,22 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
         {mySessions.map((session) => (
           <div
             key={session.id}
-            className={`group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm cursor-pointer transition-all ${
+            role="button"
+            tabIndex={0}
+            aria-current={activeSessionId === session.id}
+            className={`group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
               activeSessionId === session.id
                 ? "bg-primary/10 text-primary font-medium border border-primary/20 shadow-sm"
                 : "hover:bg-accent/40 text-muted-foreground hover:text-foreground"
             }`}
             onClick={() => { loadConversation(session.id); onClose?.(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                loadConversation(session.id);
+                onClose?.();
+              }
+            }}
           >
             <ChevronRight className={`w-3.5 h-3.5 shrink-0 transition-transform ${
               activeSessionId === session.id ? "rotate-90" : ""
@@ -503,7 +525,11 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
           </div>
         ) : sidebarContent}
       </aside>
-      <aside className={`sidebar fixed top-0 left-0 w-[88vw] max-w-[320px] h-full flex flex-col z-50 md:hidden transition-transform duration-300 ease-out ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside
+        aria-hidden={!isOpen}
+        inert={!isOpen}
+        className={`sidebar fixed top-0 left-0 w-[88vw] max-w-[320px] h-full flex flex-col z-50 md:hidden transition-transform duration-300 ease-out ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
+      >
         {sidebarContent}
       </aside>
     </>

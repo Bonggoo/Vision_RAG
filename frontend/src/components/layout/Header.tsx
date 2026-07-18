@@ -24,15 +24,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
   }, []);
 
   useEffect(() => {
-    // 초기 테마 로드
-    const savedTheme = localStorage.getItem("theme");
-    const isDark = savedTheme === "dark" || (!savedTheme && document.documentElement.classList.contains("dark"));
-    setTheme(isDark ? "dark" : "light");
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    // 초기 테마는 layout.tsx의 사전 스크립트가 이미 <html>에 적용함.
+    // 여기서는 그 DOM 상태를 그대로 읽어 미러링만 한다(중복 적용 제거).
+    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
   }, []);
 
   const toggleTheme = () => {

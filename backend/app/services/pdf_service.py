@@ -10,7 +10,7 @@ import hashlib
 from datetime import datetime
 from app.config import settings
 from app.utils.logger import logger
-from app.exceptions import EmptyFileError, DuplicateDocumentError
+from app.exceptions import EmptyFileError, DuplicateDocumentError, FileTooLargeError, TooManyPagesError
 from app.services import metadata_service
 from app.services import dedup_service
 
@@ -167,10 +167,12 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
     ToC가 부실한 경우 자동으로 Vision 기반 세부 목차 보강을 실행합니다.
     """
     content = await file.read()
-    
-    # 1. 빈 파일(0바이트) 검증
+
+    # 1. 빈 파일(0바이트) 검증 + 크기 상한 (메모리 고갈 방어)
     if len(content) == 0:
         raise EmptyFileError()
+    if len(content) > settings.MAX_UPLOAD_MB * 1024 * 1024:
+        raise FileTooLargeError(settings.MAX_UPLOAD_MB)
         
     # 2. SHA-256 해시 계산 및 중복 검증
     file_hash = hashlib.sha256(content).hexdigest()
@@ -202,7 +204,12 @@ async def process_document_upload(file: UploadFile, owner_email: str = "") -> Di
 
     doc = fitz.open(file_path)
     total_pages = doc.page_count
-    
+
+    # 페이지 수 상한 검사 (리소스 고갈 방어) — Vision/썸네일 처리 전에 차단
+    if total_pages > settings.MAX_PDF_PAGES:
+        doc.close()
+        raise TooManyPagesError(settings.MAX_PDF_PAGES)
+
     # 1. ToC 추출 (Case A-1/A-2/B/C) — build_toc로 일원화
     # build_toc은 내부에서 동기 Gemini 호출을 하므로 to_thread로 이벤트 루프 블로킹 방지
     toc, status = await asyncio.to_thread(build_toc, doc, total_pages)
