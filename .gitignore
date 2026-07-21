@@ -7,6 +7,9 @@ backend/uploads/
 backend/conversations/
 backend/logs/
 
+# 정적 프론트엔드 빌드 산출물 (통합 오리진 배포용, CI가 매번 생성 — 소스 아님)
+backend/static/
+
 # Test files
 backend/test_*.py
 

@@ -26,7 +26,8 @@ interface AuthStore {
 }
 
 // 💡 백엔드 API 기본 주소 (lib/api.ts와 일치시킴)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// ?? (nullish): 빈 문자열이면 상대경로(같은 오리진), 미설정이면 localhost 폴백.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export const useAuthStore = create<AuthStore>()(
   persist(

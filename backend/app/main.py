@@ -100,8 +100,9 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
 )
 
-@app.get("/")
-async def root():
+@app.get("/healthz")
+async def healthz():
+    """헬스체크. (루트 `/`는 정적 프론트가 서빙하므로 여기로 이동)"""
     return {"message": "Vision RAG API Server is running"}
 
 # 라우터 등록
@@ -112,4 +113,18 @@ app.include_router(documents.router, prefix="/documents", tags=["Documents"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 app.include_router(conversations.router, prefix="/conversations", tags=["Conversations"])
 app.include_router(internal.router, prefix="/internal", tags=["Internal"])
+
+# ── 정적 프론트엔드 서빙 (통합 오리진) ─────────────────────────────────────
+# 프론트엔드(Next.js) 정적 export 결과물을 같은 오리진에서 서빙한다.
+# API 라우터를 먼저 등록했으므로 /api·/upload·/documents·/chat·/conversations·/internal 은
+# API가 우선 매칭되고, 그 외 경로(/, /_next/*, /manifest.json 등)는 정적 파일로 폴백된다.
+# `static/` 디렉토리는 CI 빌드 시 프론트 out/이 복사되어 생성됨. 로컬 dev(빌드 없음)에선
+# 디렉토리가 없으므로 마운트를 건너뛰어 API 전용으로 동작한다.
+_STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
+if os.path.isdir(_STATIC_DIR):
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True), name="spa")
+    logger.info(f"🖥️ 정적 프론트엔드 서빙 활성화: {_STATIC_DIR}")
+else:
+    logger.info("ℹ️ static/ 디렉토리 없음 → API 전용 모드 (로컬 dev)")
 
