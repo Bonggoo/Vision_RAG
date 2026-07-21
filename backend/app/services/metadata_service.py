@@ -303,10 +303,13 @@ def store_document_file(document_id: str, owner_email: Optional[str], blob_filen
 
     return local_path
 
-def generate_gcs_signed_url(bucket_name: str, blob_name: str, method: str, expiration_minutes: int, content_type: str = None, response_content_disposition: str = None) -> Optional[str]:
+def generate_gcs_signed_url(bucket_name: str, blob_name: str, method: str, expiration_minutes: int, content_type: str = None, response_content_disposition: str = None, headers: Optional[Dict[str, str]] = None) -> Optional[str]:
     """
     Cloud Run(Compute Engine) 환경 및 로컬 개발 환경 모두에서 안전하게 동작하는 GCS Signed URL 생성 헬퍼.
     로컬 환경이 아닐 경우, IAM Service Account Credentials API를 통해 서명을 원격 생성합니다.
+
+    headers를 주면 서명에 포함되므로, 클라이언트는 PUT 시 같은 헤더를 정확히 같은 값으로
+    보내야 GCS 서명 검증을 통과합니다(예: x-goog-content-length-range로 업로드 크기 강제).
     """
     try:
         import datetime
@@ -337,7 +340,9 @@ def generate_gcs_signed_url(bucket_name: str, blob_name: str, method: str, expir
             kwargs["content_type"] = content_type
         if response_content_disposition:
             kwargs["response_content_disposition"] = response_content_disposition
-            
+        if headers:
+            kwargs["headers"] = headers
+
         # 자격증명에 이메일과 토큰이 존재하는 경우 (Cloud Run 환경), 원격 sign API 바인딩
         if (hasattr(credentials, "service_account_email") and credentials.service_account_email and 
             hasattr(credentials, "token") and credentials.token):
@@ -577,7 +582,7 @@ async def get_document_signed_url_async(document_id: str, download_name: str, ow
 async def create_document_metadata_async(document_id: str, metadata: Dict[str, Any], owner_email: str) -> bool:
     return await asyncio.to_thread(create_document_metadata, document_id, metadata, owner_email)
 
-async def generate_gcs_signed_url_async(bucket_name: str, blob_name: str, method: str, expiration_minutes: int, content_type: str = None, response_content_disposition: str = None) -> Optional[str]:
+async def generate_gcs_signed_url_async(bucket_name: str, blob_name: str, method: str, expiration_minutes: int, content_type: str = None, response_content_disposition: str = None, headers: Optional[Dict[str, str]] = None) -> Optional[str]:
     return await asyncio.to_thread(
-        generate_gcs_signed_url, bucket_name, blob_name, method, expiration_minutes, content_type, response_content_disposition
+        generate_gcs_signed_url, bucket_name, blob_name, method, expiration_minutes, content_type, response_content_disposition, headers
     )

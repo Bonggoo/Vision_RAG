@@ -47,8 +47,10 @@ async def _stream_with_disconnect_check(
         logger.info("🛑 [Stream] 요청 취소 감지 → 파이프라인 정리 중")
         raise
     except Exception as e:
+        # 상세 예외는 서버 로그에만 남기고, 클라이언트에는 일반 메시지만 보낸다.
+        # (전역 미들웨어와 동일한 원칙 — 내부 구현 정보가 SSE로 새지 않도록)
         logger.error(f"❌ [Stream] 스트리밍 중 오류: {e}", exc_info=True)
-        data = {"type": "error", "content": f"스트리밍 오류: {str(e)}"}
+        data = {"type": "error", "content": "답변 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."}
         yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
         data = {"type": "done"}
         yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"

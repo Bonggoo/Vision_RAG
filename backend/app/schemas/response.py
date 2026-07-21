@@ -62,6 +62,11 @@ class PreflightResponse(BaseModel):
     # GCS Signed URL 서명에 사용된 Content-Type. 브라우저는 PUT 시 이 값을
     # 헤더에 그대로 설정해야 서명 검증(403)을 통과합니다.
     content_type: Optional[str] = None
+    # 서명에 포함된 x-goog-content-length-range 값("0,{최대바이트}").
+    # 브라우저는 PUT 시 이 값을 헤더에 그대로 설정해야 서명 검증을 통과하며,
+    # 실제 본문 크기가 범위를 벗어나면 GCS가 업로드를 거부합니다.
+    # (클라이언트가 신고한 file_size를 신뢰하지 않고 GCS 측에서 강제하기 위함)
+    content_length_range: Optional[str] = None
 
 
 class AnalyzeResponse(BaseModel):

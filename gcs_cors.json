@@ -1,12 +1,15 @@
 [
   {
     "origin": [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "https://vision-rag-two.vercel.app"
+      "https://vision-rag-backend-sfsbvktuia-du.a.run.app",
+      "http://localhost:8374"
     ],
     "method": ["GET", "PUT"],
-    "responseHeader": ["Content-Type", "Content-Disposition"],
+    "responseHeader": [
+      "Content-Type",
+      "Content-Disposition",
+      "x-goog-content-length-range"
+    ],
     "maxAgeSeconds": 3600
   }
 ]
