@@ -8,7 +8,9 @@ import type {
   ConversationDetail,
 } from "@/types/api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// ?? (nullish) 사용: 프로덕션 빌드에서 NEXT_PUBLIC_API_URL=""(빈 문자열)을 주면
+// 상대경로(같은 오리진)로 동작. ||를 쓰면 빈 문자열이 falsy라 localhost로 폴백되어 버림.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export { API_BASE_URL };
 
 /** API 요청에 JWT 토큰 헤더 추가하는 헬퍼 */

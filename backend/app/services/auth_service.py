@@ -147,15 +147,20 @@ def verify_refresh_token(refresh_token: str) -> str:
 
 
 def set_refresh_cookie(response: Response, refresh_token: str):
-    """브라우저 쿠키에 Refresh Token 설정 (XSS 방어)"""
+    """브라우저 쿠키에 Refresh Token 설정 (XSS 방어)
+
+    통합 오리진(프론트+백엔드 same-origin) 구조이므로 SameSite=Lax로 충분하고,
+    cross-site(None) 대비 iOS WebKit(ITP)의 third-party 쿠키 차단에 걸리지 않는다.
+    secure는 프로덕션(HTTPS)에서만 True, 로컬(http)에서는 False.
+    """
     is_local = settings.USE_LOCAL_STORAGE or not settings.GOOGLE_CLIENT_ID
-    
+
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
         secure=not is_local,
-        samesite="lax" if is_local else "none",
+        samesite="lax",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600,
         path="/"
     )
@@ -164,12 +169,12 @@ def set_refresh_cookie(response: Response, refresh_token: str):
 def delete_refresh_cookie(response: Response):
     """브라우저 쿠키에서 Refresh Token 삭제 (로그아웃용)"""
     is_local = settings.USE_LOCAL_STORAGE or not settings.GOOGLE_CLIENT_ID
-    
+
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
         secure=not is_local,
-        samesite="lax" if is_local else "none",
+        samesite="lax",
         path="/"
     )
 
