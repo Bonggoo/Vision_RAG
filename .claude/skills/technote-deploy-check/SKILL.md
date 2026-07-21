@@ -8,20 +8,24 @@ description: TechNote(Vision_RAG) 백엔드를 master에 푸시한 뒤 Cloud Bui
 `master`에 푸시하면 Cloud Build가 백엔드 이미지를 빌드해 Cloud Run에 새 리비전으로 올립니다.
 여기서 확인할 것은 "빌드가 성공했나"만이 아니라 **내 커밋이 실제로 서비스되고 있나**입니다.
 
-## 먼저 알아야 할 함정: 트리거는 `backend/**`에만 반응합니다
+## 먼저 알아야 할 함정: 트리거는 `backend/**` + `frontend/**`에 반응합니다
 
-배포 트리거 `deploy-vision-rag-backend`의 설정:
+배포 트리거 `deploy-vision-rag-backend`의 설정 (2026-07-21 통합 오리진 전환 이후):
 
 - 저장소 `Bonggoo/Vision_RAG`, 브랜치 `^master$`, 빌드 파일 `backend/cloudbuild.yaml`
-- **`includedFiles: backend/**`**
+- **`includedFiles: backend/**, frontend/**`**
 
-즉 **프론트엔드나 문서만 고쳐서 푸시하면 Cloud Build는 아예 돌지 않습니다.** 이건 정상이지
-장애가 아닙니다. 프론트엔드는 Vercel이 별도로 배포합니다. "푸시했는데 배포가 안 떴다"는
-상황에서는 먼저 이번 커밋이 `backend/` 아래를 건드렸는지부터 확인하세요:
+프론트엔드(Next.js)는 이제 Vercel이 아니라 **이 파이프라인이 정적 export하여 백엔드
+컨테이너에 같이 담아 배포**합니다(통합 오리진 — iOS 로그인 유지 문제 해결을 위한 구조).
+그래서 `frontend/`만 고쳐도 이 트리거가 돕니다. `backend/`도 `frontend/`도 안 건드린
+커밋(문서 등)일 때만 빌드가 안 도는 게 정상입니다. "푸시했는데 배포가 안 떴다" 싶으면:
 
 ```bash
 git show --stat --oneline HEAD | head -20
 ```
+
+빌드 단계도 프론트 빌드(`node:20`, `npm ci && next build`)가 먼저 돌고 나서 기존
+docker build/push/deploy가 이어지므로, 아래 5분대 소요 시간에 1~2분 정도 더 걸립니다.
 
 ## 확인 순서
 
@@ -64,14 +68,22 @@ gcloud run services describe vision-rag-backend --region asia-northeast3 \
 
 ```bash
 curl -s -w "\nHTTP %{http_code} in %{time_total}s\n" \
-  https://vision-rag-backend-sfsbvktuia-du.a.run.app/
+  https://vision-rag-backend-sfsbvktuia-du.a.run.app/api/health
 ```
 
 `{"message":"Vision RAG API Server is running"}` + HTTP 200이면 정상입니다.
 
+⚠️ **`/healthz`는 절대 쓰지 마세요.** Cloud Run(Knative) 인프라가 이 경로를 자체 내부
+헬스체크용으로 예약해서, 컨테이너까지 도달하지 않고 Google 자체 404 페이지로 가로챕니다
+(실측으로 확인함 — 로그에 요청 자체가 안 찍힘). 헬스체크는 반드시 `/api/health`로.
+
+루트(`/`)는 이제 **정적 프론트엔드(index.html)를 서빙**합니다(통합 오리진 구조).
+200 응답은 오지만 예전처럼 JSON 헬스 메시지가 아니라 HTML이 오니, "떠 있다"는
+확인용으로만 참고하고 정확한 헬스체크는 `/api/health`를 쓰세요.
+
 `--min-instances=0`이라 유휴 상태 뒤 첫 요청은 **10초 안팎이 정상**입니다(실측 9.2초).
 느리다고 장애로 보고하지 말고, 한 번 더 호출해 두 번째 응답이 빠른지로 판단하세요.
-루트(`/`)만 인증이 면제돼 있어 헬스체크에 토큰이 필요 없습니다.
+`/api/health`도 인증이 면제돼 있어 토큰이 필요 없습니다.
 
 ### 5. 실제 동작 스모크
 

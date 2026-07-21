@@ -100,9 +100,13 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
 )
 
-@app.get("/healthz")
+@app.get("/api/health")
 async def healthz():
-    """헬스체크. (루트 `/`는 정적 프론트가 서빙하므로 여기로 이동)"""
+    """헬스체크. (루트 `/`는 정적 프론트가 서빙하므로 여기로 이동)
+
+    주의: `/healthz`는 쓰지 말 것 — Cloud Run(Knative) 인프라가 이 경로를 자체
+    내부 헬스체크용으로 예약해 컨테이너까지 도달하지 않고 가로챈다(실측 확인됨).
+    """
     return {"message": "Vision RAG API Server is running"}
 
 # 라우터 등록
