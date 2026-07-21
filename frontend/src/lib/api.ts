@@ -120,13 +120,19 @@ async function calculateFileHash(file: File): Promise<string> {
  * GCS Signed URL로 파일 직접 업로드 (진행률 추적) - OAuth 대상 아님
  * Content-Type은 서명 시점 값(preflight 응답의 content_type)과 정확히 일치해야
  * GCS 서명 검증(403)을 통과하므로, 브라우저의 file.type 대신 서버 값을 사용합니다.
+ * contentLengthRange(x-goog-content-length-range)도 마찬가지로 서명에 포함된
+ * 값이므로 서버가 내려준 문자열을 그대로 전송해야 합니다. 파일이 이 범위를 벗어나면
+ * GCS가 400으로 거부합니다(서버가 신고값을 신뢰하지 않고 강제하는 상한).
  */
-function uploadToGCS(file: File, signedUrl: string, contentType: string, onProgress?: (percent: number) => void): Promise<void> {
+function uploadToGCS(file: File, signedUrl: string, contentType: string, contentLengthRange?: string | null, onProgress?: (percent: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", signedUrl);
     xhr.setRequestHeader("Content-Type", contentType);
-    
+    if (contentLengthRange) {
+      xhr.setRequestHeader("x-goog-content-length-range", contentLengthRange);
+    }
+
     if (onProgress) {
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
@@ -138,6 +144,9 @@ function uploadToGCS(file: File, signedUrl: string, contentType: string, onProgr
     xhr.onload = () => {
       if (xhr.status === 200) {
         resolve();
+      } else if (xhr.status === 400 && contentLengthRange) {
+        // 서명된 크기 범위를 벗어나면 GCS가 400으로 거부한다 — 원인을 그대로 노출
+        reject(new Error("파일이 허용된 크기 상한을 초과했습니다."));
       } else {
         reject(new Error(`GCS 다이렉트 업로드 실패 (HTTP ${xhr.status})`));
       }
@@ -184,7 +193,7 @@ export const api = {
         throw error;
       }
       
-      const { document_id, upload_url, content_type } = await preflightRes.json();
+      const { document_id, upload_url, content_type, content_length_range } = await preflightRes.json();
 
       // 3. 로컬 모드 등으로 Signed URL이 없으면 동기식 업로드로 Fallback
       if (!upload_url) {
@@ -193,7 +202,7 @@ export const api = {
       }
 
       // 4. GCS 다이렉트 업로드 (Phase B)
-      await uploadToGCS(file, upload_url, content_type || "application/pdf", onProgress);
+      await uploadToGCS(file, upload_url, content_type || "application/pdf", content_length_range, onProgress);
       
       // 5. 비동기 AI 분석 파이프라인 트리거 (Phase C)
       const analyzeRes = await authFetch(`${API_BASE_URL}/upload/analyze`, {

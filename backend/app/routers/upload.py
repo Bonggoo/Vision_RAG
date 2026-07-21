@@ -89,6 +89,11 @@ async def upload_preflight(request: PreflightRequest, current_user: dict = Depen
     doc_id = uuid.uuid4()
     upload_url = None
 
+    # 위 file_size 검사는 클라이언트 신고값이라 신뢰할 수 없다. 실제 강제는 GCS 측에서
+    # x-goog-content-length-range로 걸어, 신고값과 무관하게 상한 초과 업로드를 거부시킨다.
+    max_bytes = settings.MAX_UPLOAD_MB * 1024 * 1024
+    content_length_range = f"0,{max_bytes}"
+
     # 4. GCS Signed Upload URL 생성 (로컬 모드가 아닐 때만)
     #    비-PDF는 source_original{ext}로 업로드받고, 분석 단계에서 PDF로 변환됩니다.
     if not settings.USE_LOCAL_STORAGE:
@@ -100,7 +105,8 @@ async def upload_preflight(request: PreflightRequest, current_user: dict = Depen
                 blob_name=blob_name,
                 method="PUT",
                 expiration_minutes=15,
-                content_type=content_type
+                content_type=content_type,
+                headers={"x-goog-content-length-range": content_length_range},
             )
             if upload_url:
                 logger.info(f"🔑 GCS Signed Upload URL 발급 성공: {doc_id}")
@@ -115,7 +121,9 @@ async def upload_preflight(request: PreflightRequest, current_user: dict = Depen
         status="approved",
         document_id=doc_id,
         upload_url=upload_url,
-        content_type=content_type
+        content_type=content_type,
+        # upload_url이 없으면(로컬/폴백) 동기 업로드 경로라 이 헤더는 쓰이지 않는다.
+        content_length_range=content_length_range if upload_url else None,
     )
 
 

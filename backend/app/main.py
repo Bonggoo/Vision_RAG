@@ -62,8 +62,9 @@ async def logging_and_exception_middleware(request: Request, call_next):
     path = request.url.path
     query_params = request.url.query
     
-    # 헬스체크 경로는 간소하게 로깅하거나 스킵 가능
-    is_health_check = path == "/"
+    # 헬스체크는 주기적으로 호출되므로 로그에서 제외한다.
+    # (통합 오리진 전환으로 `/`는 정적 index를 서빙하고 헬스체크는 /api/health로 이동했다)
+    is_health_check = path == "/api/health"
     
     if not is_health_check:
         logger.info(f"▶ [REQUEST] {method} {path} (Query: {query_params})")

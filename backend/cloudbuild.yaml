@@ -35,10 +35,13 @@ steps:
       - '--region'
       - 'asia-northeast3'
       - '--allow-unauthenticated'
-      - '--set-env-vars=^##^GEMINI_API_KEY=$_GEMINI_API_KEY##ALLOWED_ORIGINS=https://vision-rag-two.vercel.app,http://localhost:8374##GOOGLE_CLIENT_ID=$_GOOGLE_CLIENT_ID##JWT_SECRET=$_JWT_SECRET##CLOUD_TASKS_QUEUE=$_CLOUD_TASKS_QUEUE##CLOUD_RUN_URL=$_CLOUD_RUN_URL##INTERNAL_TASK_SECRET=$_INTERNAL_TASK_SECRET'
+      - '--set-env-vars=^##^GEMINI_API_KEY=$_GEMINI_API_KEY##ALLOWED_ORIGINS=http://localhost:8374##GOOGLE_CLIENT_ID=$_GOOGLE_CLIENT_ID##JWT_SECRET=$_JWT_SECRET##CLOUD_TASKS_QUEUE=$_CLOUD_TASKS_QUEUE##CLOUD_RUN_URL=$_CLOUD_RUN_URL##INTERNAL_TASK_SECRET=$_INTERNAL_TASK_SECRET'
       - '--cpu=2'
       - '--memory=2Gi'
       - '--min-instances=0'
+      # 비용 상한선. 이제껏 서비스에만 설정돼 있고 IaC에는 없어 드리프트 상태였다.
+      # 명시하지 않으면 재배포 시 Cloud Run 기본값(100)으로 열릴 위험이 있다.
+      - '--max-instances=20'
       - '--concurrency=8'
       - '--timeout=900'
       - '--cpu-throttling'
