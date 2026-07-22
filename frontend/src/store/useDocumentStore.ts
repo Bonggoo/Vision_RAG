@@ -29,6 +29,8 @@ interface DocumentStore {
   documents: Document[];
   /** 첫 문서 목록 조회 완료 여부 — 완료 전에는 문서 유무 분기 UI를 확정하지 않음 (플래시 방지) */
   hasFetched: boolean;
+  /** 직전 fetchDocuments() 실패 여부 — "문서가 없음"과 "조회 실패"를 UI에서 구분하기 위함 */
+  fetchError: boolean;
   isUploading: boolean;
   uploadingIndex: number;
   uploadTotal: number;
@@ -50,6 +52,7 @@ interface DocumentStore {
 export const useDocumentStore = create<DocumentStore>((set, get) => ({
   documents: [],
   hasFetched: false,
+  fetchError: false,
   isUploading: false,
   uploadingIndex: -1,
   uploadTotal: 0,
@@ -59,11 +62,12 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   fetchDocuments: async () => {
     try {
       const data = await api.getDocuments();
-      set({ documents: data.documents || [], hasFetched: true });
+      set({ documents: data.documents || [], hasFetched: true, fetchError: false });
     } catch (error) {
       console.error("Failed to fetch documents:", error);
-      // 실패해도 화면 분기는 진행 (무한 스켈레톤 방지)
-      set({ hasFetched: true });
+      // 실패해도 화면 분기는 진행 (무한 스켈레톤 방지). 기존 documents는 유지해
+      // "조회 실패"가 "문서 없음"으로 잘못 보이지 않게 한다 (fetchError로 구분).
+      set({ hasFetched: true, fetchError: true });
     }
   },
 

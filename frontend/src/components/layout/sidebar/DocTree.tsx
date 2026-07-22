@@ -14,6 +14,8 @@ export default function DocTree({
   documents,
   filteredDocuments,
   searchQuery,
+  fetchError,
+  onRetryFetch,
   sortBy,
   expandedManufacturers,
   expandedModels,
@@ -28,6 +30,8 @@ export default function DocTree({
   documents: Document[];
   filteredDocuments: Document[];
   searchQuery: string;
+  fetchError: boolean;
+  onRetryFetch: () => void;
   sortBy: "latest" | "name";
   expandedManufacturers: Record<string, boolean>;
   expandedModels: Record<string, boolean>;
@@ -56,6 +60,14 @@ export default function DocTree({
   const completedDocs = documents.filter(d => d.status !== "analyzing");
 
   if (completedFilteredDocs.length === 0) {
+    if (!searchQuery && fetchError) {
+      return (
+        <div className="px-3 py-3 text-center space-y-1.5">
+          <p className="text-[11px] text-muted-foreground/40">문서 목록을 불러오지 못했습니다</p>
+          <button onClick={onRetryFetch} className="text-[11px] text-primary hover:underline">다시 시도</button>
+        </div>
+      );
+    }
     return <p className="text-[11px] text-muted-foreground/40 px-3 py-3 text-center">{searchQuery ? "검색 결과가 없습니다" : "업로드된 문서가 없습니다"}</p>;
   }
 

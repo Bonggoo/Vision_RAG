@@ -37,7 +37,13 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
 
   // API 요청은 캐싱하지 않음
-  if (request.url.includes("/api/") || request.url.includes("/chat/") || request.url.includes("/upload/")) {
+  if (
+    request.url.includes("/api/") ||
+    request.url.includes("/chat/") ||
+    request.url.includes("/upload/") ||
+    request.url.includes("/documents") ||
+    request.url.includes("/conversations")
+  ) {
     return;
   }
 

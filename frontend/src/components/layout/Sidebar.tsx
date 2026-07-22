@@ -51,7 +51,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
   const mySessions = sessions.filter(s => s.ownerEmail === user?.email || !s.ownerEmail);
   const {
     documents, uploadDocuments, fetchDocuments, isUploading, uploadingIndex, uploadTotal,
-    uploadProgress: storeUploadProgress, deleteDoc, updateDocMeta, downloadDoc
+    uploadProgress: storeUploadProgress, deleteDoc, updateDocMeta, downloadDoc, fetchError
   } = useDocumentStore();
 
   const analyzingDocuments = documents.filter((doc) => doc.status === "analyzing");
@@ -399,6 +399,8 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
             documents={documents}
             filteredDocuments={filteredDocuments}
             searchQuery={searchQuery}
+            fetchError={fetchError}
+            onRetryFetch={fetchDocuments}
             sortBy={sortBy}
             expandedManufacturers={expandedManufacturers}
             expandedModels={expandedModels}
