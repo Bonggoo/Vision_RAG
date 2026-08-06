@@ -1,49 +1,50 @@
 /**
- * Sidebar 공용 헬퍼 (M5 분해)
- * 기존 Sidebar.tsx 상단에 있던 순수 함수들을 그대로 옮긴 것. 로직 변경 없음.
+ * Sidebar 공용 헬퍼 — 순수 함수 모음. 정렬/표시명 규칙만 담당한다.
  */
 
-// PDF 메타데이터 찌꺼기 등을 제외하고 가독성 있는 파일명을 결정하는 헬퍼 함수
-export const getDisplayFilename = (doc: any): string => {
-  const badTitlePattern = /^(microsoft word\s*-\s*)|^(한글\s*-\s*)|^(adobe indesign\s*)|untitled|document|cover|제목\s*없음|\.(doc|docx|pdf|cdr|xls|xlsx|ppt|pptx|hwp|png|jpg)$/i;
+const UNCLASSIFIED = "미분류";
 
-  if (doc.filename && badTitlePattern.test(doc.filename)) {
-    if (doc.original_filename) {
-      return doc.original_filename.replace(/\.(pdf|docx?|pptx?|xlsx?|txt|md|png|jpe?g|webp|bmp)$/i, "");
-    }
+/** 정렬·표시명 계산에 필요한 최소 필드만 요구한다 (Document 전체를 강제하지 않음) */
+type NamedDoc = { filename: string; original_filename?: string };
+type DatedDoc = { uploaded_at?: string };
+
+/** PDF 메타데이터 찌꺼기("Microsoft Word - ...", "Untitled" 등)를 걸러내고 읽을 만한 제목을 고른다 */
+export const getDisplayFilename = (doc: NamedDoc): string => {
+  const badTitlePattern =
+    /^(microsoft word\s*-\s*)|^(한글\s*-\s*)|^(adobe indesign\s*)|untitled|document|cover|제목\s*없음|\.(doc|docx|pdf|cdr|xls|xlsx|ppt|pptx|hwp|png|jpg)$/i;
+
+  if (doc.filename && badTitlePattern.test(doc.filename) && doc.original_filename) {
+    return doc.original_filename.replace(
+      /\.(pdf|docx?|pptx?|xlsx?|txt|md|png|jpe?g|webp|bmp)$/i,
+      ""
+    );
   }
   return doc.filename;
 };
 
-// 문자열의 첫 글자가 한글인지 여부를 판별하는 헬퍼 함수
 const isKoreanStart = (str: string): boolean => {
   if (!str) return false;
-  const firstChar = str.trim().charAt(0);
-  return /[\u3130-\u318F\uAC00-\uD7A3]/.test(firstChar);
+  return /[\u3130-\u318F\uAC00-\uD7A3]/.test(str.trim().charAt(0));
 };
 
-// 한글 가나다 및 영어 ABCD 사전식 오름차순 정렬을 위한 헬퍼 함수
+/** 사전식 오름차순. 미분류는 맨 뒤, 한글 그룹은 영문 뒤에 온다. */
 export const sortByName = (a: string, b: string): number => {
-  if (a === "미분류") return 1;
-  if (b === "미분류") return -1;
+  if (a === UNCLASSIFIED) return 1;
+  if (b === UNCLASSIFIED) return -1;
 
   const aIsKo = isKoreanStart(a);
   const bIsKo = isKoreanStart(b);
-
-  if (aIsKo && !bIsKo) return 1;
-  if (!aIsKo && bIsKo) return -1;
+  if (aIsKo !== bIsKo) return aIsKo ? 1 : -1;
 
   return a.localeCompare(b, "ko", { sensitivity: "base", numeric: true });
 };
 
-// 업로드 날짜 기준 정렬
-export const sortByDate = (a: any, b: any): number => {
-  const dateA = a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0;
-  const dateB = b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0;
-  return dateB - dateA;
-};
+const toTime = (doc: DatedDoc): number =>
+  doc.uploaded_at ? new Date(doc.uploaded_at).getTime() : 0;
 
-export const getLatestDateInDocs = (docs: any[]): number => {
-  if (docs.length === 0) return 0;
-  return Math.max(...docs.map(d => d.uploaded_at ? new Date(d.uploaded_at).getTime() : 0));
-};
+/** 업로드 최신순 */
+export const sortByDate = (a: DatedDoc, b: DatedDoc): number => toTime(b) - toTime(a);
+
+/** 그룹 정렬용 — 그룹 안에서 가장 최근 업로드 시각 */
+export const getLatestDateInDocs = (docs: DatedDoc[]): number =>
+  docs.length === 0 ? 0 : Math.max(...docs.map(toTime));

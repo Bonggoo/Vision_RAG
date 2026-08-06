@@ -1,15 +1,123 @@
 "use client";
 
 import React from "react";
-import { ChevronRight, ChevronDown, Download, Building, Cpu, Folder, Trash2, RefreshCw } from "lucide-react";
+import { ChevronDown, Download, Trash2, RefreshCw } from "lucide-react";
 import { Document } from "@/store/useDocumentStore";
 import { getDisplayFilename, sortByName, sortByDate, getLatestDateInDocs } from "./utils";
 
-/**
- * 제조사 > 모델 2단 아코디언 문서 트리 (M5 분해) — 기존 Sidebar.renderDocumentList 를 그대로 추출.
- * 그룹핑/정렬 로직(sortBy 분기, 미분류 후순위 처리)을 모두 보존한다.
- * 개별 문서 항목 렌더링은 renderDocItem 콜백(렌더 prop)으로 위임한다.
- */
+const UNCLASSIFIED = "미분류";
+/** 문서가 이 개수 이하면 그룹 트리 대신 평면 목록으로 보여준다 */
+const FLAT_LIST_THRESHOLD = 3;
+
+interface DocTreeProps {
+  documents: Document[];
+  filteredDocuments: Document[];
+  searchQuery: string;
+  fetchError: boolean;
+  onRetryFetch: () => void;
+  sortBy: "latest" | "name";
+  expandedManufacturers: Record<string, boolean>;
+  expandedModels: Record<string, boolean>;
+  onToggleManufacturer: (mfg: string) => void;
+  onToggleModel: (key: string) => void;
+  isReclassifying: boolean;
+  onReclassify: () => void;
+  onBatchDownload: (docs: Document[], groupLabel: string) => void;
+  onBatchDelete: (docs: Document[], groupLabel: string) => void;
+  renderDocItem: (doc: Document) => React.ReactNode;
+}
+
+type GroupedDocs = Record<string, Record<string, Document[]>>;
+
+function groupDocs(docs: Document[]): GroupedDocs {
+  const grouped: GroupedDocs = {};
+  for (const doc of docs) {
+    if (doc.status === "analyzing") continue;
+    const mfg = doc.manufacturer || UNCLASSIFIED;
+    const model = doc.model_series || UNCLASSIFIED;
+    grouped[mfg] ??= {};
+    grouped[mfg][model] ??= [];
+    grouped[mfg][model].push(doc);
+  }
+  return grouped;
+}
+
+/** 미분류 그룹은 항상 마지막으로 밀고, 나머지는 sortBy 기준으로 정렬 */
+function compareGroups(
+  labelA: string,
+  docsA: Document[],
+  labelB: string,
+  docsB: Document[],
+  sortBy: "latest" | "name"
+): number {
+  if (labelA === UNCLASSIFIED) return 1;
+  if (labelB === UNCLASSIFIED) return -1;
+  if (sortBy === "latest") return getLatestDateInDocs(docsB) - getLatestDateInDocs(docsA);
+  return sortByName(labelA, labelB);
+}
+
+function sortDocs(docs: Document[], sortBy: "latest" | "name"): Document[] {
+  return [...docs].sort((a, b) =>
+    sortBy === "latest" ? sortByDate(a, b) : sortByName(getDisplayFilename(a), getDisplayFilename(b))
+  );
+}
+
+/** 그룹 헤더 우측의 일괄 액션 버튼 묶음 */
+function GroupActions({
+  docs,
+  label,
+  onBatchDownload,
+  onBatchDelete,
+  showReclassify,
+  isReclassifying,
+  onReclassify,
+}: {
+  docs: Document[];
+  label: string;
+  onBatchDownload: (docs: Document[], label: string) => void;
+  onBatchDelete: (docs: Document[], label: string) => void;
+  showReclassify?: boolean;
+  isReclassifying?: boolean;
+  onReclassify?: () => void;
+}) {
+  const stop = (fn: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    fn();
+  };
+  return (
+    <span className="flex items-center shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+      {showReclassify && onReclassify && (
+        <button
+          onClick={stop(onReclassify)}
+          disabled={isReclassifying}
+          title="AI로 다시 분류"
+          aria-label="AI로 다시 분류"
+          className="btn-ghost p-1.5 rounded-md"
+        >
+          <RefreshCw className={`w-3 h-3 ${isReclassifying ? "animate-spin" : ""}`} />
+        </button>
+      )}
+      <button
+        onClick={stop(() => onBatchDownload(docs, label))}
+        title="그룹 전체 다운로드"
+        aria-label="그룹 전체 다운로드"
+        className="btn-ghost p-1.5 rounded-md"
+      >
+        <Download className="w-3 h-3" />
+      </button>
+      <button
+        onClick={stop(() => onBatchDelete(docs, label))}
+        title="그룹 전체 삭제"
+        aria-label="그룹 전체 삭제"
+        className="btn-ghost p-1.5 rounded-md hover:text-destructive"
+      >
+        <Trash2 className="w-3 h-3" />
+      </button>
+    </span>
+  );
+}
+
+/** 제조사 > 모델 2단 아코디언 문서 트리 */
 export default function DocTree({
   documents,
   filteredDocuments,
@@ -26,113 +134,111 @@ export default function DocTree({
   onBatchDownload,
   onBatchDelete,
   renderDocItem,
-}: {
-  documents: Document[];
-  filteredDocuments: Document[];
-  searchQuery: string;
-  fetchError: boolean;
-  onRetryFetch: () => void;
-  sortBy: "latest" | "name";
-  expandedManufacturers: Record<string, boolean>;
-  expandedModels: Record<string, boolean>;
-  onToggleManufacturer: (mfg: string) => void;
-  onToggleModel: (model: string) => void;
-  isReclassifying: boolean;
-  onReclassify: (e: React.MouseEvent) => void;
-  onBatchDownload: (e: React.MouseEvent, docs: Document[], groupLabel: string) => void;
-  onBatchDelete: (e: React.MouseEvent, docs: Document[], groupLabel: string) => void;
-  renderDocItem: (doc: Document) => React.ReactNode;
-}) {
-  const getGroupedDocs = (docs: Document[]) => {
-    const grouped: Record<string, Record<string, Document[]>> = {};
-    docs.forEach((doc) => {
-      if (doc.status === "analyzing") return;
-      const mfg = doc.manufacturer || "미분류"; const model = doc.model_series || "미분류";
-      if (!grouped[mfg]) grouped[mfg] = {}; if (!grouped[mfg][model]) grouped[mfg][model] = [];
-      grouped[mfg][model].push(doc);
-    });
-    return grouped;
-  };
+}: DocTreeProps) {
+  const completedFiltered = filteredDocuments.filter((d) => d.status !== "analyzing");
+  const completedAll = documents.filter((d) => d.status !== "analyzing");
 
-  const groupedDocs = getGroupedDocs(filteredDocuments);
-
-  const completedFilteredDocs = filteredDocuments.filter(d => d.status !== "analyzing");
-  const completedDocs = documents.filter(d => d.status !== "analyzing");
-
-  if (completedFilteredDocs.length === 0) {
+  if (completedFiltered.length === 0) {
     if (!searchQuery && fetchError) {
       return (
-        <div className="px-3 py-3 text-center space-y-1.5">
-          <p className="text-[11px] text-muted-foreground/40">문서 목록을 불러오지 못했습니다</p>
-          <button onClick={onRetryFetch} className="text-[11px] text-primary hover:underline">다시 시도</button>
+        <div className="px-3 py-6 text-center space-y-2">
+          <p className="text-[12px] text-muted-foreground">문서 목록을 불러오지 못했습니다.</p>
+          <button onClick={onRetryFetch} className="text-[12px] text-primary hover:underline">
+            다시 시도
+          </button>
         </div>
       );
     }
-    return <p className="text-[11px] text-muted-foreground/40 px-3 py-3 text-center">{searchQuery ? "검색 결과가 없습니다" : "업로드된 문서가 없습니다"}</p>;
+    return (
+      <p className="px-3 py-6 text-center text-[12px] text-muted-foreground">
+        {searchQuery ? "검색 결과가 없습니다." : "업로드된 문서가 없습니다."}
+      </p>
+    );
   }
 
-  if (completedDocs.length <= 3 || completedFilteredDocs.length <= 3) {
-    const sortedFlatDocs = [...completedFilteredDocs].sort((a, b) => sortBy === "latest" ? sortByDate(a, b) : sortByName(getDisplayFilename(a), getDisplayFilename(b)));
-    return <div className="space-y-1">{sortedFlatDocs.map((doc) => renderDocItem(doc))}</div>;
+  // 문서가 적을 때는 트리 대신 평면 목록 (불필요한 클릭 단계 제거)
+  if (completedAll.length <= FLAT_LIST_THRESHOLD || completedFiltered.length <= FLAT_LIST_THRESHOLD) {
+    return <div className="space-y-0.5">{sortDocs(completedFiltered, sortBy).map(renderDocItem)}</div>;
   }
 
-  const sortedManufacturers = Object.entries(groupedDocs).sort(([mfgA, modelsA], [mfgB, modelsB]) => {
-    if (mfgA === "미분류") return 1; if (mfgB === "미분류") return -1;
-    if (sortBy === "latest") return getLatestDateInDocs(Object.values(modelsB).flat()) - getLatestDateInDocs(Object.values(modelsA).flat());
-    return sortByName(mfgA, mfgB);
-  });
+  const grouped = groupDocs(filteredDocuments);
+  const manufacturers = Object.entries(grouped).sort(([mfgA, modelsA], [mfgB, modelsB]) =>
+    compareGroups(mfgA, Object.values(modelsA).flat(), mfgB, Object.values(modelsB).flat(), sortBy)
+  );
 
   return (
-    <div className="space-y-2.5">
-      {sortedManufacturers.map(([mfg, models]) => {
-        const isMfgExpanded = !!expandedManufacturers[mfg];
+    <div className="space-y-1">
+      {manufacturers.map(([mfg, models]) => {
+        const mfgDocs = Object.values(models).flat();
+        const isMfgOpen = !!expandedManufacturers[mfg];
+
         return (
-          <div key={mfg} className="space-y-1">
-            <div className="group/mfg flex items-center gap-0.5">
-              <button onClick={() => onToggleManufacturer(mfg)} className="flex-1 min-w-0 flex items-center justify-between text-xs font-semibold text-foreground/80 hover:text-foreground hover:bg-accent/30 py-1.5 px-2 rounded-xl transition-all">
-                <div className="flex items-center gap-1.5 truncate">
-                  {mfg === "미분류" ? <Folder className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" /> : <Building className="w-3.5 h-3.5 text-primary/70 shrink-0" />}
-                  <span className="truncate">{mfg}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-muted-foreground/50 font-normal">({Object.values(models).flat().length})</span>
-                  {isMfgExpanded ? <ChevronDown className="w-3 h-3 text-muted-foreground/60 shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground/60 shrink-0" />}
-                </div>
+          <div key={mfg}>
+            <div className="group flex items-center gap-0.5 pr-1">
+              <button
+                onClick={() => onToggleManufacturer(mfg)}
+                aria-expanded={isMfgOpen}
+                className="nav-item flex-1 min-w-0 flex items-center gap-1.5 py-1.5 px-2 text-[12.5px] font-medium"
+              >
+                <ChevronDown
+                  className={`w-3 h-3 shrink-0 transition-transform ${isMfgOpen ? "" : "-rotate-90"}`}
+                />
+                <span className="truncate flex-1 text-left">{mfg}</span>
+                <span className="text-[11px] text-muted-foreground/60 shrink-0">{mfgDocs.length}</span>
               </button>
-              <div className="flex items-center gap-0.5 opacity-0 group-hover/mfg:opacity-100 transition-opacity shrink-0">
-                {mfg === "미분류" && <button onClick={onReclassify} disabled={isReclassifying} className="p-1 rounded-full hover:bg-primary/20 text-muted-foreground/40 hover:text-primary transition-all"><RefreshCw className={`w-3 h-3 ${isReclassifying ? "animate-spin" : ""}`} /></button>}
-                <button onClick={(e) => onBatchDownload(e, Object.values(models).flat(), mfg)} className="p-1 rounded-full hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"><Download className="w-3 h-3" /></button>
-                <button onClick={(e) => onBatchDelete(e, Object.values(models).flat(), mfg)} className="p-1 rounded-full hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3 h-3" /></button>
-              </div>
+              <GroupActions
+                docs={mfgDocs}
+                label={mfg}
+                onBatchDownload={onBatchDownload}
+                onBatchDelete={onBatchDelete}
+                showReclassify={mfg === UNCLASSIFIED}
+                isReclassifying={isReclassifying}
+                onReclassify={onReclassify}
+              />
             </div>
-            {isMfgExpanded && (
-              <div className="pl-3.5 border-l border-border/40 ml-3.5 space-y-1 pt-0.5">
-                {Object.entries(models).sort(([modelA, docsA], [modelB, docsB]) => {
-                  if (modelA === "미분류") return 1; if (modelB === "미분류") return -1;
-                  if (sortBy === "latest") return getLatestDateInDocs(docsB) - getLatestDateInDocs(docsA);
-                  return sortByName(modelA, modelB);
-                }).map(([model, docs]) => {
-                  const isModelExpanded = !!expandedModels[`${mfg}-${model}`];
-                  return (
-                    <div key={model} className="space-y-0.5">
-                      <div className="group/model flex items-center gap-0.5">
-                        <button onClick={() => onToggleModel(`${mfg}-${model}`)} className="flex-1 min-w-0 flex items-center justify-between text-[11px] font-medium text-foreground/70 hover:text-foreground hover:bg-accent/30 py-1 px-1.5 rounded-xl transition-all">
-                          <div className="flex items-center gap-1 truncate"><Cpu className="w-3 h-3 text-blue-500/60 shrink-0" /><span className="truncate">{model}</span></div>
-                          <div className="flex items-center gap-1"><span className="text-[9px] text-muted-foreground/50 font-normal">({docs.length})</span>{isModelExpanded ? <ChevronDown className="w-2.5 h-2.5 text-muted-foreground/60 shrink-0" /> : <ChevronRight className="w-2.5 h-2.5 text-muted-foreground/60 shrink-0" />}</div>
-                        </button>
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover/model:opacity-100 transition-opacity shrink-0">
-                          <button onClick={(e) => onBatchDownload(e, docs, `${mfg} > ${model}`)} className="p-0.5 rounded-full hover:bg-accent/60 text-muted-foreground/40 hover:text-foreground transition-all"><Download className="w-2.5 h-2.5" /></button>
-                          <button onClick={(e) => onBatchDelete(e, docs, `${mfg} > ${model}`)} className="p-0.5 rounded-full hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-2.5 h-2.5" /></button>
+
+            {isMfgOpen && (
+              <div className="ml-3 pl-2 border-l border-border space-y-0.5 py-0.5">
+                {Object.entries(models)
+                  .sort(([modelA, docsA], [modelB, docsB]) =>
+                    compareGroups(modelA, docsA, modelB, docsB, sortBy)
+                  )
+                  .map(([model, docs]) => {
+                    const modelKey = `${mfg}-${model}`;
+                    const isModelOpen = !!expandedModels[modelKey];
+                    return (
+                      <div key={model}>
+                        <div className="group flex items-center gap-0.5 pr-1">
+                          <button
+                            onClick={() => onToggleModel(modelKey)}
+                            aria-expanded={isModelOpen}
+                            className="nav-item flex-1 min-w-0 flex items-center gap-1.5 py-1 px-1.5 text-[12px]"
+                          >
+                            <ChevronDown
+                              className={`w-3 h-3 shrink-0 transition-transform ${
+                                isModelOpen ? "" : "-rotate-90"
+                              }`}
+                            />
+                            <span className="truncate flex-1 text-left">{model}</span>
+                            <span className="text-[11px] text-muted-foreground/60 shrink-0">
+                              {docs.length}
+                            </span>
+                          </button>
+                          <GroupActions
+                            docs={docs}
+                            label={`${mfg} > ${model}`}
+                            onBatchDownload={onBatchDownload}
+                            onBatchDelete={onBatchDelete}
+                          />
                         </div>
+                        {isModelOpen && (
+                          <div className="pl-1.5 space-y-0.5 py-0.5">
+                            {sortDocs(docs, sortBy).map(renderDocItem)}
+                          </div>
+                        )}
                       </div>
-                      {isModelExpanded && (
-                        <div className="pl-2 space-y-0.5 pt-0.5">
-                          {[...docs].sort((a, b) => sortBy === "latest" ? sortByDate(a, b) : sortByName(getDisplayFilename(a), getDisplayFilename(b))).map((doc) => renderDocItem(doc))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             )}
           </div>
