@@ -4,19 +4,16 @@ import React, { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "lucide-react";
 import { useUIStore, type Toast, type ToastType } from "@/store/useUIStore";
 
-const TOAST_STYLE: Record<
-  ToastType,
-  { icon: React.ElementType; accent: string; iconColor: string }
-> = {
-  success: { icon: CheckCircle2, accent: "before:bg-emerald-500", iconColor: "text-emerald-500" },
-  error: { icon: XCircle, accent: "before:bg-destructive", iconColor: "text-destructive" },
-  info: { icon: Info, accent: "before:bg-primary", iconColor: "text-primary" },
-  warning: { icon: AlertTriangle, accent: "before:bg-amber-500", iconColor: "text-amber-500" },
+const TOAST_STYLE: Record<ToastType, { icon: React.ElementType; iconColor: string }> = {
+  success: { icon: CheckCircle2, iconColor: "text-[var(--success)]" },
+  error: { icon: XCircle, iconColor: "text-destructive" },
+  info: { icon: Info, iconColor: "text-muted-foreground" },
+  warning: { icon: AlertTriangle, iconColor: "text-[var(--warning)]" },
 };
 
 function ToastItem({ toast, onClose }: { toast: Toast; onClose: (id: string) => void }) {
   const [leaving, setLeaving] = useState(false);
-  const { icon: Icon, accent, iconColor } = TOAST_STYLE[toast.type];
+  const { icon: Icon, iconColor } = TOAST_STYLE[toast.type];
 
   // 부드러운 퇴장을 위해 실제 제거 전에 leaving 상태로 전환
   const dismiss = () => {
@@ -36,18 +33,18 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: (id: string) => 
       role="status"
       aria-live="polite"
       onClick={dismiss}
-      className={`pointer-events-auto relative flex items-start gap-3 w-full overflow-hidden
-        rounded-2xl border border-border/50 bg-popover/95 backdrop-blur-xl
-        pl-4 pr-3 py-3 shadow-xl cursor-pointer
-        before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 ${accent}
-        transition-all duration-200 ${leaving ? "opacity-0 translate-y-[-8px] scale-[0.97]" : "animate-in"}`}
+      className={`pointer-events-auto flex items-start gap-2.5 w-full
+        rounded-lg border border-border bg-popover
+        px-3.5 py-3 cursor-pointer
+        transition-all duration-200 ${leaving ? "opacity-0 -translate-y-1" : "animate-in"}`}
+      style={{ boxShadow: "var(--shadow-lg)" }}
     >
-      <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${iconColor}`} />
-      <div className="flex-1 min-w-0 pt-0.5">
+      <Icon className={`w-4 h-4 shrink-0 mt-0.5 ${iconColor}`} aria-hidden="true" />
+      <div className="flex-1 min-w-0">
         {toast.title && (
-          <p className="text-[13px] font-bold text-foreground leading-snug mb-0.5">{toast.title}</p>
+          <p className="text-[13px] font-medium text-foreground leading-snug mb-0.5">{toast.title}</p>
         )}
-        <p className="text-[13px] text-foreground/85 leading-snug break-words whitespace-pre-line">
+        <p className="text-[13px] text-muted-foreground leading-snug break-words whitespace-pre-line">
           {toast.message}
         </p>
       </div>
@@ -57,7 +54,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: (id: string) => 
           dismiss();
         }}
         aria-label="알림 닫기"
-        className="shrink-0 p-1 -mt-0.5 -mr-1 rounded-full text-muted-foreground/50 hover:text-foreground hover:bg-accent/50 transition-colors"
+        className="btn-ghost shrink-0 p-1 -mt-0.5 -mr-1 rounded-md"
       >
         <X className="w-3.5 h-3.5" />
       </button>

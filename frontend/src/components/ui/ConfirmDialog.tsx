@@ -46,37 +46,37 @@ export default function ConfirmDialog() {
       aria-label={title}
     >
       {/* 백드롭 (클릭 시 취소) */}
-      <div
-        className="absolute inset-0 bg-black/45 backdrop-blur-sm"
-        onClick={() => resolveConfirm(false)}
-      />
+      <div className="overlay-scrim absolute inset-0" onClick={() => resolveConfirm(false)} />
 
       {/* 다이얼로그 카드 */}
-      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-border/50 bg-popover backdrop-blur-2xl shadow-2xl p-6 animate-slide-up">
-        <div className="flex flex-col gap-2 text-center">
-          {icon && <div className="text-3xl mx-auto mb-1">{icon}</div>}
-          <h3 className="text-[16px] font-bold text-foreground font-display leading-snug">{title}</h3>
+      <div
+        className="relative z-10 w-full max-w-sm rounded-xl border border-border bg-popover p-5 animate-slide-up"
+        style={{ boxShadow: "var(--shadow-lg)" }}
+      >
+        <div className="flex flex-col gap-1.5">
+          {icon && <span className="text-2xl mb-0.5">{icon}</span>}
+          <h3 className="text-[15.5px] font-medium text-foreground leading-snug">{title}</h3>
           {description && (
-            <p className="text-[13px] text-muted-foreground/90 leading-relaxed whitespace-pre-line">
+            <p className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-line">
               {description}
             </p>
           )}
         </div>
 
-        <div className="flex gap-2.5 mt-6">
+        <div className="flex justify-end gap-2 mt-5">
           <button
             onClick={() => resolveConfirm(false)}
-            className="btn-secondary flex-1 py-2.5 px-4 rounded-full text-[13px] font-semibold text-muted-foreground hover:text-foreground transition-all"
+            className="btn-secondary py-2 px-4 rounded-lg text-[13px]"
           >
             {cancelText}
           </button>
           <button
             ref={confirmBtnRef}
             onClick={() => resolveConfirm(true)}
-            className={`flex-1 py-2.5 px-4 rounded-full text-[13px] font-bold text-white transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-card ${
+            className={`py-2 px-4 rounded-lg text-[13px] font-medium transition-colors ${
               danger
-                ? "bg-destructive hover:opacity-90 shadow-destructive/20 focus:ring-destructive/50"
-                : "btn-primary focus:ring-primary/50"
+                ? "bg-destructive text-[var(--destructive-foreground)] hover:brightness-95"
+                : "btn-primary"
             }`}
           >
             {confirmText}
