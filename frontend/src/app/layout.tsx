@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Noto_Sans_KR, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { Inter, Noto_Sans_KR, Source_Serif_4, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import Toaster from "@/components/ui/Toaster";
@@ -13,18 +13,19 @@ const inter = Inter({
 const notoSansKr = Noto_Sans_KR({
   subsets: ["latin"],
   weight: ["400", "500", "700"],
-  variable: "--font-pretendard", // CSS 변수명은 유지 (Pretendard 대체용)
+  variable: "--font-kr",
 });
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+// 제목 전용 세리프 — 본문 산세리프와 대비를 주되 장식은 최소화
+const sourceSerif = Source_Serif_4({
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-display",
+  weight: ["400", "600"],
+  variable: "--font-serif",
 });
 
 const jetBrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "700"],
+  weight: ["400", "500"],
   variable: "--font-mono-util",
 });
 
@@ -44,7 +45,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#151218",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf9f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#262624" },
+  ],
   viewportFit: "cover",            // iOS 노치 safe area 대응
   interactiveWidget: "resizes-visual", // 모바일 키보드 올라올 때 레이아웃 유지
 };
@@ -77,7 +81,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.variable} ${notoSansKr.variable} ${plusJakartaSans.variable} ${jetBrainsMono.variable} font-sans bg-background text-foreground`}>
+      <body className={`${inter.variable} ${notoSansKr.variable} ${sourceSerif.variable} ${jetBrainsMono.variable} font-sans bg-background text-foreground`}>
         <ServiceWorkerRegister />
         {children}
         <Toaster />

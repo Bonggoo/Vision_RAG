@@ -5,11 +5,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================
+   디자인 토큰 — 웜 뉴트럴 페이퍼 + 클레이 액센트
+   원칙: 평면 표면 · 헤어라인 보더 · 최소 그림자 · 그라디언트/글로우 없음
+   ============================================================ */
+
 @theme {
-  --font-sans: var(--font-inter), var(--font-pretendard), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-display), var(--font-inter), sans-serif;
-  --font-mono-util: var(--font-mono-util), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  
+  --font-sans: var(--font-inter), var(--font-kr), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-serif), Georgia, "Times New Roman", serif;
+  --font-mono-util: var(--font-mono-util), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -26,73 +31,101 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
 }
 
 :root {
-  /* ─── Stitch Light Theme: 페이퍼 화이트 & 딥 바이올렛 ─── */
-  --background: #f8f9fa;
-  --foreground: #1c1b1f;
-  --card: rgba(255, 255, 255, 0.75);
-  --card-foreground: #1c1b1f;
+  /* ─── Light: 페이퍼 크림 ─── */
+  --background: #faf9f5;
+  --foreground: #1f1e1d;
+  --surface: #ffffff;
+  --elevated: #ffffff;
+  --card: #ffffff;
+  --card-foreground: #1f1e1d;
   --popover: #ffffff;
-  --popover-foreground: #1c1b1f;
-  --primary: #7349aa;
-  --primary-foreground: #ffffff;
-  --secondary: #eaddff;
-  --secondary-foreground: #21005d;
-  --muted: #f4eff4;
-  --muted-foreground: #49454f;
-  --accent: #eaddff;
-  --accent-foreground: #21005d;
-  --destructive: #ba1a1a;
-  --destructive-foreground: #ffffff;
-  --border: rgba(115, 73, 170, 0.2);
-  --input: #f4eff4;
-  --ring: #7349aa;
-  --radius: 0.75rem;
+  --popover-foreground: #1f1e1d;
 
-  /* 커스텀 그래디언트 & 글로우 컬러 (라이트) */
-  --glow-primary: rgba(115, 73, 170, 0.12);
-  --glow-accent: rgba(115, 73, 170, 0.08);
-  --sidebar-bg: #f8f9fa;
-  --sidebar-border: rgba(115, 73, 170, 0.15);
-  --hero-gradient-color: rgba(115, 73, 170, 0.06);
+  --primary: #c96442;
+  --primary-foreground: #ffffff;
+  --primary-soft: rgba(201, 100, 66, 0.09);
+
+  --secondary: #f0eee6;
+  --secondary-foreground: #3d3c39;
+  --muted: #f0eee6;
+  --muted-foreground: #6d6b64;
+  --accent: #f0eee6;
+  --accent-foreground: #1f1e1d;
+
+  --destructive: #b4483a;
+  --destructive-foreground: #ffffff;
+  --success: #4d7c52;
+  --warning: #a8722c;
+
+  --border: #e5e2d9;
+  --border-strong: #d6d2c6;
+  --input: #ffffff;
+  --ring: rgba(201, 100, 66, 0.4);
+
+  --sidebar-bg: #f5f3ec;
+  --sidebar-border: #e5e2d9;
+
+  --shadow-xs: 0 1px 2px rgba(31, 30, 29, 0.05);
+  --shadow-sm: 0 1px 3px rgba(31, 30, 29, 0.07);
+  --shadow-md: 0 4px 12px rgba(31, 30, 29, 0.08);
+  --shadow-lg: 0 12px 32px rgba(31, 30, 29, 0.12);
 }
 
 .dark {
-  /* ─── Stitch Dark Theme: 딥 옵시디언 & 리프티드 차콜 ─── */
-  --background: #131314;
-  --foreground: #e6e0e9;
-  --card: rgba(30, 31, 32, 0.85);
-  --card-foreground: #e6e0e9;
-  --popover: #1e1f20;
-  --popover-foreground: #e6e0e9;
-  --primary: #d9baff;
-  --primary-foreground: #3b0092;
-  --secondary: #2d2c30;
-  --secondary-foreground: #e8def8;
-  --muted: #1e1f20;
-  --muted-foreground: #cac4d0;
-  --accent: #2d2c30;
-  --accent-foreground: #e8def8;
-  --destructive: #ffb4ab;
-  --destructive-foreground: #690005;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: #1e1f20;
-  --ring: #d9baff;
+  /* ─── Dark: 웜 차콜 ─── */
+  --background: #262624;
+  --foreground: #f2f0e9;
+  --surface: #30302e;
+  --elevated: #35342f;
+  --card: #30302e;
+  --card-foreground: #f2f0e9;
+  --popover: #35342f;
+  --popover-foreground: #f2f0e9;
 
-  /* 커스텀 그래디언트 & 글로우 컬러 (다크) */
-  --glow-primary: rgba(217, 186, 255, 0.15);
-  --glow-accent: rgba(217, 186, 255, 0.08);
-  --sidebar-bg: #1e1f20;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --hero-gradient-color: rgba(139, 92, 246, 0.08);
+  --primary: #d97757;
+  --primary-foreground: #1f1e1d;
+  --primary-soft: rgba(217, 119, 87, 0.14);
+
+  --secondary: #3a3936;
+  --secondary-foreground: #e8e5dc;
+  --muted: #333230;
+  --muted-foreground: #a5a29a;
+  --accent: #3a3936;
+  --accent-foreground: #f2f0e9;
+
+  --destructive: #e0685a;
+  --destructive-foreground: #1f1e1d;
+  --success: #7fae82;
+  --warning: #d3a05a;
+
+  --border: #3d3c38;
+  --border-strong: #4a4844;
+  --input: #30302e;
+  --ring: rgba(217, 119, 87, 0.45);
+
+  --sidebar-bg: #1f1e1d;
+  --sidebar-border: #333230;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
 }
 
 @layer base {
@@ -101,287 +134,222 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04";
+  }
+  /* 포커스 링 일관화 — 키보드 사용자에게만 노출 */
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
   }
 }
 
-/* ─────────────────────── 테마 전환 트랜지션 효과 ─────────────────────── */
-body, 
-.sidebar, 
-header, 
-.glass, 
-.glass-subtle, 
-.chat-bubble-ai, 
-.doc-item, 
-button, 
-.chat-input-wrapper {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease, box-shadow 0.3s ease;
+/* ─────────────────── 테마 전환 ─────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  body,
+  .sidebar,
+  .surface-panel,
+  .doc-item,
+  button {
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
 }
 
-/* ─────────────────────── 글로벌 스크롤바 ─────────────────────── */
+/* ─────────────────── 스크롤바 ─────────────────── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--border-strong);
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary);
+  background: var(--muted-foreground);
+  background-clip: content-box;
 }
-
 .scrollbar-thin::-webkit-scrollbar {
-  height: 4px;
-  width: 4px;
+  width: 6px;
+  height: 6px;
 }
 
-/* ─────────────────────── 애니메이션 ─────────────────────── */
-@keyframes fadeSlideIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+/* ─────────────────── 애니메이션 ─────────────────── */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+@keyframes fadeRise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-@keyframes float {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-8px) scale(1.02); }
-}
-@keyframes float-shadow {
-  0%, 100% { filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
-  50% { filter: drop-shadow(0 20px 25px rgba(0,0,0,0.15)); }
-}
 
-.animate-in { animation: fadeSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-.animate-slide-up { animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.animate-fade { animation: fadeIn 0.3s ease-out; }
+.animate-fade { animation: fadeIn 0.2s ease-out; }
+.animate-in { animation: fadeRise 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-slide-up { animation: fadeRise 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent 0%, var(--border) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, var(--muted) 50%, transparent 100%);
   background-size: 200% 100%;
-  animation: shimmer 2s infinite;
-}
-.animate-float { animation: float 4s ease-in-out infinite; }
-
-/* ─────────────────────── 고급 글래스모피즘 ─────────────────────── */
-.glass {
-  background: var(--card);
-  backdrop-filter: blur(20px) saturate(1.6);
-  -webkit-backdrop-filter: blur(20px) saturate(1.6);
-  border: 1px solid var(--border);
-  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.12);
-}
-.glass-subtle {
-  background: var(--background);
-  opacity: 0.85;
-  backdrop-filter: blur(12px) saturate(1.4);
-  -webkit-backdrop-filter: blur(12px) saturate(1.4);
-  border: 1px solid var(--border);
-  box-shadow: 0 8px 20px -8px rgba(0,0,0,0.08);
+  animation: shimmer 1.6s infinite;
 }
 
-/* ─────────────────────── 사이드바 리디자인 ─────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─────────────────── 표면 ─────────────────── */
+.surface-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
 .sidebar {
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* ─────────────────────── 헤더 블러 ─────────────────────── */
-.header-blur {
+.app-header {
   background: var(--background);
-  opacity: 0.9;
-  backdrop-filter: blur(20px) saturate(1.6);
-  -webkit-backdrop-filter: blur(20px) saturate(1.6);
-  border-bottom: 1px solid var(--sidebar-border);
+  border-bottom: 1px solid var(--border);
 }
 
 .header-safe-area {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* ─────────────────────── 헤더 그라데이션 라인 ─────────────────────── */
-.header-gradient-line {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, var(--primary), #0073d1, #49a9a9);
-  opacity: 0.8;
+/* ─────────────────── 버튼 ─────────────────── */
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: 1px solid transparent;
+  font-weight: 500;
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+.btn-primary:active:not(:disabled) {
+  filter: brightness(0.88);
+}
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-/* ─────────────────────── 채팅 버블 리디자인 ─────────────────────── */
-.chat-bubble-user {
-  background: linear-gradient(135deg, #eedcff, #d4e3ff);
-  color: #21005d;
-  box-shadow: 0 4px 16px var(--glow-primary);
-  border: 1px solid rgba(115, 73, 170, 0.1);
-  border-radius: 20px;
-}
-.dark .chat-bubble-user {
-  background: linear-gradient(135deg, #8b5cf6, #3b82f6);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-.chat-bubble-ai {
-  background: var(--card);
+.btn-secondary {
+  background: var(--surface);
+  color: var(--foreground);
   border: 1px solid var(--border);
-  box-shadow: 0 4px 20px -8px rgba(0,0,0,0.15);
+  font-weight: 500;
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--border-strong);
+}
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-/* ─── AI 버블의 라이트/다크 전용 광채 테두리 (Edge Light) ─── */
-.dark .chat-bubble-ai {
-  background: #1e1f20;
-  box-shadow: 0 4px 30px -10px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.05);
-  border-color: rgba(255, 255, 255, 0.08);
+.btn-ghost {
+  background: transparent;
+  color: var(--muted-foreground);
+  border: 1px solid transparent;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--foreground);
 }
 
-.chat-bubble-ai {
-  box-shadow: 0 8px 30px rgba(115, 73, 170, 0.08), inset 0 1px 1px rgba(255,255,255,0.5);
+/* ─────────────────── 채팅 ─────────────────── */
+/* 사용자 메시지: 부드러운 말풍선. AI 응답: 말풍선 없이 본문 폭 그대로 (Claude 패턴) */
+.chat-bubble-user {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
 }
 
-/* ─────────────────────── 인풋 영역 ─────────────────────── */
+/* ─────────────────── 입력 ─────────────────── */
 .chat-input-wrapper {
   background: var(--background);
-  opacity: 0.9;
-  backdrop-filter: blur(20px) saturate(1.5);
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  border-top: 1px solid var(--sidebar-border);
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
 }
 .chat-input {
-  background: var(--card);
-  border: 1px solid var(--border);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.chat-input:focus,
 .chat-input:focus-within {
   border-color: var(--primary);
-  /* 다크/라이트 광원 효과 분기 적용을 위해 유틸리티 클래스 glow-effect 사용 권장 */
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
-/* ─────────────────────── 버튼 디자인 ─────────────────────── */
-.btn-primary {
-  background: linear-gradient(135deg, #7349aa, #2563eb);
-  color: #ffffff;
-  box-shadow: 0 4px 14px var(--glow-primary);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.dark .btn-primary {
-  background: linear-gradient(135deg, #a78bfa, #0073d1);
-  color: #ffffff;
-}
-.btn-primary:hover:not(:disabled) {
-  opacity: 0.92;
-  box-shadow: 0 6px 20px var(--glow-primary);
-  transform: translateY(-1.5px);
-}
-.btn-primary:active:not(:disabled) {
-  transform: translateY(0);
-}
-.btn-secondary {
-  background: var(--card);
-  border: 1px solid var(--border);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-}
-.btn-secondary:hover:not(:disabled) {
-  background: var(--secondary);
-  border-color: var(--primary);
-  transform: translateY(-1px);
-}
-
-/* ─────────────────────── 문서 카드 아이템 ─────────────────────── */
+/* ─────────────────── 리스트 아이템 ─────────────────── */
 .doc-item {
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 .doc-item:hover {
-  background: rgba(115, 73, 170, 0.08);
-  transform: translateX(2px);
-}
-.dark .doc-item:hover {
-    background: rgba(217, 186, 255, 0.08);
+  background: var(--accent);
 }
 
-/* ─────────────────────── 오로라 백그라운드 광원 ─────────────────────── */
-.hero-gradient {
-  background: radial-gradient(
-    circle at 50% 35%,
-    var(--hero-gradient-color) 0%,
-    transparent 65%
-  );
-  filter: blur(60px);
+.nav-item {
+  border-radius: var(--radius-md);
+  color: var(--muted-foreground);
+}
+.nav-item:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+.nav-item[data-active="true"] {
+  background: var(--accent);
+  color: var(--foreground);
+  font-weight: 500;
 }
 
-/* ─────────────────────── 광원 효과 유틸리티 (Glow & Glow Border) ─────────────────────── */
-.glow-effect {
-  box-shadow: 0 8px 30px rgba(115, 73, 170, 0.12),
-              0 0 60px rgba(115, 73, 170, 0.06);
-}
-.dark .glow-effect {
-  box-shadow: 0 0 40px rgba(217, 186, 255, 0.18);
+/* ─────────────────── 오버레이 ─────────────────── */
+.overlay-scrim {
+  background: rgba(31, 30, 29, 0.45);
 }
 
-.gradient-border-glow {
-  position: relative;
-}
-.gradient-border-glow::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(90deg, var(--primary), #0073d1, #49a9a9);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-.gradient-border-glow:focus-within::before,
-.gradient-border-glow:focus::before {
-  opacity: 1;
-}
-
-/* ─────────────────────── 모바일 오버레이 ─────────────────────── */
-.sidebar-overlay {
-  background: rgba(0,0,0,0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-/* ─────────────────────── 반응형 유틸리티 ─────────────────────── */
+/* ─────────────────── 유틸 ─────────────────── */
 .h-screen-mobile {
   height: 100vh;
   height: 100dvh;
+}
+
+.text-balance {
+  text-wrap: balance;
 }
 
 @media (max-width: 640px) {
   .prose table {
     display: block;
     overflow-x: auto;
-    white-space: nowrap;
     -webkit-overflow-scrolling: touch;
   }
   .prose pre {
     overflow-x: auto;
-    max-width: calc(100vw - 7rem);
+    max-width: calc(100vw - 4rem);
   }
   .prose code {
-    word-break: break-all;
+    word-break: break-word;
   }
   .prose img {
     max-width: 100%;
