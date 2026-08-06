@@ -1,251 +1,97 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import {
-  ChevronDown,
-  ChevronRight,
-  FileImage,
-  Bot,
-  User,
-  Brain,
-  X,
-} from "lucide-react";
-import type { Message, ReferenceImage } from "@/store/useChatStore";
+import type { Message } from "@/store/useChatStore";
+import ReasoningBlock from "./ReasoningBlock";
+import ReferenceImages from "./ReferenceImages";
+import StreamingIndicator from "./StreamingIndicator";
+import CopyButton from "./CopyButton";
 
 interface ChatMessageProps {
   message: Message;
 }
 
-/** 추론 과정 블록 */
-function ReasoningBlock({ steps }: { steps: string[] }) {
-  const [isOpen, setIsOpen] = useState(false);
-  if (!steps || steps.length === 0) return null;
+/** 답변 본문 마크다운 타이포그래피 — 클래스가 길어 상수로 분리 */
+const PROSE_CLASS = `prose dark:prose-invert prose-sm max-w-none break-words [overflow-wrap:anywhere]
+  prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground
+  prose-h2:text-[16px] prose-h2:mt-6 prose-h2:mb-2
+  prose-h3:text-[15px] prose-h3:mt-4 prose-h3:mb-1.5
+  prose-p:text-[14.5px] prose-p:text-foreground prose-p:leading-[1.75]
+  prose-li:text-[14.5px] prose-li:text-foreground prose-li:leading-[1.75] prose-li:my-0.5
+  prose-strong:text-foreground prose-strong:font-semibold
+  prose-blockquote:border-l-2 prose-blockquote:border-border-strong prose-blockquote:not-italic
+  prose-blockquote:text-muted-foreground prose-blockquote:font-normal
+  prose-code:bg-[var(--muted)] prose-code:text-foreground prose-code:px-1.5 prose-code:py-0.5
+  prose-code:rounded prose-code:text-[13px] prose-code:font-mono-util prose-code:before:content-none prose-code:after:content-none
+  prose-pre:bg-[var(--muted)] prose-pre:text-foreground prose-pre:border prose-pre:border-border
+  prose-table:text-[13.5px] prose-table:my-4
+  prose-th:text-foreground prose-th:bg-[var(--muted)] prose-th:px-3 prose-th:py-2 prose-th:font-medium
+  prose-td:px-3 prose-td:py-2
+  prose-a:text-primary prose-a:underline prose-a:underline-offset-2
+  prose-hr:border-border`;
 
-  return (
-    <div className="mb-3">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="group flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-primary/80 transition-colors"
-      >
-        <div className="flex items-center gap-1 bg-primary/8 hover:bg-primary/12 px-2.5 py-1 rounded-full transition-colors">
-          {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-          <Brain className="w-3 h-3 text-primary/70" />
-          <span>추론 과정 ({steps.length}단계)</span>
-        </div>
-      </button>
-
-      {isOpen && (
-        <div className="mt-2.5 ml-1 pl-3 border-l-2 border-primary/15 space-y-2 animate-in">
-          {steps.map((step, i) => (
-            <div key={i} className="flex gap-2 items-start">
-              <span className="text-[10px] font-mono text-primary/50 bg-primary/5 w-4 h-4 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                {i + 1}
-              </span>
-              <p className="text-xs text-muted-foreground/80 leading-relaxed">{step}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface ReferenceImagesProps {
-  references: ReferenceImage[];
-  activePage: number | null;
-  setActivePage: (page: number | null) => void;
-}
-
-/** 참조 이미지 */
-function ReferenceImages({ references, activePage, setActivePage }: ReferenceImagesProps) {
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
-
-  // activePage 변경 시 해당 페이지 자동 확장
-  useEffect(() => {
-    if (activePage !== null) {
-      const idx = references.findIndex((ref) => ref.pageNumber === activePage);
-      if (idx !== -1) {
-        setExpandedIdx(idx);
-      }
-    }
-  }, [activePage, references]);
-
-  if (!references || references.length === 0) return null;
-
-  return (
-    <div className="mb-4">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2.5">
-        <FileImage className="w-3.5 h-3.5 text-primary/60" />
-        <span>참조 페이지 ({references.length}장)</span>
-      </div>
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
-        {references.map((ref, i) => (
-          <button
-            key={i}
-            onClick={() => {
-              if (expandedIdx === i) {
-                setExpandedIdx(null);
-                setActivePage(null);
-              } else {
-                setExpandedIdx(i);
-                setActivePage(ref.pageNumber);
-              }
-            }}
-            className="flex-shrink-0 group relative rounded-lg overflow-hidden"
-          >
-            <img
-              src={ref.imageBase64}
-              alt={`페이지 ${ref.pageNumber}`}
-              className={`transition-all duration-300 ${
-                expandedIdx === i
-                  ? "w-64 sm:w-80 lg:w-96 max-w-full h-auto rounded-lg shadow-xl"
-                  : "w-16 h-22 sm:w-20 sm:h-28 object-cover rounded-lg border border-border/50 hover:border-primary/40 hover:shadow-lg hover:scale-105"
-              }`}
-            />
-            <span className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded-md font-mono backdrop-blur-sm">
-              p.{ref.pageNumber}
-            </span>
-            {expandedIdx === i && (
-              <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                <X className="w-3 h-3 text-white" />
-              </div>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/** 스트리밍 대기 표시 (경과 시간 포함) */
-function StreamingIndicator() {
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setElapsed((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <div className="flex items-center gap-3 py-1">
-      <div className="flex gap-1">
-        <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:0ms]" />
-        <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:150ms]" />
-        <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:300ms]" />
-      </div>
-      <span className="text-xs text-muted-foreground/60">
-        분석 중...
-        <span className="ml-1 font-mono text-primary/50">({elapsed}s)</span>
-      </span>
-    </div>
-  );
-}
-
-/** 개별 채팅 메시지 */
 export default function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
-  const [activePage, setActivePage] = useState<number | null>(null);
-
-  // assistant 메시지가 완전히 비어있는 경우 렌더링하지 않음 (되묻기 시 빈 말풍선 노출 방지)
-  const hasContent = (message.content && message.content.trim().length > 0) ||
-                     (message.reasoningSteps && message.reasoningSteps.length > 0) ||
-                     (message.references && message.references.length > 0) ||
-                     message.isStreaming;
-
-  if (!isUser && !hasContent) {
-    return null;
-  }
 
   if (isUser) {
     return (
-      <div className="flex justify-end animate-slide-up">
-        <div className="flex items-end gap-2.5 max-w-[88%] sm:max-w-[80%]">
-          {/* 유저 말풍선 및 이미지 */}
-          <div className="flex flex-col items-end gap-2">
-            {message.image && (
-              <div className="relative rounded-xl overflow-hidden border border-primary/15 bg-card/40 backdrop-blur-md shadow-md max-w-xs transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
-                <img
-                  src={message.image}
-                  alt="업로드된 장비 이미지"
-                  className="w-44 sm:w-52 h-auto object-contain max-h-36 rounded-xl"
-                />
-              </div>
-            )}
-            <div className="chat-bubble-user px-4 py-3 shadow-md hover:shadow-lg transition-shadow duration-350">
-              <p className="whitespace-pre-wrap leading-relaxed text-[13.5px] font-medium">
+      <div className="flex justify-end animate-in">
+        <div className="flex flex-col items-end gap-2 max-w-[85%]">
+          {message.image && (
+            // eslint-disable-next-line @next/next/no-img-element -- base64 data URL 이라 next/image 최적화 대상이 아님
+            <img
+              src={message.image}
+              alt="사용자가 첨부한 장비 이미지"
+              className="w-44 sm:w-52 h-auto max-h-40 object-contain rounded-xl border border-border"
+            />
+          )}
+          {message.content && (
+            <div className="chat-bubble-user px-4 py-2.5">
+              <p className="whitespace-pre-wrap leading-relaxed text-[14.5px]">
                 {message.content}
               </p>
             </div>
-          </div>
-          {/* 유저 아바타 */}
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/20 to-indigo-500/20 flex items-center justify-center flex-shrink-0 border border-primary/20 shadow-sm">
-            <User className="w-4 h-4 text-primary" />
-          </div>
+          )}
         </div>
       </div>
     );
   }
 
+  // 비어 있는 assistant 메시지는 렌더하지 않는다 (되묻기 시 빈 영역 노출 방지)
+  const hasContent =
+    !!message.content?.trim() ||
+    !!message.reasoningSteps?.length ||
+    !!message.references?.length ||
+    message.isStreaming;
+  if (!hasContent) return null;
+
   return (
-    <div className="flex justify-start animate-slide-up">
-      <div className="flex items-start gap-2.5 max-w-[92%] sm:max-w-[85%] lg:max-w-[80%]">
-        {/* AI 아바타 - 라이트/다크 다이나믹 컬러 */}
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/10 to-indigo-600/10 dark:from-violet-500/20 dark:to-indigo-500/20 flex items-center justify-center flex-shrink-0 mt-0.5 border border-violet-500/20 dark:border-violet-500/30 shadow-sm">
-          <Bot className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-        </div>
-        
-        {/* AI 말풍선 (글래스모피즘) */}
-        <div className="chat-bubble-ai rounded-2xl rounded-tl-sm px-4 sm:px-5 py-3.5 sm:py-4 min-w-0">
-          {/* 추론 과정 */}
-          <ReasoningBlock steps={message.reasoningSteps || []} />
+    <div className="animate-in group/message">
+      <ReasoningBlock steps={message.reasoningSteps || []} />
 
+      <ReferenceImages references={message.references || []} />
 
-
-          {/* 참조 이미지 */}
-          <ReferenceImages
-            references={message.references || []}
-            activePage={activePage}
-            setActivePage={setActivePage}
-          />
-
-          {/* 답변 본문 (라이트/다크 가독성 분기) */}
-          {message.content ? (
-            <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed break-words
-              [overflow-wrap:anywhere]
-              prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight
-              prose-h2:text-[15px] md:prose-h2:text-[16px] prose-h2:mt-5 prose-h2:mb-2 prose-h2:pb-1.5 prose-h2:border-b prose-h2:border-border/30
-              prose-h3:text-[14px] md:prose-h3:text-[15px] prose-h3:mt-4 prose-h3:mb-1.5 prose-h3:text-foreground/90
-              prose-p:text-[13.5px] md:prose-p:text-[14px] prose-p:text-foreground/90 prose-p:leading-[1.7]
-              prose-li:text-[13.5px] md:prose-li:text-[14px] prose-li:text-foreground/90 prose-li:leading-[1.7]
-              prose-strong:text-foreground prose-strong:font-bold
-              prose-blockquote:border-l-4 prose-blockquote:border-primary/40 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:py-2.5 prose-blockquote:pl-4 prose-blockquote:pr-3
-              prose-blockquote:text-muted-foreground prose-blockquote:text-[13px] prose-blockquote:not-italic
-              prose-code:text-violet-600 dark:prose-code:text-violet-300 prose-code:bg-violet-500/5 dark:prose-code:bg-violet-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[12.5px] md:prose-code:text-[13px] prose-code:font-mono
-              prose-table:text-[13px] prose-table:my-4
-              prose-th:text-foreground/90 prose-th:border-border/40 prose-th:bg-secondary/60 prose-th:px-3 prose-th:py-2 prose-th:font-semibold
-              prose-td:border-border/20 prose-td:px-3 prose-td:py-2
-              prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-              prose-hr:border-border/20"
-            >
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {message.content}
-              </ReactMarkdown>
+      {message.content ? (
+        <>
+          <div className={PROSE_CLASS}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+          </div>
+          {message.isStreaming ? (
+            <span
+              aria-hidden="true"
+              className="inline-block w-[2px] h-4 bg-foreground/60 ml-0.5 align-middle animate-pulse"
+            />
+          ) : (
+            <div className="mt-2 -ml-1.5 flex items-center opacity-0 group-hover/message:opacity-100 focus-within:opacity-100 transition-opacity">
+              <CopyButton text={message.content} />
             </div>
-          ) : message.isStreaming ? (
-            <StreamingIndicator />
-          ) : null}
-
-          {/* 스트리밍 커서 */}
-          {message.isStreaming && message.content && (
-            <span className="inline-block w-0.5 h-4 bg-primary/70 ml-0.5 animate-pulse rounded-full" />
           )}
-        </div>
-      </div>
+        </>
+      ) : (
+        message.isStreaming && <StreamingIndicator />
+      )}
     </div>
   );
 }
-

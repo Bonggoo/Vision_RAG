@@ -23,32 +23,28 @@ export default function ExportButton() {
     // 💡 내보내기 전 다운로드 여부 확인 (사용자 취소 지원)
     const ok = await confirmDialog({
       title: "대화 내보내기",
-      description: `'${session.title}' 대화 기록을 마크다운(.md) 파일로 저장할까요?`,
+      description: `'${session.title}' 대화를 마크다운(.md) 파일로 저장할까요?`,
       confirmText: "내보내기",
-      icon: "📑",
     });
     if (!ok) return;
 
     // 1. 마크다운 생성
     const today = new Date().toISOString().split("T")[0];
-    let markdown = `# 📑 TechNote 대화 기록\n`;
-    markdown += `> 💬 **대화 제목**: ${session.title}\n`;
-    markdown += `> 📅 **내보낸 날짜**: ${today}\n\n`;
+    let markdown = `# ${session.title}\n\n`;
+    markdown += `> TechNote 대화 기록 · ${today}\n\n`;
     markdown += `---\n\n`;
 
     session.messages.forEach((msg) => {
       if (msg.role === "user") {
-        markdown += `## 👤 사용자\n`;
-        markdown += `${msg.content}\n\n`;
+        markdown += `## 질문\n\n${msg.content}\n\n`;
       } else {
-        markdown += `## 🤖 TechNote\n`;
-        
-        // 생각 과정(reasoningSteps)이 존재한다면 요약 블록으로 추가
+        markdown += `## 답변\n\n`;
+
+        // 추론 과정은 접이식 블록으로 (본문 가독성 우선)
         if (msg.reasoningSteps && msg.reasoningSteps.length > 0) {
-          markdown += `<details>\n`;
-          markdown += `<summary>🧠 AI 추론 과정 (Reasoning Steps)</summary>\n\n`;
-          msg.reasoningSteps.forEach((step) => {
-            markdown += `> ${step}\n`;
+          markdown += `<details>\n<summary>추론 과정 ${msg.reasoningSteps.length}단계</summary>\n\n`;
+          msg.reasoningSteps.forEach((step, i) => {
+            markdown += `${i + 1}. ${step}\n`;
           });
           markdown += `\n</details>\n\n`;
         }
@@ -58,7 +54,7 @@ export default function ExportButton() {
       markdown += `---\n\n`;
     });
 
-    markdown += `_TechNote AI에서 생성된 대화 기록입니다._\n`;
+    markdown += `_TechNote AI로 생성된 대화 기록입니다._\n`;
 
     // 2. Blob을 이용한 다운로드 실행
     try {
@@ -87,10 +83,11 @@ export default function ExportButton() {
     <button
       onClick={handleExport}
       title="대화 내보내기"
-      className="btn-secondary flex items-center gap-1.5 py-1.5 px-3.5 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground transition-all shadow-sm border border-border/40 bg-accent/25 hover:bg-accent/45"
+      aria-label="대화 내보내기"
+      className="btn-ghost flex items-center gap-1.5 py-1.5 px-2.5 rounded-md text-[12.5px]"
     >
       <Share className="w-3.5 h-3.5 shrink-0" />
-      <span>대화 내보내기</span>
+      <span className="hidden sm:inline">내보내기</span>
     </button>
   );
 }
