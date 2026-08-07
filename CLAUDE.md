@@ -52,7 +52,7 @@ python -m evals.run_eval --judge     # include LLM-as-judge scoring
 
 **Local dev mode (`USE_LOCAL_STORAGE=True`):** all storage — documents (`metadata_service`, `pdf_service`, `upload`) **and** conversation history (`conversation_service`) — falls back to the local filesystem, so the full pipeline (upload → ToC → chat → conversation save) runs offline with only the Gemini API as an external dependency. Docs write under `PDF_UPLOAD_DIR`; conversations under a sibling `conversations/{email}/{session_id}.json`. GCS is never touched in this mode. Every GCS call site is gated behind this flag.
 
-**Deployment:** `cloudbuild.yaml` + `Dockerfile` in `backend/`. Frontend deploys to Vercel.
+**Deployment — unified origin (frontend and backend ship together):** `cloudbuild.yaml` + `Dockerfile` in `backend/`. The Cloud Build trigger fires on pushes to `master` that touch `backend/**` **or** `frontend/**`. Step 0 builds the Next.js static export with `NEXT_PUBLIC_API_URL=` (empty, so API calls become same-origin relative paths) and copies `frontend/out` to `backend/static/`; the remaining steps build the image, push it, and deploy a new Cloud Run revision (`vision-rag-backend`, `asia-northeast3`). So `/` serves the frontend and `/api/*` the backend from one domain — this is what keeps the iOS login session alive. There is no separate frontend host; Vercel is no longer used. Health check is `/api/health` (never `/healthz` — Cloud Run reserves it). Builds take ~6-7 min.
 
 ## Frontend (`frontend/src/`)
 
