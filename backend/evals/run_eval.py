@@ -147,7 +147,7 @@ class LocalTransport:
     name = "local"
 
     async def stream(self, question, document_id, chat_history, user_email):
-        from app.services.agentic_graph import run_agentic_pipeline
+        from app.services.agentic import run_agentic_pipeline
         async for chunk in run_agentic_pipeline(
             document_id=document_id,
             question=question,

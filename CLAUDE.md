@@ -35,7 +35,13 @@ python -m evals.run_eval --judge     # include LLM-as-judge scoring
 2. **Phase 2** (text search): Pinpoint the exact section using keyword matching against extracted text.
 3. **Phase 3** (Vision): Send the raw PDF page image to Gemini Vision for final answer synthesis.
 
-- `backend/app/services/agentic_graph.py` — orchestrates the phases as a graph.
+- `backend/app/services/agentic/` — the pipeline, split by role. Import `run_agentic_pipeline` from the package; everything else is internal.
+  - `pipeline.py` — stage orchestration (image analysis → quick classify → document resolution → answer).
+  - `context.py` — `PipelineContext`: shared state, SSE event builders, conversation save.
+  - `llm_steps.py` — per-phase LLM calls (document select, page select, text refine, fallbacks).
+  - `doc_filter.py` — keyword-based first-pass document filter and related pure functions.
+  - `toc.py` / `classification.py` / `sse.py` — page-number normalization, rule-based routing, SSE serialization.
+- `backend/app/prompts.py` — every LLM prompt template. Do not inline prompts in service code.
 - `backend/app/services/pdf_service.py` — GCS Signed URL generation and sparse-PDF patching.
 - `backend/app/routers/` — `auth`, `chat`, `conversations`, `documents`, `upload`, `internal`.
 - `backend/evals/` — golden-dataset quality eval harness (routing/document/page/keyword checks + optional LLM-as-judge). See `backend/evals/README.md`.

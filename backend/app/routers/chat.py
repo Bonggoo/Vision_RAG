@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse
 from app.config import settings
 from app.schemas.request import ChatRequest
-from app.services.agentic_graph import run_agentic_pipeline
+from app.services.agentic import run_agentic_pipeline
 from app.services import metadata_service
 from app.services.auth_service import get_current_user
 from app.utils.logger import logger
