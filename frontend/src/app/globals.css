@@ -47,39 +47,41 @@
 }
 
 :root {
-  /* ─── Light: 페이퍼 크림 ─── */
-  --background: #faf9f5;
-  --foreground: #1f1e1d;
-  --surface: #ffffff;
+  /* ─── Light: claude.ai 라이트 스케일 ───
+     bg-100=배경 · bg-000=표면 · bg-200=사이드바 · bg-300=호버 (다크와 동일 매핑)
+     보더는 잉크(#1f1e1d)를 낮은 알파로 얹어 헤어라인을 만든다 */
+  --background: #faf9f5; /* bg-100 */
+  --foreground: #141413; /* text-100 */
+  --surface: #ffffff; /* bg-000 */
   --elevated: #ffffff;
   --card: #ffffff;
-  --card-foreground: #1f1e1d;
+  --card-foreground: #141413;
   --popover: #ffffff;
-  --popover-foreground: #1f1e1d;
+  --popover-foreground: #141413;
 
-  --primary: #c96442;
-  --primary-foreground: #ffffff;
-  --primary-soft: rgba(201, 100, 66, 0.09);
+  --primary: #c6613f; /* brand-100 */
+  --primary-foreground: #ffffff; /* oncolor-100 */
+  --primary-soft: rgba(198, 97, 63, 0.09);
 
-  --secondary: #f0eee6;
-  --secondary-foreground: #3d3c39;
-  --muted: #f0eee6;
-  --muted-foreground: #6d6b64;
-  --accent: #f0eee6;
-  --accent-foreground: #1f1e1d;
+  --secondary: #f0eee6; /* bg-300 */
+  --secondary-foreground: #3d3d3a; /* text-200 */
+  --muted: #f5f4ed; /* bg-200 */
+  --muted-foreground: #73726c; /* text-400 */
+  --accent: #f0eee6; /* bg-300 */
+  --accent-foreground: #141413;
 
-  --destructive: #b4483a;
+  --destructive: #b53333; /* danger-100 */
   --destructive-foreground: #ffffff;
   --success: #4d7c52;
   --warning: #a8722c;
 
-  --border: #e5e2d9;
-  --border-strong: #d6d2c6;
+  --border: rgba(31, 30, 29, 0.12);
+  --border-strong: rgba(31, 30, 29, 0.2);
   --input: #ffffff;
-  --ring: rgba(201, 100, 66, 0.4);
+  --ring: rgba(198, 97, 63, 0.4);
 
-  --sidebar-bg: #f5f3ec;
-  --sidebar-border: #e5e2d9;
+  --sidebar-bg: #f5f4ed; /* bg-200 */
+  --sidebar-border: rgba(31, 30, 29, 0.1);
 
   --shadow-xs: 0 1px 2px rgba(31, 30, 29, 0.05);
   --shadow-sm: 0 1px 3px rgba(31, 30, 29, 0.07);
