@@ -173,6 +173,17 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   },
 
   loadConversation: async (id) => {
+    // 아직 답변을 받는 중인 대화라면 서버 사본으로 덮어쓰지 않는다.
+    // 백엔드는 파이프라인이 끝날 때 저장하므로, 여기서 불러오면 진행 중이던
+    // 답변이 사라지고 뒤이어 도착하는 조각들이 붙을 메시지를 잃는다.
+    const streaming = get()
+      .sessions.find((s) => s.id === id)
+      ?.messages.some((m) => m.isStreaming);
+    if (streaming) {
+      set({ activeSessionId: id });
+      return;
+    }
+
     set({ isLoading: true });
     try {
       const email = useAuthStore.getState().user?.email;
