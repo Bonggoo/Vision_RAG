@@ -13,7 +13,6 @@ import type { SSEEvent } from "@/types/sse";
  */
 export function useChatStream() {
   const {
-    sessions,
     activeSessionId,
     createSession,
     addMessage,
@@ -26,7 +25,9 @@ export function useChatStream() {
     clearClarification,
   } = useChatStore();
 
-  const abortControllerRef = useRef<AbortController | null>(null);
+  // 대화별 AbortController. 전역 단일 ref 이던 시절에는 다른 대화에서 질문을 보내면
+  // 먼저 진행 중이던 대화의 스트림까지 끊겼다.
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
 
   const submit = async (text: string, image?: string, selectedDocId?: string) => {
     let targetSessionId = activeSessionId;
@@ -40,7 +41,9 @@ export function useChatStream() {
       targetSessionId = await createSession(defaultTitle);
     } else {
       // 기존 세션이 있고 첫 메시지인 경우 제목 변경
-      const currentSession = sessions.find((s) => s.id === targetSessionId);
+      const currentSession = useChatStore
+        .getState()
+        .sessions.find((s) => s.id === targetSessionId);
       if (currentSession && currentSession.messages.length === 0) {
         await renameSession(targetSessionId, defaultTitle);
       }
@@ -60,15 +63,16 @@ export function useChatStream() {
       references: [],
     });
 
-    // 기존 요청 중단
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    // 같은 대화의 이전 요청만 중단 (다른 대화의 스트림은 건드리지 않는다)
+    abortControllersRef.current.get(targetSessionId)?.abort();
     const controller = new AbortController();
-    abortControllerRef.current = controller;
+    abortControllersRef.current.set(targetSessionId, controller);
 
     try {
-      const currentSession = sessions.find((s) => s.id === targetSessionId);
+      // 다른 대화에서 동시에 진행 중일 수 있으므로 렌더 시점 스냅샷 대신 최신 상태를 읽는다
+      const currentSession = useChatStore
+        .getState()
+        .sessions.find((s) => s.id === targetSessionId);
 
       // 대화 히스토리 추출
       const prevMessages = currentSession
@@ -178,19 +182,19 @@ export function useChatStream() {
       }
       finishStreaming(targetSessionId);
     } finally {
-      abortControllerRef.current = null;
+      // 그 사이 같은 대화에서 새 요청이 시작됐다면 그쪽 컨트롤러를 지우지 않는다
+      if (abortControllersRef.current.get(targetSessionId) === controller) {
+        abortControllersRef.current.delete(targetSessionId);
+      }
     }
   };
 
-  /** 스트리밍 중단 핸들러 */
+  /** 스트리밍 중단 핸들러 — 지금 보고 있는 대화만 중단한다 */
   const stop = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    if (activeSessionId) {
-      finishStreaming(activeSessionId);
-    }
+    if (!activeSessionId) return;
+    abortControllersRef.current.get(activeSessionId)?.abort();
+    abortControllersRef.current.delete(activeSessionId);
+    finishStreaming(activeSessionId);
   };
 
   return { submit, stop };
