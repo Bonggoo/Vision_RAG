@@ -4,6 +4,7 @@
 `_invoke_json` 으로 묶고, 각 단계는 프롬프트 조립과 결과 검증만 담당한다.
 """
 import json
+import re
 
 import fitz  # PyMuPDF
 from langchain_core.messages import HumanMessage
@@ -34,6 +35,12 @@ MAX_SUGGESTED_QUESTIONS = 5       # LLM 보강 질문 상한
 PHASE2_MAX_SCAN_PAGES = 200       # Phase 2에서 텍스트를 긁을 최대 페이지 수
 FALLBACK_TEXT_CHARS = 8000        # 텍스트 폴백 프롬프트에 실을 본문 최대 길이
 DEFAULT_CONFIDENCE = 0.5
+
+# 보강 질문이 원 질문 주제를 이어받았는지 볼 때 무시할 범용어
+GENERIC_QUESTION_WORDS = {
+    "설명", "방법", "해결", "해결법", "알려줘", "알려", "어떻게", "무엇", "뭐야",
+    "확인", "관련", "대해", "대한", "관해", "내용", "정보", "질문", "매뉴얼", "문서",
+}
 
 
 def format_chat_context(chat_history: list[dict] | None) -> str:
@@ -108,6 +115,32 @@ def _validate_candidates(raw_candidates, documents: list[dict]) -> list[dict]:
     return validated
 
 
+def _question_keywords(question: str) -> set[str]:
+    """질문에서 '주제'를 대표하는 핵심어를 뽑습니다.
+
+    조사/서술어와 "설명", "방법" 류의 범용어는 어느 질문에나 붙을 수 있어 제외합니다.
+    """
+    tokens = re.findall(r"[0-9]+|[가-힣]+|[A-Za-z]+", question)
+    return {t.upper() for t in tokens if len(t) >= 2 and t not in GENERIC_QUESTION_WORDS}
+
+
+def _reflects_question(suggested: list[str], question: str) -> bool:
+    """보강 질문들이 실제로 사용자의 질문 주제를 이어받았는지 확인합니다.
+
+    Flash-Lite 가 프롬프트의 JSON 예시 문장을 그대로 베껴,
+    사용자가 묻지도 않은 주제(예: "통신 에러 타임아웃")를 추천해 버리는 사고가 있었습니다.
+    핵심어가 하나도 살아남지 않은 항목이 있으면 전체를 폐기하고,
+    호출부가 후보 문서 기준 기본 보강 질문으로 대체하게 합니다.
+    """
+    keywords = _question_keywords(question)
+    if not keywords:
+        return True  # 대조할 핵심어가 없으면 판단 불가 → 통과
+    return all(
+        any(kw in s.upper() for kw in keywords)
+        for s in suggested
+    )
+
+
 async def select_document(
     question: str,
     documents: list[dict],
@@ -168,11 +201,17 @@ async def select_document(
             result["candidates"] = _validate_candidates(result.get("candidates", []), documents)
             result["needs_clarification"] = bool(result.get("needs_clarification", False))
             raw_questions = result.get("suggested_questions", [])
-            result["suggested_questions"] = (
+            suggested = (
                 [str(q) for q in raw_questions[:MAX_SUGGESTED_QUESTIONS]]
                 if isinstance(raw_questions, list)
                 else []
             )
+            if suggested and not _reflects_question(suggested, question):
+                logger.warning(
+                    f"⚠️ [Phase 1] 질문과 무관한 보강 질문 폐기: {suggested}"
+                )
+                suggested = []
+            result["suggested_questions"] = suggested
         else:
             result["candidates"] = []
             result["needs_clarification"] = False
