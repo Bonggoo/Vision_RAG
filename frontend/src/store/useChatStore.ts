@@ -23,11 +23,14 @@ interface ChatStore {
   sessions: ChatSession[];
   activeSessionId: string | null;
   isLoading: boolean;
-  clarificationState: ClarificationState | null;
+  /** 되묻기 카드는 세션마다 따로 보관한다.
+   *  전역 단일 슬롯이던 시절, 다른 대화에서 질문하면 이전 대화로 돌아왔을 때
+   *  마지막 질문의 선택지가 그대로 보이는 버그가 있었다. */
+  clarifications: Record<string, ClarificationState>;
 
   // 되묻기 액션
-  setClarification: (state: ClarificationState | null) => void;
-  clearClarification: () => void;
+  setClarification: (sessionId: string, state: ClarificationState) => void;
+  clearClarification: (sessionId: string) => void;
 
   // GCS 비동기 API 연동
   loadSessions: () => Promise<void>;
@@ -68,11 +71,18 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   sessions: [],
   activeSessionId: null,
   isLoading: false,
-  clarificationState: null,
+  clarifications: {},
 
-  setClarification: (clarificationState) => set({ clarificationState }),
-  
-  clearClarification: () => set({ clarificationState: null }),
+  setClarification: (sessionId, state) =>
+    set((s) => ({ clarifications: { ...s.clarifications, [sessionId]: state } })),
+
+  clearClarification: (sessionId) =>
+    set((s) => {
+      if (!(sessionId in s.clarifications)) return s;
+      const rest = { ...s.clarifications };
+      delete rest[sessionId];
+      return { clarifications: rest };
+    }),
 
   loadSessions: async () => {
     set({ isLoading: true });
@@ -151,10 +161,15 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       // 백엔드 삭제 실패해도 로컬에서는 제거 (폴백)
       console.warn('⚠️ 백엔드 대화 삭제 실패. 로컬에서만 제거:', e);
     }
-    set((state) => ({
-      sessions: state.sessions.filter((s) => s.id !== id),
-      activeSessionId: state.activeSessionId === id ? null : state.activeSessionId,
-    }));
+    set((state) => {
+      const clarifications = { ...state.clarifications };
+      delete clarifications[id];
+      return {
+        sessions: state.sessions.filter((s) => s.id !== id),
+        activeSessionId: state.activeSessionId === id ? null : state.activeSessionId,
+        clarifications,
+      };
+    });
   },
 
   loadConversation: async (id) => {
@@ -286,5 +301,5 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
   resetActiveSession: () => set({ activeSessionId: null }),
 
-  clearAllSessions: () => set({ sessions: [], activeSessionId: null }),
+  clearAllSessions: () => set({ sessions: [], activeSessionId: null, clarifications: {} }),
 }));

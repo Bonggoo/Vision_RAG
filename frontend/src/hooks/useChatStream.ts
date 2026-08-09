@@ -48,8 +48,8 @@ export function useChatStream() {
 
     if (!targetSessionId) return;
 
-    // 되묻기 시 재질문인 경우, 기존 빈 대화 흐름이 꼬이지 않도록 clarificationState 초기화
-    clearClarification();
+    // 되묻기 시 재질문인 경우, 기존 빈 대화 흐름이 꼬이지 않도록 이 세션의 되묻기 상태 초기화
+    clearClarification(targetSessionId);
 
     addMessage(targetSessionId, { role: "user", content: text, image });
     addMessage(targetSessionId, {
@@ -140,7 +140,7 @@ export function useChatStream() {
                   appendAnswerChunk(targetSessionId, data.content);
                   break;
                 case "clarification": // 되묻기 이벤트 처리 (문서 후보 + 보강 질문)
-                  setClarification({
+                  setClarification(targetSessionId, {
                     content: data.content,
                     candidates: data.candidates || [],
                     suggested_questions: data.suggested_questions,

@@ -18,13 +18,15 @@ export default function Home() {
   const isMounted = useMounted();
 
   const { isAuthenticated, isSessionVerified, verifySession } = useAuthStore();
-  const { sessions, activeSessionId, loadSessions, clarificationState, clearClarification } =
+  const { sessions, activeSessionId, loadSessions, clarifications, clearClarification } =
     useChatStore();
   const fetchDocuments = useDocumentStore((s) => s.fetchDocuments);
 
   const { submit: handleChatSubmit, stop: handleStopStreaming } = useChatStream();
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
+  // 되묻기 카드는 그 질문을 한 세션에서만 보여야 한다 (세션 전환 시 남지 않도록)
+  const clarificationState = activeSessionId ? clarifications[activeSessionId] ?? null : null;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -78,12 +80,12 @@ export default function Home() {
       ? `${lastUserMsg.content} (선택 장비: ${selected.manufacturer} ${selected.model_series})`
       : lastUserMsg.content;
 
-    clearClarification();
+    clearClarification(activeSession.id);
     await handleChatSubmit(question, lastUserMsg.image, documentId);
   };
 
   const handleClarificationQuestion = (question: string) => {
-    clearClarification();
+    if (activeSessionId) clearClarification(activeSessionId);
     handleChatSubmit(question);
   };
 
