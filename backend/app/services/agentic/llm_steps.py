@@ -21,6 +21,7 @@ from app.services.agent_service import (
     _create_flash_llm,
     _extract_text_content,
 )
+from app.utils.llm_usage import log_response_usage
 from app.utils.logger import logger
 
 from .toc import normalize_page
@@ -54,13 +55,15 @@ def format_chat_context(chat_history: list[dict] | None) -> str:
     return "\n이전 대화 맥락:\n" + "\n".join(lines) + "\n"
 
 
-async def _invoke_json(prompt: str) -> dict:
+async def _invoke_json(prompt: str, stage: str) -> dict:
     """Flash-Lite LLM 을 호출하고 응답 JSON 을 dict 로 파싱합니다.
 
     실패는 호출부가 단계별 폴백을 결정할 수 있도록 예외로 전파합니다.
+    `stage` 는 토큰 사용량 로그에 찍히는 단계 이름입니다.
     """
     llm = _create_flash_llm()
     response = await llm.ainvoke([HumanMessage(content=prompt)])
+    log_response_usage(stage, response)
     return json.loads(_clean_json_response(response.content))
 
 
@@ -192,7 +195,7 @@ async def select_document(
     )
 
     try:
-        result = await _invoke_json(prompt)
+        result = await _invoke_json(prompt, "Phase1:문서선택")
 
         classification = str(result.get("classification", "technical")).lower().strip()
         result["classification"] = "general" if "general" in classification else "technical"
@@ -271,7 +274,7 @@ async def select_pages(
     )
 
     try:
-        result = await _invoke_json(prompt)
+        result = await _invoke_json(prompt, "Phase1-2:페이지선택")
 
         result["target_pages"] = [
             normalize_page(p) for p in result.get("target_pages", [1])
@@ -313,7 +316,9 @@ async def refine_pages_with_text(
     )
 
     try:
-        result = await _invoke_json(refine_pages_prompt(question, full_text, section_start))
+        result = await _invoke_json(
+            refine_pages_prompt(question, full_text, section_start), "Phase2:텍스트정밀탐색"
+        )
 
         # 정규화 후 스캔 범위 밖 페이지는 버린다 (LLM 환각 페이지 방지)
         pages = [normalize_page(p) for p in result.get("target_pages", [section_start])]
@@ -336,6 +341,7 @@ async def generate_general_answer(question: str) -> str:
     """일상대화 답변을 생성합니다. 실패 시 예외를 그대로 올립니다."""
     llm = _create_flash_llm()
     response = await llm.ainvoke([HumanMessage(content=general_chat_prompt(question))])
+    log_response_usage("일상대화답변", response)
     return _extract_text_content(response.content)
 
 
@@ -367,4 +373,5 @@ async def generate_text_fallback(
     )
     llm = _create_flash_llm()
     response = await llm.ainvoke([HumanMessage(content=prompt)])
+    log_response_usage("텍스트폴백답변", response)
     return _extract_text_content(response.content)

@@ -9,6 +9,7 @@ from typing import List, Dict, Any, AsyncGenerator
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from app.config import settings
+from app.utils.llm_usage import EMPTY_USAGE, extract_usage, log_response_usage, log_usage, merge_usage
 from app.utils.logger import logger
 
 
@@ -357,9 +358,13 @@ async def _do_vision_analysis(
         ]
     )
     
+    # 스트리밍은 첫 청크에만 입력 토큰이 실리므로 전 청크를 합산해야 호출 1회분이 된다
+    usage = dict(EMPTY_USAGE)
     async for chunk in llm.astream([message]):
+        usage = merge_usage(usage, extract_usage(chunk))
         if chunk.content:
             yield _extract_text_content(chunk.content)
+    log_usage("Phase3:Vision답변", usage)
 
 
 async def extract_document_metadata_with_gemini(pdf_bytes: bytes) -> dict | None:
@@ -522,9 +527,10 @@ async def analyze_device_image_with_gemini(image_data_url: str) -> dict | None:
     
     try:
         response = await llm.ainvoke([message])
+        log_response_usage("Step-1:장비이미지분석", response)
         content = _clean_json_response(response.content)
         result = json.loads(content)
-        
+
         # 신뢰도 수치 및 필드 보장
         if "confidence" not in result:
             result["confidence"] = 0.5
