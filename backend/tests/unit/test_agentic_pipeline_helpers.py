@@ -334,3 +334,44 @@ class TestNarrowCandidates:
         selected, _, message = _narrow_candidates(make_ctx("zzzz존재하지않는키워드"), docs)
         assert len(selected) == len(docs)
         assert "5개 문서 중 적합한" in message
+
+
+# ─── 문서 요약 / ToC 증거 블록 분리 ─────────────────────────────────────────
+
+from app.services.agentic.llm_steps import (  # noqa: E402
+    _build_document_summaries,
+    _build_toc_evidence_section,
+)
+
+_DOCS = [
+    {"document_id": "d1", "filename": "A매뉴얼", "manufacturer": "미쓰비시",
+     "model_series": "MR-J4", "total_pages": 58},
+    {"document_id": "d2", "filename": "B매뉴얼", "manufacturer": "LS",
+     "model_series": "L7NH", "total_pages": 100},
+]
+
+
+class TestDocumentSummaries:
+    def test_summary_is_independent_of_question(self):
+        """요약 블록은 질문·증거와 무관하게 항상 같아야 캐시 프리픽스가 유지된다."""
+        assert _build_document_summaries(_DOCS) == _build_document_summaries(_DOCS)
+        assert "★" not in _build_document_summaries(_DOCS)
+
+    def test_contains_metadata_fields(self):
+        out = _build_document_summaries(_DOCS)
+        assert "A매뉴얼" in out and "MR-J4" in out and "58" in out
+
+
+class TestTocEvidenceSection:
+    def test_lists_matched_titles_per_document(self):
+        out = _build_toc_evidence_section(_DOCS, {"d2": ["3.2 알람 목록", "SMATV 설정"]})
+        assert "B매뉴얼" in out
+        assert "3.2 알람 목록, SMATV 설정" in out
+        assert "A매뉴얼" not in out
+
+    def test_empty_when_no_evidence(self):
+        assert _build_toc_evidence_section(_DOCS, None) == ""
+        assert _build_toc_evidence_section(_DOCS, {}) == ""
+
+    def test_empty_when_evidence_matches_no_listed_document(self):
+        assert _build_toc_evidence_section(_DOCS, {"unknown-id": ["제목"]}) == ""

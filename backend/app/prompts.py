@@ -46,16 +46,22 @@ def general_chat_prompt(question: str) -> str:
 
 
 def refine_pages_prompt(question: str, full_text: str, section_start: int) -> str:
-    """Phase 2: 섹션 텍스트 기반 정밀 페이지 탐색 프롬프트."""
+    """Phase 2: 섹션 텍스트 기반 정밀 페이지 탐색 프롬프트.
+
+    ⚠️ 변수 순서 주의: 섹션 본문(최대 50페이지, 실측 약 39,000토큰)이 질문보다
+    먼저 와야 합니다. 파이프라인에서 가장 큰 입력이라 같은 섹션에 후속 질문이
+    이어질 때 캐시 효과가 가장 큽니다. 질문을 앞에 두면 프리픽스가 매 턴 달라져
+    본문 전체가 캐시 대상에서 빠집니다.
+    """
     return f"""당신은 산업용 매뉴얼 전문 분석가입니다.
 아래는 전체 매뉴얼의 특정 섹션에 포함된 텍스트입니다.
-이 텍스트를 꼼꼼히 읽고 검색하여, 아래 질문에 답하기 위해 참조해야 할 **정확한 절대 페이지 번호**를 찾으세요.
-
-질문: "{question}"
+이 텍스트를 꼼꼼히 읽고 검색하여, 텍스트 뒤에 제시되는 질문에 답하기 위해 참조해야 할 **정확한 절대 페이지 번호**를 찾으세요.
 
 --- 섹션 텍스트 시작 ---
 {full_text}
 --- 섹션 텍스트 끝 ---
+
+질문: "{question}"
 
 다음 JSON 형식으로만 응답하세요 (마크다운 코드블록 없이):
 {{
@@ -72,8 +78,19 @@ def refine_pages_prompt(question: str, full_text: str, section_start: int) -> st
 """
 
 
-def select_document_prompt(docs_text: str, context_section: str, previous_reference_section: str, question: str) -> str:
-    """Phase 1: 메타데이터 기반 문서 선택 + 일상대화 판별 프롬프트."""
+def select_document_prompt(
+    docs_text: str,
+    toc_evidence_section: str,
+    context_section: str,
+    previous_reference_section: str,
+    question: str,
+) -> str:
+    """Phase 1: 메타데이터 기반 문서 선택 + 일상대화 판별 프롬프트.
+
+    ⚠️ 변수 순서 주의: 질문과 무관하게 고정된 문서 목록(docs_text)이 먼저 오고,
+    질문마다 달라지는 요소(ToC 증거·대화 맥락·이전 참조·질문)가 뒤따릅니다.
+    ToC 증거를 문서 목록 안에 섞으면 목록 전체가 매 질문 달라져 캐시가 깨집니다.
+    """
     return f"""당신은 산업용 매뉴얼 전문 분석가입니다.
 
 [Step 1] 사용자의 질문이 매뉴얼 검색이 필요한 기술적 질문인지 판별하세요.
@@ -95,7 +112,7 @@ def select_document_prompt(docs_text: str, context_section: str, previous_refere
 - 질문에 이미 들어있는 제조사/모델명을 중복해서 붙이지 마세요. 후보들이 같은 제조사/모델이라 그것만으로 구분이 안 되면, 문서 제목의 구분 요소(예: 기본편/응용편, 시리얼/Ethernet)를 활용해 재작성하세요 (예: "Q 시리즈 Ethernet 모듈 통신 에러" → "Q 시리즈 Ethernet 모듈 기본편 기준 통신 에러 타임아웃 해결법")
 
 {docs_text}
-{context_section}
+{toc_evidence_section}{context_section}
 {previous_reference_section}
 사용자의 질문: "{question}"
 
@@ -129,15 +146,27 @@ def select_document_prompt(docs_text: str, context_section: str, previous_refere
 - [장비 연관성 규칙] 알람코드나 에러코드가 포함된 질문일 경우, 산업 자동화 장비의 제어 계층을 반드시 고려하세요. 예를 들어 "서보 알람"이라고 해도 실제 알람은 서보앰프 자체가 아니라 상위 제어 장비(위치결정모듈, 모션컨트롤러, PLC 등)에서 발생시킨 코드일 수 있습니다. 마찬가지로 하위 장비(엔코더, 모터 등)의 문서도 관련될 수 있습니다. 이처럼 질문에 명시된 장비뿐 아니라, 해당 장비와 제어 관계에 있는 상위/하위 장비의 문서에도 적절한 confidence 점수(0.4 이상)를 부여하세요."""
 
 
-def select_pages_prompt(toc_text: str, total_pages, previous_pages_section: str, question: str) -> str:
-    """Phase 1-2: ToC 기반 타겟 페이지 선택 프롬프트."""
+def select_pages_prompt(
+    toc_text: str,
+    total_pages,
+    context_section: str,
+    previous_pages_section: str,
+    question: str,
+) -> str:
+    """Phase 1-2: ToC 기반 타겟 페이지 선택 프롬프트.
+
+    ⚠️ 변수 순서 주의: 큰 ToC(수만 토큰)가 반드시 맨 앞에 와야 합니다.
+    같은 문서에 연속 질문할 때 Gemini 암묵적 캐시가 ToC 구간에 걸려
+    입력 토큰의 대부분이 할인됩니다(실측 89%). 가변 요소(맥락·질문)를
+    ToC 앞으로 옮기면 프리픽스가 매 턴 달라져 캐시가 통째로 깨집니다.
+    """
     return f"""당신은 산업용 매뉴얼 전문 분석가입니다.
 아래는 선택된 문서의 전체 목차(ToC)입니다:
 
 {toc_text}
 
 총 페이지 수: {total_pages}
-{previous_pages_section}
+{context_section}{previous_pages_section}
 사용자의 질문: "{question}"
 
 이 목차를 분석하여 질문에 답하기 위해 참조해야 할 타겟 페이지를 추론하세요.
@@ -158,7 +187,8 @@ def select_pages_prompt(toc_text: str, total_pages, previous_pages_section: str,
 - 타겟 페이지는 최소 1개, 최대 5개로 제한합니다.
 - 페이지 번호는 목차에 명시된 page 값을 기준으로 합니다.
 - toc_candidates에는 질문 해결에 도움을 줄 수 있는 목차(ToC) 항목을 최대 3개까지 매칭하여 포함하세요.
-- 연속된 페이지라면 사이 페이지도 포함합니다."""
+- 연속된 페이지라면 사이 페이지도 포함합니다.
+- 질문이 지시대명사나 생략형("그 알람은?", "그거 배선도는?")으로 이전 대화를 잇고 있다면, 위 "이전 대화 맥락"에서 실제 대상(알람 코드·기능·부품명)을 찾아 그 주제로 목차를 검색하세요. 이때 주제가 바뀌었다면 이전 참조 페이지에 얽매이지 말고 해당 주제의 목차 항목을 우선하세요."""
 
 
 def vision_source_section(document_name: str, breadcrumb: str, pages: list[int]) -> str:
@@ -223,15 +253,19 @@ def vision_history_section(chat_history: list[dict] | None) -> str:
 
 
 def text_fallback_prompt(context_section: str, question: str, full_text: str) -> str:
-    """Vision 분석 실패 시 텍스트만으로 답변을 생성하는 폴백 프롬프트."""
+    """Vision 분석 실패 시 텍스트만으로 답변을 생성하는 폴백 프롬프트.
+
+    ⚠️ 변수 순서 주의: 본문이 가변 요소(대화 맥락·질문)보다 먼저 와야
+    같은 페이지에 재질문할 때 캐시 프리픽스가 유지됩니다.
+    """
     return f"""당신은 산업용 매뉴얼 전문 분석가입니다.
-아래는 매뉴얼에서 추출한 텍스트입니다. 이 텍스트를 분석하여 사용자의 질문에 정확하게 답변하세요.
-{context_section}
-질문: "{question}"
+아래는 매뉴얼에서 추출한 텍스트입니다. 이 텍스트를 분석하여 텍스트 뒤에 제시되는 사용자의 질문에 정확하게 답변하세요.
 
 --- 매뉴얼 텍스트 시작 ---
 {full_text}
 --- 매뉴얼 텍스트 끝 ---
+{context_section}
+질문: "{question}"
 
 답변 형식 (마크다운):
 ## 답변 요약

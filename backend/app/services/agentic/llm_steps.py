@@ -63,16 +63,18 @@ async def _invoke_json(prompt: str, stage: str) -> dict:
 
 # ─── Phase 1: 문서 선택 ──────────────────────────────────────────────────────
 
-def _build_document_summaries(documents: list[dict], toc_evidence: dict | None) -> str:
+def _build_document_summaries(documents: list[dict]) -> str:
     """문서 메타데이터 요약 블록을 만듭니다.
 
-    ToC 전체는 제외해 토큰을 아끼되(~2,500 토큰), 질문 키워드와 겹친 ToC 제목만
-    해당 문서에 한 줄 덧붙입니다 — 'SMATV'처럼 문서 제목에는 없고 목차에만 있는
-    단서로 문서를 골라야 하는 질문에 대응하기 위함.
+    ToC 전체는 제외해 토큰을 아낍니다(~2,500 토큰).
+
+    질문에 따라 달라지는 ToC 증거는 여기 섞지 않고 별도 블록으로 분리합니다
+    (`_build_toc_evidence_section`). 요약 블록이 질문과 무관하게 고정돼야
+    같은 문서 목록으로 연속 질문할 때 캐시 프리픽스가 유지되기 때문입니다.
     """
     summaries = []
     for i, doc in enumerate(documents):
-        summary = (
+        summaries.append(
             f"[문서 {i + 1}]\n"
             f"  ID: {doc['document_id']}\n"
             f"  제목: {doc.get('filename', '알 수 없음')}\n"
@@ -81,11 +83,25 @@ def _build_document_summaries(documents: list[dict], toc_evidence: dict | None) 
             f"  문서 종류: {doc.get('document_type', '미상')}\n"
             f"  페이지 수: {doc.get('total_pages', 0)}"
         )
-        matched_titles = (toc_evidence or {}).get(str(doc.get("document_id", "")))
-        if matched_titles:
-            summary += f"\n  ★ 질문 키워드와 일치하는 목차 항목: {', '.join(matched_titles)}"
-        summaries.append(summary)
     return "\n\n".join(summaries)
+
+
+def _build_toc_evidence_section(documents: list[dict], toc_evidence: dict | None) -> str:
+    """질문 키워드와 겹친 ToC 제목을 문서별로 모은 블록을 만듭니다.
+
+    'SMATV'처럼 문서 제목에는 없고 목차에만 있는 단서로 문서를 골라야 하는
+    질문에 대응하기 위한 근거 자료입니다. 증거가 없으면 빈 문자열.
+    """
+    if not toc_evidence:
+        return ""
+    lines = []
+    for i, doc in enumerate(documents):
+        matched_titles = toc_evidence.get(str(doc.get("document_id", "")))
+        if matched_titles:
+            lines.append(f"  [문서 {i + 1}] {doc.get('filename', '')}: {', '.join(matched_titles)}")
+    if not lines:
+        return ""
+    return "\n★ 질문 키워드와 일치하는 목차 항목:\n" + "\n".join(lines) + "\n"
 
 
 def _validate_candidates(raw_candidates, documents: list[dict]) -> list[dict]:
@@ -182,7 +198,8 @@ async def select_document(
         )
 
     prompt = select_document_prompt(
-        _build_document_summaries(documents, toc_evidence),
+        _build_document_summaries(documents),
+        _build_toc_evidence_section(documents, toc_evidence),
         format_chat_context(chat_history),
         previous_reference_section,
         question,
@@ -247,8 +264,13 @@ async def select_pages(
     toc: list[dict],
     total_pages: int,
     previous_reference: dict | None = None,
+    chat_history: list[dict] | None = None,
 ) -> dict:
     """Phase 1-2: 선택된 문서의 ToC 전체(잘림 없음)로 타겟 페이지를 고릅니다.
+
+    `chat_history` 는 지시대명사·생략형 후속 질문("그럼 그 알람은?")에서 실제 대상을
+    복원하기 위해 넣습니다. 이전에는 이 단계가 `previous_reference` 의 페이지 번호만
+    받아, 주제가 바뀐 후속 질문에서도 직전 페이지 근처를 다시 고르는 편향이 있었습니다.
 
     Returns:
         {"target_pages": [int], "section_title": str,
@@ -264,7 +286,11 @@ async def select_pages(
         )
 
     prompt = select_pages_prompt(
-        json.dumps(toc, ensure_ascii=False), total_pages, previous_pages_section, question
+        json.dumps(toc, ensure_ascii=False),
+        total_pages,
+        chat_context_section(chat_history),
+        previous_pages_section,
+        question,
     )
 
     try:

@@ -324,7 +324,9 @@ def _build_clarification_menu(
 
 async def _emit_coarse_pages(ctx: PipelineContext, toc: list[dict], total_pages: int, label: str):
     """Phase 1-2 를 실행하고 결과를 ctx 에 저장한 뒤 reasoning 을 yield 합니다."""
-    page_result = await select_pages(ctx.question, toc, total_pages, ctx.previous_reference)
+    page_result = await select_pages(
+        ctx.question, toc, total_pages, ctx.previous_reference, ctx.chat_history
+    )
     ctx.coarse_pages = page_result.get("target_pages", [1])
     ctx.coarse_title = page_result.get("section_title", "")
     yield ctx.reasoning(

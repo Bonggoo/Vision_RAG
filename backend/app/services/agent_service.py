@@ -312,18 +312,20 @@ async def _do_vision_analysis(
         source_section, vision_history_section(chat_history), question
     )
 
+    # PDF 파트를 먼저 둔다 — 같은 페이지에 후속 질문이 이어질 때 프리픽스가 유지되도록.
+    # (질문이 앞에 오면 매 턴 프리픽스가 달라져 PDF 전체가 캐시 대상에서 빠진다)
     message = HumanMessage(
         content=[
-            {"type": "text", "text": prompt},
             {
                 "type": "image_url",
                 "image_url": {
                     "url": f"data:application/pdf;base64,{pdf_base64}"
                 }
-            }
+            },
+            {"type": "text", "text": prompt},
         ]
     )
-    
+
     # 스트리밍은 첫 청크에만 입력 토큰이 실리므로 전 청크를 합산해야 호출 1회분이 된다
     usage = dict(EMPTY_USAGE)
     async for chunk in llm.astream([message]):
