@@ -308,16 +308,8 @@ async def _do_vision_analysis(
     llm = _create_llm(temperature=0.1)
     pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
-    # 이전 대화 맥락 구성 (최근 6개 메시지 = 3턴, 메시지당 300자)
-    history_text = ""
-    if chat_history:
-        history_text = "\n".join(
-            f"{'사용자' if item['role'] == 'user' else 'AI'}: {item['content'][:300]}"
-            for item in chat_history[-6:]
-        )
-
     prompt = vision_answer_prompt(
-        source_section, vision_history_section(history_text), question
+        source_section, vision_history_section(chat_history), question
     )
 
     message = HumanMessage(

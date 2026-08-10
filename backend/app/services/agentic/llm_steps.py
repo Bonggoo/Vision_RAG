@@ -10,6 +10,7 @@ import fitz  # PyMuPDF
 from langchain_core.messages import HumanMessage
 
 from app.prompts import (
+    chat_context_section,
     general_chat_prompt,
     refine_pages_prompt,
     select_document_prompt,
@@ -27,8 +28,7 @@ from app.utils.logger import logger
 from .toc import normalize_page
 
 # ─── 상한값 ──────────────────────────────────────────────────────────────────
-RECENT_HISTORY_TURNS = 4          # 프롬프트에 실을 최근 대화 턴 수
-HISTORY_MESSAGE_CHARS = 200       # 대화 이력 메시지당 최대 길이
+# 대화 이력 절단 규칙은 prompts.chat_context_section 이 단독으로 갖는다.
 MAX_REFINED_PAGES = 3             # Phase 2가 반환할 타겟 페이지 상한
 MAX_COARSE_PAGES = 5              # Phase 1-2가 반환할 타겟 페이지 상한
 MAX_TOC_CANDIDATES = 3            # 프론트에 노출할 ToC 후보 상한
@@ -44,15 +44,9 @@ GENERIC_QUESTION_WORDS = {
 }
 
 
-def format_chat_context(chat_history: list[dict] | None) -> str:
-    """최근 대화 이력을 프롬프트에 넣을 문자열로 만듭니다 (없으면 빈 문자열)."""
-    if not chat_history:
-        return ""
-    lines = [
-        f"{'사용자' if item['role'] == 'user' else 'AI'}: {item['content'][:HISTORY_MESSAGE_CHARS]}"
-        for item in chat_history[-RECENT_HISTORY_TURNS:]
-    ]
-    return "\n이전 대화 맥락:\n" + "\n".join(lines) + "\n"
+# 대화 이력 블록 생성은 prompts.chat_context_section 하나로 통일돼 있다.
+# 기존 호출부·테스트가 쓰던 이름을 유지하기 위한 별칭.
+format_chat_context = chat_context_section
 
 
 async def _invoke_json(prompt: str, stage: str) -> dict:

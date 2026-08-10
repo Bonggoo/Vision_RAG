@@ -12,6 +12,11 @@ from app.services.agentic.doc_filter import (
     collect_identifiers,
     question_mentions_identifier,
 )
+from app.prompts import (
+    HISTORY_MESSAGE_CHARS,
+    RECENT_HISTORY_MESSAGES,
+    vision_history_section,
+)
 from app.services.agentic.llm_steps import format_chat_context
 from app.services.agentic.pipeline import (
     MAX_CLARIFICATION_CANDIDATES,
@@ -110,8 +115,23 @@ class TestFormatChatContext:
 
     def test_truncates_long_message(self):
         result = format_chat_context([{"role": "user", "content": "가" * 500}])
-        assert "가" * 200 in result
-        assert "가" * 201 not in result
+        assert "가" * HISTORY_MESSAGE_CHARS in result
+        assert "가" * (HISTORY_MESSAGE_CHARS + 1) not in result
+
+    def test_limits_match_what_frontend_sends(self):
+        """절단 상한은 프론트 전송량(6개 메시지 × 300자)과 같아야 한다.
+
+        더 작으면 이미 받아 둔 맥락을 백엔드가 스스로 버리게 된다
+        (예전 문서선택 단계가 4개·200자로 잘라 Vision 과 서로 달랐다).
+        """
+        assert (RECENT_HISTORY_MESSAGES, HISTORY_MESSAGE_CHARS) == (6, 300)
+
+    def test_vision_shares_the_same_truncation(self):
+        """Vision 블록도 같은 규칙을 쓰되 후속 질문 지시만 덧붙는다."""
+        history = [{"role": "user", "content": "가" * 500}]
+        assert format_chat_context(history).rstrip() in vision_history_section(history)
+        assert "후속 질문" in vision_history_section(history)
+        assert vision_history_section(None) == ""
 
 
 # ─── _dedupe_page_indices ───────────────────────────────────────────────────

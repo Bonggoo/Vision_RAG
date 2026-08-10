@@ -6,6 +6,33 @@ app/services/agentic/ 파이프라인이 사용하는 프롬프트 템플릿을 
 """
 
 
+# ─── 대화 이력 블록 ──────────────────────────────────────────────────────────
+# 프롬프트에 실을 최근 메시지 수와 메시지당 최대 길이.
+# 프론트엔드가 보내는 양(6개 메시지 × 300자)과 맞춰 둔다 — 더 크게 잡아도
+# 받을 이력이 없고, 더 작게 잡으면 이미 받은 맥락을 스스로 버리게 된다.
+RECENT_HISTORY_MESSAGES = 6
+HISTORY_MESSAGE_CHARS = 300
+
+
+def chat_context_section(
+    chat_history: list[dict] | None,
+    max_messages: int = RECENT_HISTORY_MESSAGES,
+    max_chars: int = HISTORY_MESSAGE_CHARS,
+) -> str:
+    """최근 대화 이력을 프롬프트 블록으로 만듭니다 (없으면 빈 문자열).
+
+    문서 선택·페이지 선택·Vision·텍스트폴백이 모두 이 함수를 쓴다.
+    이전에는 같은 절단 규칙이 두 벌로 복붙돼 턴 수·글자 수가 서로 달랐다.
+    """
+    if not chat_history:
+        return ""
+    lines = [
+        f"{'사용자' if item['role'] == 'user' else 'AI'}: {item['content'][:max_chars]}"
+        for item in chat_history[-max_messages:]
+    ]
+    return "\n이전 대화 맥락:\n" + "\n".join(lines) + "\n"
+
+
 def general_chat_prompt(question: str) -> str:
     """일상대화(general) 분기에서 사용하는 chat 프롬프트."""
     return f"""당신은 산업용 매뉴얼 분석 비서 'Vision RAG 에이전트'입니다.
@@ -184,17 +211,15 @@ def vision_answer_prompt(source_section: str, context_section: str, question: st
 """
 
 
-def vision_history_section(history_text: str) -> str:
-    """Vision 프롬프트의 이전 대화 맥락 블록. 이력이 없으면 빈 문자열."""
-    if not history_text:
+def vision_history_section(chat_history: list[dict] | None) -> str:
+    """Vision 프롬프트의 이전 대화 맥락 블록. 이력이 없으면 빈 문자열.
+
+    절단 규칙은 chat_context_section 과 공유하고, 후속 질문 처리 지시만 덧붙입니다.
+    """
+    context = chat_context_section(chat_history)
+    if not context:
         return ""
-    return f"""
-이전 대화 맥락:
----
-{history_text}
----
-위 대화를 참고하여, 사용자의 후속 질문에 자연스럽게 답변하세요.
-"""
+    return context + "위 대화를 참고하여, 사용자의 후속 질문에 자연스럽게 답변하세요.\n"
 
 
 def text_fallback_prompt(context_section: str, question: str, full_text: str) -> str:
