@@ -134,6 +134,69 @@ def select_pages_prompt(toc_text: str, total_pages, previous_pages_section: str,
 - 연속된 페이지라면 사이 페이지도 포함합니다."""
 
 
+def vision_source_section(document_name: str, breadcrumb: str, pages: list[int]) -> str:
+    """Vision 프롬프트에 넣을 '이 페이지가 어디서 왔는지' 블록을 만듭니다.
+
+    문서명·ToC 계층·원문 페이지 번호를 모델에 알려 주어, 답변이 출처를 정확히
+    밝히고 첨부 페이지 밖의 내용을 지어내지 않게 하는 것이 목적입니다.
+    재료가 하나도 없으면 빈 문자열을 반환해 프롬프트에서 통째로 빠집니다.
+    """
+    parts = [part for part in (document_name.strip(), breadcrumb.strip()) if part]
+    location = " > ".join(parts)
+    page_text = ", ".join(f"p.{p}" for p in pages)
+
+    if not location and not page_text:
+        return ""
+
+    lines = ["\n[첨부 페이지 출처]"]
+    if location:
+        lines.append(f"- 위치: {location}")
+    if page_text:
+        lines.append(f"- 원문 페이지: {page_text}")
+    return "\n".join(lines) + "\n"
+
+
+def vision_answer_prompt(source_section: str, context_section: str, question: str) -> str:
+    """Phase 3: 미니 PDF 를 첨부해 최종 답변을 생성하는 Vision 프롬프트."""
+    return f"""당신은 산업용 매뉴얼 전문 분석가입니다.
+첨부된 PDF 페이지를 분석하여 아래 질문에 정확하게 답변하세요.
+{source_section}{context_section}
+질문: "{question}"
+
+답변 형식 (마크다운):
+## 답변 요약
+(핵심 답변을 1-2문장으로)
+
+### 상세 내용
+(매뉴얼 내용을 기반으로 상세하게)
+
+### 조치 방법 (해당 시)
+1. 단계별 조치 방법
+2. ...
+
+> 참고: 해당 정보는 매뉴얼의 첨부 페이지에서 확인된 내용입니다.
+
+규칙:
+- 시각적 정보(표, 도면, 다이어그램)가 있다면 해당 내용을 텍스트로 설명해 주세요.
+- 매뉴얼에 없는 내용은 추측하지 마세요.
+- [첨부 페이지 출처]가 주어졌다면, 근거를 인용할 때 해당 원문 페이지 번호를 함께 밝히세요.
+- 한국어로 답변하세요.
+"""
+
+
+def vision_history_section(history_text: str) -> str:
+    """Vision 프롬프트의 이전 대화 맥락 블록. 이력이 없으면 빈 문자열."""
+    if not history_text:
+        return ""
+    return f"""
+이전 대화 맥락:
+---
+{history_text}
+---
+위 대화를 참고하여, 사용자의 후속 질문에 자연스럽게 답변하세요.
+"""
+
+
 def text_fallback_prompt(context_section: str, question: str, full_text: str) -> str:
     """Vision 분석 실패 시 텍스트만으로 답변을 생성하는 폴백 프롬프트."""
     return f"""당신은 산업용 매뉴얼 전문 분석가입니다.

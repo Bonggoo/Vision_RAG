@@ -412,3 +412,69 @@ class TestResolveTargetPagesWithoutToc:
 
     def test_zero_pages_returns_none(self):
         assert resolve_target_pages_without_toc(0) is None
+
+
+# ─── build_breadcrumb / vision_source_section ──────────────────────────────
+
+from app.prompts import vision_source_section  # noqa: E402
+from app.services.agentic.toc import build_breadcrumb  # noqa: E402
+
+
+class TestBuildBreadcrumb:
+    TOC = [
+        {"level": 1, "title": "1장 개요", "page": 1},
+        {"level": 1, "title": "3장 트러블슈팅", "page": 100},
+        {"level": 2, "title": "3.1 점검 순서", "page": 105},
+        {"level": 2, "title": "3.2 알람 목록", "page": 110},
+        {"level": 3, "title": "3.2.1 AL.32", "page": 112},
+    ]
+
+    def test_full_path(self):
+        assert build_breadcrumb(self.TOC, 113) == "3장 트러블슈팅 > 3.2 알람 목록 > 3.2.1 AL.32"
+
+    def test_stops_at_deepest_preceding_entry(self):
+        assert build_breadcrumb(self.TOC, 106) == "3장 트러블슈팅 > 3.1 점검 순서"
+
+    def test_page_before_any_subsection(self):
+        assert build_breadcrumb(self.TOC, 100) == "3장 트러블슈팅"
+
+    def test_lower_level_from_previous_chapter_is_dropped(self):
+        """2장 첫 페이지에 1장 소속 하위 항목이 딸려오면 안 된다."""
+        toc = [
+            {"level": 1, "title": "1장", "page": 1},
+            {"level": 2, "title": "1.1 절", "page": 5},
+            {"level": 1, "title": "2장", "page": 200},
+        ]
+        assert build_breadcrumb(toc, 200) == "2장"
+
+    def test_empty_toc(self):
+        assert build_breadcrumb([], 5) == ""
+
+    def test_page_before_first_entry(self):
+        assert build_breadcrumb(self.TOC, 0) == ""
+
+    def test_string_page_values_normalized(self):
+        toc = [{"level": 1, "title": "3장", "page": "3-1"}]
+        assert build_breadcrumb(toc, 5) == "3장"
+
+    def test_entries_without_title_skipped(self):
+        toc = [{"level": 1, "title": "", "page": 1}, {"level": 1, "title": "실제 장", "page": 2}]
+        assert build_breadcrumb(toc, 5) == "실제 장"
+
+    def test_non_integer_level_defaults(self):
+        toc = [{"level": "bad", "title": "장", "page": 1}]
+        assert build_breadcrumb(toc, 3) == "장"
+
+
+class TestVisionSourceSection:
+    def test_includes_document_breadcrumb_and_pages(self):
+        out = vision_source_section("MR-J5 매뉴얼", "3장 > 3.2 알람", [412, 413])
+        assert "MR-J5 매뉴얼 > 3장 > 3.2 알람" in out
+        assert "p.412, p.413" in out
+
+    def test_without_breadcrumb(self):
+        out = vision_source_section("문서", "", [7])
+        assert "문서" in out and "p.7" in out
+
+    def test_all_empty_returns_blank(self):
+        assert vision_source_section("", "", []) == ""

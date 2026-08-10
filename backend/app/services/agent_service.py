@@ -9,6 +9,7 @@ from typing import List, Dict, Any, AsyncGenerator
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from app.config import settings
+from app.prompts import vision_answer_prompt, vision_history_section
 from app.utils.llm_usage import EMPTY_USAGE, extract_usage, log_response_usage, log_usage, merge_usage
 from app.utils.logger import logger
 
@@ -259,27 +260,32 @@ async def analyze_pages_with_vision(
     pdf_bytes: bytes,
     question: str,
     chat_history: list[dict] | None = None,
+    source_section: str = "",
 ) -> AsyncGenerator[str, None]:
     """
     미니 PDF를 Gemini Vision에 전송하여 질문에 대한 답변을 스트리밍으로 생성합니다.
     최대 3회 retry + exponential backoff 적용.
-    
+
     Args:
         pdf_bytes: 분석할 미니 PDF
         question: 사용자 질문
         chat_history: 이전 대화 이력 [{"role": "user"|"assistant", "content": "..."}]
-    
+        source_section: 첨부 페이지의 출처 블록(문서명·ToC 계층·원문 페이지).
+            `prompts.vision_source_section()` 으로 만들며, 비어 있으면 생략됩니다.
+
     Yields:
         답변 텍스트 청크 (마크다운 형식)
     """
     import asyncio
     from app.utils.logger import logger
-    
+
     MAX_RETRIES = 3
-    
+
     for attempt in range(MAX_RETRIES):
         try:
-            async for chunk in _do_vision_analysis(pdf_bytes, question, chat_history):
+            async for chunk in _do_vision_analysis(
+                pdf_bytes, question, chat_history, source_section
+            ):
                 yield chunk
             return  # 스트리밍 성공 시 즉시 종료
         except Exception as e:
@@ -296,56 +302,24 @@ async def _do_vision_analysis(
     pdf_bytes: bytes,
     question: str,
     chat_history: list[dict] | None = None,
+    source_section: str = "",
 ) -> AsyncGenerator[str, None]:
     """Vision 분석 실제 실행 (retry 없는 단일 시도)."""
     llm = _create_llm(temperature=0.1)
     pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
-    
-    # 이전 대화 맥락 구성
+
+    # 이전 대화 맥락 구성 (최근 6개 메시지 = 3턴, 메시지당 300자)
     history_text = ""
     if chat_history:
-        # 최근 6턴(3쌍)만 포함 — 토큰 절약
-        recent = chat_history[-6:]
-        pairs = []
-        for item in recent:
-            role_label = "사용자" if item["role"] == "user" else "AI"
-            pairs.append(f"{role_label}: {item['content'][:300]}")
-        history_text = "\n".join(pairs)
-    
-    context_section = ""
-    if history_text:
-        context_section = f"""
-이전 대화 맥락:
----
-{history_text}
----
-위 대화를 참고하여, 사용자의 후속 질문에 자연스럽게 답변하세요.
-"""
-    
-    prompt = f"""당신은 산업용 매뉴얼 전문 분석가입니다.
-첨부된 PDF 페이지를 분석하여 아래 질문에 정확하게 답변하세요.
-{context_section}
-질문: "{question}"
+        history_text = "\n".join(
+            f"{'사용자' if item['role'] == 'user' else 'AI'}: {item['content'][:300]}"
+            for item in chat_history[-6:]
+        )
 
-답변 형식 (마크다운):
-## 답변 요약
-(핵심 답변을 1-2문장으로)
+    prompt = vision_answer_prompt(
+        source_section, vision_history_section(history_text), question
+    )
 
-### 상세 내용
-(매뉴얼 내용을 기반으로 상세하게)
-
-### 조치 방법 (해당 시)
-1. 단계별 조치 방법
-2. ...
-
-> 참고: 해당 정보는 매뉴얼의 첨부 페이지에서 확인된 내용입니다.
-
-규칙:
-- 시각적 정보(표, 도면, 다이어그램)가 있다면 해당 내용을 텍스트로 설명해 주세요.
-- 매뉴얼에 없는 내용은 추측하지 마세요.
-- 한국어로 답변하세요.
-"""
-    
     message = HumanMessage(
         content=[
             {"type": "text", "text": prompt},
