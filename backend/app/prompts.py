@@ -149,7 +149,6 @@ def select_document_prompt(
 def select_pages_prompt(
     toc_text: str,
     total_pages,
-    context_section: str,
     previous_pages_section: str,
     question: str,
 ) -> str:
@@ -166,7 +165,7 @@ def select_pages_prompt(
 {toc_text}
 
 총 페이지 수: {total_pages}
-{context_section}{previous_pages_section}
+{previous_pages_section}
 사용자의 질문: "{question}"
 
 이 목차를 분석하여 질문에 답하기 위해 참조해야 할 타겟 페이지를 추론하세요.
@@ -187,8 +186,7 @@ def select_pages_prompt(
 - 타겟 페이지는 최소 1개, 최대 5개로 제한합니다.
 - 페이지 번호는 목차에 명시된 page 값을 기준으로 합니다.
 - toc_candidates에는 질문 해결에 도움을 줄 수 있는 목차(ToC) 항목을 최대 3개까지 매칭하여 포함하세요.
-- 연속된 페이지라면 사이 페이지도 포함합니다.
-- 질문이 지시대명사나 생략형("그 알람은?", "그거 배선도는?")으로 이전 대화를 잇고 있다면, 위 "이전 대화 맥락"에서 실제 대상(알람 코드·기능·부품명)을 찾아 그 주제로 목차를 검색하세요. 이때 주제가 바뀌었다면 이전 참조 페이지에 얽매이지 말고 해당 주제의 목차 항목을 우선하세요."""
+- 연속된 페이지라면 사이 페이지도 포함합니다."""
 
 
 def vision_source_section(document_name: str, breadcrumb: str, pages: list[int]) -> str:

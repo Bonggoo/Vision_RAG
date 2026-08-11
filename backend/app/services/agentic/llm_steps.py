@@ -264,13 +264,12 @@ async def select_pages(
     toc: list[dict],
     total_pages: int,
     previous_reference: dict | None = None,
-    chat_history: list[dict] | None = None,
 ) -> dict:
     """Phase 1-2: 선택된 문서의 ToC 전체(잘림 없음)로 타겟 페이지를 고릅니다.
 
-    `chat_history` 는 지시대명사·생략형 후속 질문("그럼 그 알람은?")에서 실제 대상을
-    복원하기 위해 넣습니다. 이전에는 이 단계가 `previous_reference` 의 페이지 번호만
-    받아, 주제가 바뀐 후속 질문에서도 직전 페이지 근처를 다시 고르는 편향이 있었습니다.
+    이 단계는 대화 이력을 받지 않고 `previous_reference` 의 페이지 힌트만 씁니다.
+    이력 주입을 시도해 봤으나 멀티턴 골든 케이스에서 이득이 측정되지 않았고
+    타겟 페이지가 넓어지는 부작용만 보여 되돌렸습니다 (docs/context-management-results.md).
 
     Returns:
         {"target_pages": [int], "section_title": str,
@@ -286,11 +285,7 @@ async def select_pages(
         )
 
     prompt = select_pages_prompt(
-        json.dumps(toc, ensure_ascii=False),
-        total_pages,
-        chat_context_section(chat_history),
-        previous_pages_section,
-        question,
+        json.dumps(toc, ensure_ascii=False), total_pages, previous_pages_section, question
     )
 
     try:
