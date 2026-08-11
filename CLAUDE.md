@@ -25,7 +25,7 @@ pytest
 
 # Quality evals (from backend/, venv active) — see backend/evals/README.md
 python -m evals.run_eval             # golden dataset vs deployed Cloud Run backend (needs EVAL_JWT_SECRET in .env)
-python -m evals.run_eval --local     # same, but calls the pipeline in-process (no server)
+USE_LOCAL_STORAGE=False python -m evals.run_eval --local   # in-process pipeline; the override is REQUIRED — eval documents live in GCS, and the .env default (True) yields 0 documents
 python -m evals.run_eval --judge     # include LLM-as-judge scoring
 ```
 
@@ -42,6 +42,9 @@ python -m evals.run_eval --judge     # include LLM-as-judge scoring
   - `doc_filter.py` — keyword-based first-pass document filter and related pure functions.
   - `toc.py` / `classification.py` / `sse.py` — page-number normalization, rule-based routing, SSE serialization.
 - `backend/app/prompts.py` — every LLM prompt template. Do not inline prompts in service code.
+  - **Variable order matters for cost.** Gemini implicit caching only discounts a shared prompt *prefix*, so large/stable content (ToC, section text, PDF part, document list) must come **before** variable content (chat context, previous reference, question). Functions carrying a `⚠️ 변수 순서 주의` docstring are ordered deliberately — reordering them silently breaks cache hits (Phase 2 measured 0% → 95% from this alone). See `docs/context-management-results.md`.
+  - `chat_context_section()` is the single source of chat-history truncation (6 messages × 300 chars, matching what the frontend sends). Do not re-implement slicing at call sites.
+- `backend/app/utils/llm_usage.py` — per-call token/cache metering. Every chat-path Gemini call logs `🧮 [Usage] <stage>: in=… out=… cached=… (…%)`; `cached` comes from `usage_metadata.input_token_details.cache_read`.
 - `backend/app/services/pdf_service.py` — GCS Signed URL generation and sparse-PDF patching.
 - `backend/app/routers/` — `auth`, `chat`, `conversations`, `documents`, `upload`, `internal`.
 - `backend/evals/` — golden-dataset quality eval harness (routing/document/page/keyword checks + optional LLM-as-judge). See `backend/evals/README.md`.
