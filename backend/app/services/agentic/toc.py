@@ -45,6 +45,48 @@ def resolve_target_pages_without_toc(total_pages: int) -> list[int] | None:
     return None
 
 
+def build_breadcrumb(toc: list[dict], page: int) -> str:
+    """주어진 페이지가 속한 ToC 계층 경로를 만듭니다.
+
+    예: "3장 트러블슈팅 > 3.2 알람 목록"
+
+    각 level 에서 `page` 이하이면서 가장 가까운 항목을 고른 뒤 상위→하위 순으로
+    잇습니다. 하위 항목이 상위 항목보다 앞 페이지면 다른 장에 속한 것이므로
+    거기서 경로를 끊습니다.
+
+    ToC 는 업로드 시 이미 추출해 둔 것이라 추가 LLM 호출이 없습니다.
+    """
+    if not toc:
+        return ""
+
+    # level → (가장 가까운 page, title)
+    nearest: dict[int, tuple[int, str]] = {}
+    for entry in toc:
+        entry_page = normalize_page(entry.get("page", 1))
+        if entry_page > page:
+            continue
+        title = str(entry.get("title") or "").strip()
+        if not title:
+            continue
+        try:
+            level = int(entry.get("level", 1) or 1)
+        except (TypeError, ValueError):
+            level = 1
+        found = nearest.get(level)
+        if found is None or entry_page >= found[0]:
+            nearest[level] = (entry_page, title)
+
+    parts: list[str] = []
+    last_page = 0
+    for level in sorted(nearest):
+        entry_page, title = nearest[level]
+        if entry_page < last_page:
+            break  # 상위 항목보다 앞선 하위 항목 → 다른 장 소속
+        parts.append(title)
+        last_page = entry_page
+    return " > ".join(parts)
+
+
 def find_section_page_range(
     toc: list[dict], target_pages: list[int], total_pages: int
 ) -> tuple[int, int]:

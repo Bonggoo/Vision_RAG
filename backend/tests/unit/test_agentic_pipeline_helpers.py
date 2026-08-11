@@ -12,6 +12,11 @@ from app.services.agentic.doc_filter import (
     collect_identifiers,
     question_mentions_identifier,
 )
+from app.prompts import (
+    HISTORY_MESSAGE_CHARS,
+    RECENT_HISTORY_MESSAGES,
+    vision_history_section,
+)
 from app.services.agentic.llm_steps import format_chat_context
 from app.services.agentic.pipeline import (
     MAX_CLARIFICATION_CANDIDATES,
@@ -110,8 +115,23 @@ class TestFormatChatContext:
 
     def test_truncates_long_message(self):
         result = format_chat_context([{"role": "user", "content": "가" * 500}])
-        assert "가" * 200 in result
-        assert "가" * 201 not in result
+        assert "가" * HISTORY_MESSAGE_CHARS in result
+        assert "가" * (HISTORY_MESSAGE_CHARS + 1) not in result
+
+    def test_limits_match_what_frontend_sends(self):
+        """절단 상한은 프론트 전송량(6개 메시지 × 300자)과 같아야 한다.
+
+        더 작으면 이미 받아 둔 맥락을 백엔드가 스스로 버리게 된다
+        (예전 문서선택 단계가 4개·200자로 잘라 Vision 과 서로 달랐다).
+        """
+        assert (RECENT_HISTORY_MESSAGES, HISTORY_MESSAGE_CHARS) == (6, 300)
+
+    def test_vision_shares_the_same_truncation(self):
+        """Vision 블록도 같은 규칙을 쓰되 후속 질문 지시만 덧붙는다."""
+        history = [{"role": "user", "content": "가" * 500}]
+        assert format_chat_context(history).rstrip() in vision_history_section(history)
+        assert "후속 질문" in vision_history_section(history)
+        assert vision_history_section(None) == ""
 
 
 # ─── _dedupe_page_indices ───────────────────────────────────────────────────
@@ -314,3 +334,44 @@ class TestNarrowCandidates:
         selected, _, message = _narrow_candidates(make_ctx("zzzz존재하지않는키워드"), docs)
         assert len(selected) == len(docs)
         assert "5개 문서 중 적합한" in message
+
+
+# ─── 문서 요약 / ToC 증거 블록 분리 ─────────────────────────────────────────
+
+from app.services.agentic.llm_steps import (  # noqa: E402
+    _build_document_summaries,
+    _build_toc_evidence_section,
+)
+
+_DOCS = [
+    {"document_id": "d1", "filename": "A매뉴얼", "manufacturer": "미쓰비시",
+     "model_series": "MR-J4", "total_pages": 58},
+    {"document_id": "d2", "filename": "B매뉴얼", "manufacturer": "LS",
+     "model_series": "L7NH", "total_pages": 100},
+]
+
+
+class TestDocumentSummaries:
+    def test_summary_is_independent_of_question(self):
+        """요약 블록은 질문·증거와 무관하게 항상 같아야 캐시 프리픽스가 유지된다."""
+        assert _build_document_summaries(_DOCS) == _build_document_summaries(_DOCS)
+        assert "★" not in _build_document_summaries(_DOCS)
+
+    def test_contains_metadata_fields(self):
+        out = _build_document_summaries(_DOCS)
+        assert "A매뉴얼" in out and "MR-J4" in out and "58" in out
+
+
+class TestTocEvidenceSection:
+    def test_lists_matched_titles_per_document(self):
+        out = _build_toc_evidence_section(_DOCS, {"d2": ["3.2 알람 목록", "SMATV 설정"]})
+        assert "B매뉴얼" in out
+        assert "3.2 알람 목록, SMATV 설정" in out
+        assert "A매뉴얼" not in out
+
+    def test_empty_when_no_evidence(self):
+        assert _build_toc_evidence_section(_DOCS, None) == ""
+        assert _build_toc_evidence_section(_DOCS, {}) == ""
+
+    def test_empty_when_evidence_matches_no_listed_document(self):
+        assert _build_toc_evidence_section(_DOCS, {"unknown-id": ["제목"]}) == ""

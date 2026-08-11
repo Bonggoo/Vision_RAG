@@ -14,6 +14,7 @@ from typing import AsyncGenerator
 
 import fitz  # PyMuPDF
 
+from app.prompts import vision_source_section
 from app.services.agent_service import analyze_pages_with_vision
 from app.services.metadata_service import (
     get_all_documents_async,
@@ -38,7 +39,12 @@ from .llm_steps import (
     select_document,
     select_pages,
 )
-from .toc import find_section_page_range, normalize_page, resolve_target_pages_without_toc
+from .toc import (
+    build_breadcrumb,
+    find_section_page_range,
+    normalize_page,
+    resolve_target_pages_without_toc,
+)
 
 # ─── 되묻기 임계값 ───────────────────────────────────────────────────────────
 # 최상위 후보가 이보다 낮으면 확신이 없다고 본다.
@@ -541,10 +547,22 @@ async def _stage_answer(ctx: PipelineContext):
         doc.close()
 
     # ─── Vision 분석 (스트리밍) + 텍스트 폴백 ───
+    # 첨부 페이지가 문서 어디에서 왔는지(ToC 계층 + 원문 페이지)를 함께 알려 준다.
+    # ToC 는 업로드 시 추출해 둔 것이라 LLM 추가 호출이 없다.
+    source_pages = [idx + 1 for idx in page_indices]
+    source_section = vision_source_section(
+        meta.get("filename", ""),
+        build_breadcrumb(meta.get("toc", []), min(source_pages)),
+        source_pages,
+    )
+
     yield ctx.reasoning("Gemini Vision으로 페이지를 분석하고 있습니다...")
     try:
         async for chunk in analyze_pages_with_vision(
-            mini_pdf_bytes, ctx.question, chat_history=ctx.chat_history
+            mini_pdf_bytes,
+            ctx.question,
+            chat_history=ctx.chat_history,
+            source_section=source_section,
         ):
             yield ctx.add_answer(chunk)
     except Exception as e:

@@ -2,7 +2,8 @@
 
 이 폴더의 문서를 성격별로 분류한 인덱스입니다. 처음이라면 **PRD → API_Contract → remaining_tasks** 순서를 권장합니다.
 
-> **최종 정리**: 2026-07-18 — 중복되던 작업 추적 문서 3종(`task.md` 루트, `improvement_list.md`)을 `remaining_tasks.md`로 통합했습니다.
+> **최종 정리**: 2026-08-11 — 별도로 생겼던 `docs/` 폴더를 이 폴더로 합쳤습니다(문서 폴더는 `doc/` 하나).
+> 이전 정리(2026-07-18): 중복되던 작업 추적 문서 3종(`task.md` 루트, `improvement_list.md`)을 `remaining_tasks.md`로 통합.
 
 ---
 
@@ -35,13 +36,15 @@
 | 문서 | 내용 |
 |------|------|
 | [refactoring_plan.md](./refactoring_plan.md) | 코드 구조 리팩토링 로드맵 (전 Phase 완료) |
+| [context-management-results.md](./context-management-results.md) | 컨텍스트 관리 감사·토큰 실측·적용 결과 (프롬프트 캐시 정렬, 계측 도입) |
+| [context-management-benchmark.md](./context-management-benchmark.md) | 위 작업의 사전 조사 — **진단부 상당수가 실측으로 반증됨.** results 문서를 먼저 볼 것 |
 | [async_upload_roadmap.md](./async_upload_roadmap.md) | 대용량 비동기 GCS 다이렉트 업로드 파이프라인 (완료) |
 | [gcs_signed_url_roadmap.md](./gcs_signed_url_roadmap.md) | GCS Signed URL 다운로드 + 한글 파일명 핫픽스 (완료) |
 
 ## 🛠️ 운영 / 인프라 가이드
 | 문서 | 내용 |
 |------|------|
-| [custom_domain_mapping.md](./custom_domain_mapping.md) | Cloud Run + Vercel 커스텀 도메인 연결 가이드 |
+| [custom_domain_mapping.md](./custom_domain_mapping.md) | 커스텀 도메인 연결 가이드 — ⚠️ Vercel 분리 배포 시절 작성. 현재는 Cloud Run 단일 오리진이라 프론트엔드 절이 무효 |
 
 ## 📣 기타
 | 문서 | 내용 |

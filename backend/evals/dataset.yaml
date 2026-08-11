@@ -17,6 +17,13 @@
 #   id          : 고유 식별자 (--only 필터용)
 #   question    : 사용자 질문
 #   document_id : 지정 시 문서 선택 단계를 건너뛰고 해당 문서로 고정
+#   history     : 이 질문 앞에 오간 대화 [{role: user|assistant, content: "..."}]
+#   previous_reference : 직전 답변이 참조한 문서 맥락
+#                        {document_id, document_name, referenced_pages}
+#
+# 멀티턴 케이스는 history 와 previous_reference 를 **함께** 지정해야 합니다.
+# 프론트엔드가 매 턴 둘 다 보내기 때문이며(useChatStream.ts), previous_reference 가
+# 없으면 맥락 이어받기 분기를 타지 않아 실제 UX와 다른 경로를 검증하게 됩니다.
 # ─────────────────────────────────────────────────────────────────────────────
 
 defaults:
@@ -83,6 +90,63 @@ cases:
     question: "설정 방법 알려줘"
     expected:
       type: clarification
+
+  # ── 멀티턴: 앞 대화 맥락을 이어받아야 풀리는 질문 ──────────────────────
+  # 지시대명사/생략형 후속 질문은 문서 선택뿐 아니라 **페이지 선택 단계**까지
+  # 맥락이 전달돼야 정답이 나온다. 아래 3건이 그 회귀를 잡는다.
+
+  # 5) 지시대명사 후속 — "그 알람"이 앞 턴의 AL.10을 가리킨다
+  - id: followup-pronoun-alarm
+    history:
+      - role: user
+        content: "미쓰비시 MELSERVO-J4 서보에서 AL.10 알람이 떴는데 원인이 뭐야?"
+      - role: assistant
+        content: "AL.10은 부족전압 알람입니다. 제어회로 또는 주회로의 전원 전압이 규정값 이하로 떨어졌을 때 발생합니다."
+    previous_reference:
+      document_id: "13c1b0ec-86b1-4975-9d19-c17f762de610"
+      document_name: "미쓰비시 MELSERVO-J4 서보앰프 기술자료집 (트러블 슈팅 편)"
+      referenced_pages: [12, 13]
+    question: "그럼 그 알람은 어떻게 조치해?"
+    expected:
+      type: technical
+      document: "MELSERVO-J4"
+      pages: [12, 13]
+      page_tolerance: 2
+      answer_keywords: ["전압"]
+
+  # 6) 생략형 후속 — 알람코드만 던져도 앞 문서 맥락에서 이어져야 함
+  #    (되묻기로 빠지면 실패. 페이지는 코드마다 달라 검증하지 않는다)
+  - id: followup-elliptical-code
+    history:
+      - role: user
+        content: "미쓰비시 MELSERVO-J4 서보에서 AL.10 알람이 떴는데 원인이 뭐야?"
+      - role: assistant
+        content: "AL.10은 부족전압 알람입니다. 제어회로 또는 주회로의 전원 전압이 규정값 이하로 떨어졌을 때 발생합니다."
+    previous_reference:
+      document_id: "13c1b0ec-86b1-4975-9d19-c17f762de610"
+      document_name: "미쓰비시 MELSERVO-J4 서보앰프 기술자료집 (트러블 슈팅 편)"
+      referenced_pages: [12, 13]
+    question: "AL.12는?"
+    expected:
+      type: technical
+      document: "MELSERVO-J4"
+
+  # 7) 맥락 전환 (음성 케이스) — 다른 장비를 명시하면 앞 문서를 이어받으면 안 된다
+  #    _find_carry_over_document 가 과도하게 맥락을 붙드는 회귀를 잡는다.
+  - id: context-switch-blocks-carryover
+    history:
+      - role: user
+        content: "미쓰비시 MELSERVO-J4 서보에서 AL.10 알람이 떴는데 원인이 뭐야?"
+      - role: assistant
+        content: "AL.10은 부족전압 알람입니다. 제어회로 또는 주회로의 전원 전압이 규정값 이하로 떨어졌을 때 발생합니다."
+    previous_reference:
+      document_id: "13c1b0ec-86b1-4975-9d19-c17f762de610"
+      document_name: "미쓰비시 MELSERVO-J4 서보앰프 기술자료집 (트러블 슈팅 편)"
+      referenced_pages: [12, 13]
+    question: "이번엔 LS L7NH 서보 드라이브 알람은 어떻게 확인해?"
+    expected:
+      type: technical
+      document: "L7NH"
 
   # ── 아래는 다른 매뉴얼 추가 시 참고할 템플릿 ──────────────────────────
   # - id: your-case-id

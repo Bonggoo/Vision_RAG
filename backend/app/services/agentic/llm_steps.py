@@ -10,6 +10,7 @@ import fitz  # PyMuPDF
 from langchain_core.messages import HumanMessage
 
 from app.prompts import (
+    chat_context_section,
     general_chat_prompt,
     refine_pages_prompt,
     select_document_prompt,
@@ -21,13 +22,13 @@ from app.services.agent_service import (
     _create_flash_llm,
     _extract_text_content,
 )
+from app.utils.llm_usage import log_response_usage
 from app.utils.logger import logger
 
 from .toc import normalize_page
 
 # ─── 상한값 ──────────────────────────────────────────────────────────────────
-RECENT_HISTORY_TURNS = 4          # 프롬프트에 실을 최근 대화 턴 수
-HISTORY_MESSAGE_CHARS = 200       # 대화 이력 메시지당 최대 길이
+# 대화 이력 절단 규칙은 prompts.chat_context_section 이 단독으로 갖는다.
 MAX_REFINED_PAGES = 3             # Phase 2가 반환할 타겟 페이지 상한
 MAX_COARSE_PAGES = 5              # Phase 1-2가 반환할 타겟 페이지 상한
 MAX_TOC_CANDIDATES = 3            # 프론트에 노출할 ToC 후보 상한
@@ -43,39 +44,37 @@ GENERIC_QUESTION_WORDS = {
 }
 
 
-def format_chat_context(chat_history: list[dict] | None) -> str:
-    """최근 대화 이력을 프롬프트에 넣을 문자열로 만듭니다 (없으면 빈 문자열)."""
-    if not chat_history:
-        return ""
-    lines = [
-        f"{'사용자' if item['role'] == 'user' else 'AI'}: {item['content'][:HISTORY_MESSAGE_CHARS]}"
-        for item in chat_history[-RECENT_HISTORY_TURNS:]
-    ]
-    return "\n이전 대화 맥락:\n" + "\n".join(lines) + "\n"
+# 대화 이력 블록 생성은 prompts.chat_context_section 하나로 통일돼 있다.
+# 기존 호출부·테스트가 쓰던 이름을 유지하기 위한 별칭.
+format_chat_context = chat_context_section
 
 
-async def _invoke_json(prompt: str) -> dict:
+async def _invoke_json(prompt: str, stage: str) -> dict:
     """Flash-Lite LLM 을 호출하고 응답 JSON 을 dict 로 파싱합니다.
 
     실패는 호출부가 단계별 폴백을 결정할 수 있도록 예외로 전파합니다.
+    `stage` 는 토큰 사용량 로그에 찍히는 단계 이름입니다.
     """
     llm = _create_flash_llm()
     response = await llm.ainvoke([HumanMessage(content=prompt)])
+    log_response_usage(stage, response)
     return json.loads(_clean_json_response(response.content))
 
 
 # ─── Phase 1: 문서 선택 ──────────────────────────────────────────────────────
 
-def _build_document_summaries(documents: list[dict], toc_evidence: dict | None) -> str:
+def _build_document_summaries(documents: list[dict]) -> str:
     """문서 메타데이터 요약 블록을 만듭니다.
 
-    ToC 전체는 제외해 토큰을 아끼되(~2,500 토큰), 질문 키워드와 겹친 ToC 제목만
-    해당 문서에 한 줄 덧붙입니다 — 'SMATV'처럼 문서 제목에는 없고 목차에만 있는
-    단서로 문서를 골라야 하는 질문에 대응하기 위함.
+    ToC 전체는 제외해 토큰을 아낍니다(~2,500 토큰).
+
+    질문에 따라 달라지는 ToC 증거는 여기 섞지 않고 별도 블록으로 분리합니다
+    (`_build_toc_evidence_section`). 요약 블록이 질문과 무관하게 고정돼야
+    같은 문서 목록으로 연속 질문할 때 캐시 프리픽스가 유지되기 때문입니다.
     """
     summaries = []
     for i, doc in enumerate(documents):
-        summary = (
+        summaries.append(
             f"[문서 {i + 1}]\n"
             f"  ID: {doc['document_id']}\n"
             f"  제목: {doc.get('filename', '알 수 없음')}\n"
@@ -84,11 +83,25 @@ def _build_document_summaries(documents: list[dict], toc_evidence: dict | None) 
             f"  문서 종류: {doc.get('document_type', '미상')}\n"
             f"  페이지 수: {doc.get('total_pages', 0)}"
         )
-        matched_titles = (toc_evidence or {}).get(str(doc.get("document_id", "")))
-        if matched_titles:
-            summary += f"\n  ★ 질문 키워드와 일치하는 목차 항목: {', '.join(matched_titles)}"
-        summaries.append(summary)
     return "\n\n".join(summaries)
+
+
+def _build_toc_evidence_section(documents: list[dict], toc_evidence: dict | None) -> str:
+    """질문 키워드와 겹친 ToC 제목을 문서별로 모은 블록을 만듭니다.
+
+    'SMATV'처럼 문서 제목에는 없고 목차에만 있는 단서로 문서를 골라야 하는
+    질문에 대응하기 위한 근거 자료입니다. 증거가 없으면 빈 문자열.
+    """
+    if not toc_evidence:
+        return ""
+    lines = []
+    for i, doc in enumerate(documents):
+        matched_titles = toc_evidence.get(str(doc.get("document_id", "")))
+        if matched_titles:
+            lines.append(f"  [문서 {i + 1}] {doc.get('filename', '')}: {', '.join(matched_titles)}")
+    if not lines:
+        return ""
+    return "\n★ 질문 키워드와 일치하는 목차 항목:\n" + "\n".join(lines) + "\n"
 
 
 def _validate_candidates(raw_candidates, documents: list[dict]) -> list[dict]:
@@ -185,14 +198,15 @@ async def select_document(
         )
 
     prompt = select_document_prompt(
-        _build_document_summaries(documents, toc_evidence),
+        _build_document_summaries(documents),
+        _build_toc_evidence_section(documents, toc_evidence),
         format_chat_context(chat_history),
         previous_reference_section,
         question,
     )
 
     try:
-        result = await _invoke_json(prompt)
+        result = await _invoke_json(prompt, "Phase1:문서선택")
 
         classification = str(result.get("classification", "technical")).lower().strip()
         result["classification"] = "general" if "general" in classification else "technical"
@@ -253,6 +267,10 @@ async def select_pages(
 ) -> dict:
     """Phase 1-2: 선택된 문서의 ToC 전체(잘림 없음)로 타겟 페이지를 고릅니다.
 
+    이 단계는 대화 이력을 받지 않고 `previous_reference` 의 페이지 힌트만 씁니다.
+    이력 주입을 시도해 봤으나 멀티턴 골든 케이스에서 이득이 측정되지 않았고
+    타겟 페이지가 넓어지는 부작용만 보여 되돌렸습니다 (doc/context-management-results.md).
+
     Returns:
         {"target_pages": [int], "section_title": str,
          "toc_candidates": [{"title", "page"}], "reasoning": str}
@@ -271,7 +289,7 @@ async def select_pages(
     )
 
     try:
-        result = await _invoke_json(prompt)
+        result = await _invoke_json(prompt, "Phase1-2:페이지선택")
 
         result["target_pages"] = [
             normalize_page(p) for p in result.get("target_pages", [1])
@@ -313,7 +331,9 @@ async def refine_pages_with_text(
     )
 
     try:
-        result = await _invoke_json(refine_pages_prompt(question, full_text, section_start))
+        result = await _invoke_json(
+            refine_pages_prompt(question, full_text, section_start), "Phase2:텍스트정밀탐색"
+        )
 
         # 정규화 후 스캔 범위 밖 페이지는 버린다 (LLM 환각 페이지 방지)
         pages = [normalize_page(p) for p in result.get("target_pages", [section_start])]
@@ -336,6 +356,7 @@ async def generate_general_answer(question: str) -> str:
     """일상대화 답변을 생성합니다. 실패 시 예외를 그대로 올립니다."""
     llm = _create_flash_llm()
     response = await llm.ainvoke([HumanMessage(content=general_chat_prompt(question))])
+    log_response_usage("일상대화답변", response)
     return _extract_text_content(response.content)
 
 
@@ -367,4 +388,5 @@ async def generate_text_fallback(
     )
     llm = _create_flash_llm()
     response = await llm.ainvoke([HumanMessage(content=prompt)])
+    log_response_usage("텍스트폴백답변", response)
     return _extract_text_content(response.content)

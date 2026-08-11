@@ -73,7 +73,7 @@
 | **정확도** | 시각 정보(표, 도면) 포함 질의에 대해 기존 텍스트 RAG 대비 정확도 향상 |
 | **비용 효율** | Vector DB 인프라 비용 0원, Flash-Lite 모델로 토큰 비용 최적화 |
 | **접근성** | PC·모바일 브라우저에서 별도 설치 없이 URL 접속만으로 즉시 사용 가능 |
-| **배포 용이성** | Git Push → 자동 배포(Vercel, Cloud Run), 환경 변수 자동 매핑 |
+| **배포 용이성** | Git Push → Cloud Build 자동 배포(Cloud Run 단일 오리진), 환경 변수 자동 매핑 |
 | **보안성** | 화이트리스트 구글 계정 기반 접근 제어 및 이메일별 데이터 격리 적용 |
 
 ---
@@ -119,7 +119,7 @@
 | **AI Orchestration** | LangChain Core 1.4 + LangChain Google GenAI 4.2 |
 | **AI Model** | Gemini 3.1 Flash-Lite (추론/탐색/Vision 전 구간 통합 사용) |
 | **Storage** | Google Cloud Storage (GCS) 다이렉트 업로드 및 Signed URL 다운로드 |
-| **Deployment** | Vercel (Frontend) + Google Cloud Run (Backend) |
+| **Deployment** | Google Cloud Run 단일 오리진 (프론트 정적 export를 백엔드 이미지에 동봉) |
 
 ---
 

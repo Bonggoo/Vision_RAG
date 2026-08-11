@@ -6,6 +6,33 @@ app/services/agentic/ 파이프라인이 사용하는 프롬프트 템플릿을 
 """
 
 
+# ─── 대화 이력 블록 ──────────────────────────────────────────────────────────
+# 프롬프트에 실을 최근 메시지 수와 메시지당 최대 길이.
+# 프론트엔드가 보내는 양(6개 메시지 × 300자)과 맞춰 둔다 — 더 크게 잡아도
+# 받을 이력이 없고, 더 작게 잡으면 이미 받은 맥락을 스스로 버리게 된다.
+RECENT_HISTORY_MESSAGES = 6
+HISTORY_MESSAGE_CHARS = 300
+
+
+def chat_context_section(
+    chat_history: list[dict] | None,
+    max_messages: int = RECENT_HISTORY_MESSAGES,
+    max_chars: int = HISTORY_MESSAGE_CHARS,
+) -> str:
+    """최근 대화 이력을 프롬프트 블록으로 만듭니다 (없으면 빈 문자열).
+
+    문서 선택·페이지 선택·Vision·텍스트폴백이 모두 이 함수를 쓴다.
+    이전에는 같은 절단 규칙이 두 벌로 복붙돼 턴 수·글자 수가 서로 달랐다.
+    """
+    if not chat_history:
+        return ""
+    lines = [
+        f"{'사용자' if item['role'] == 'user' else 'AI'}: {item['content'][:max_chars]}"
+        for item in chat_history[-max_messages:]
+    ]
+    return "\n이전 대화 맥락:\n" + "\n".join(lines) + "\n"
+
+
 def general_chat_prompt(question: str) -> str:
     """일상대화(general) 분기에서 사용하는 chat 프롬프트."""
     return f"""당신은 산업용 매뉴얼 분석 비서 'Vision RAG 에이전트'입니다.
@@ -19,16 +46,22 @@ def general_chat_prompt(question: str) -> str:
 
 
 def refine_pages_prompt(question: str, full_text: str, section_start: int) -> str:
-    """Phase 2: 섹션 텍스트 기반 정밀 페이지 탐색 프롬프트."""
+    """Phase 2: 섹션 텍스트 기반 정밀 페이지 탐색 프롬프트.
+
+    ⚠️ 변수 순서 주의: 섹션 본문(최대 50페이지, 실측 약 39,000토큰)이 질문보다
+    먼저 와야 합니다. 파이프라인에서 가장 큰 입력이라 같은 섹션에 후속 질문이
+    이어질 때 캐시 효과가 가장 큽니다. 질문을 앞에 두면 프리픽스가 매 턴 달라져
+    본문 전체가 캐시 대상에서 빠집니다.
+    """
     return f"""당신은 산업용 매뉴얼 전문 분석가입니다.
 아래는 전체 매뉴얼의 특정 섹션에 포함된 텍스트입니다.
-이 텍스트를 꼼꼼히 읽고 검색하여, 아래 질문에 답하기 위해 참조해야 할 **정확한 절대 페이지 번호**를 찾으세요.
-
-질문: "{question}"
+이 텍스트를 꼼꼼히 읽고 검색하여, 텍스트 뒤에 제시되는 질문에 답하기 위해 참조해야 할 **정확한 절대 페이지 번호**를 찾으세요.
 
 --- 섹션 텍스트 시작 ---
 {full_text}
 --- 섹션 텍스트 끝 ---
+
+질문: "{question}"
 
 다음 JSON 형식으로만 응답하세요 (마크다운 코드블록 없이):
 {{
@@ -45,8 +78,19 @@ def refine_pages_prompt(question: str, full_text: str, section_start: int) -> st
 """
 
 
-def select_document_prompt(docs_text: str, context_section: str, previous_reference_section: str, question: str) -> str:
-    """Phase 1: 메타데이터 기반 문서 선택 + 일상대화 판별 프롬프트."""
+def select_document_prompt(
+    docs_text: str,
+    toc_evidence_section: str,
+    context_section: str,
+    previous_reference_section: str,
+    question: str,
+) -> str:
+    """Phase 1: 메타데이터 기반 문서 선택 + 일상대화 판별 프롬프트.
+
+    ⚠️ 변수 순서 주의: 질문과 무관하게 고정된 문서 목록(docs_text)이 먼저 오고,
+    질문마다 달라지는 요소(ToC 증거·대화 맥락·이전 참조·질문)가 뒤따릅니다.
+    ToC 증거를 문서 목록 안에 섞으면 목록 전체가 매 질문 달라져 캐시가 깨집니다.
+    """
     return f"""당신은 산업용 매뉴얼 전문 분석가입니다.
 
 [Step 1] 사용자의 질문이 매뉴얼 검색이 필요한 기술적 질문인지 판별하세요.
@@ -68,7 +112,7 @@ def select_document_prompt(docs_text: str, context_section: str, previous_refere
 - 질문에 이미 들어있는 제조사/모델명을 중복해서 붙이지 마세요. 후보들이 같은 제조사/모델이라 그것만으로 구분이 안 되면, 문서 제목의 구분 요소(예: 기본편/응용편, 시리얼/Ethernet)를 활용해 재작성하세요 (예: "Q 시리즈 Ethernet 모듈 통신 에러" → "Q 시리즈 Ethernet 모듈 기본편 기준 통신 에러 타임아웃 해결법")
 
 {docs_text}
-{context_section}
+{toc_evidence_section}{context_section}
 {previous_reference_section}
 사용자의 질문: "{question}"
 
@@ -102,8 +146,19 @@ def select_document_prompt(docs_text: str, context_section: str, previous_refere
 - [장비 연관성 규칙] 알람코드나 에러코드가 포함된 질문일 경우, 산업 자동화 장비의 제어 계층을 반드시 고려하세요. 예를 들어 "서보 알람"이라고 해도 실제 알람은 서보앰프 자체가 아니라 상위 제어 장비(위치결정모듈, 모션컨트롤러, PLC 등)에서 발생시킨 코드일 수 있습니다. 마찬가지로 하위 장비(엔코더, 모터 등)의 문서도 관련될 수 있습니다. 이처럼 질문에 명시된 장비뿐 아니라, 해당 장비와 제어 관계에 있는 상위/하위 장비의 문서에도 적절한 confidence 점수(0.4 이상)를 부여하세요."""
 
 
-def select_pages_prompt(toc_text: str, total_pages, previous_pages_section: str, question: str) -> str:
-    """Phase 1-2: ToC 기반 타겟 페이지 선택 프롬프트."""
+def select_pages_prompt(
+    toc_text: str,
+    total_pages,
+    previous_pages_section: str,
+    question: str,
+) -> str:
+    """Phase 1-2: ToC 기반 타겟 페이지 선택 프롬프트.
+
+    ⚠️ 변수 순서 주의: 큰 ToC(수만 토큰)가 반드시 맨 앞에 와야 합니다.
+    같은 문서에 연속 질문할 때 Gemini 암묵적 캐시가 ToC 구간에 걸려
+    입력 토큰의 대부분이 할인됩니다(실측 89%). 가변 요소(맥락·질문)를
+    ToC 앞으로 옮기면 프리픽스가 매 턴 달라져 캐시가 통째로 깨집니다.
+    """
     return f"""당신은 산업용 매뉴얼 전문 분석가입니다.
 아래는 선택된 문서의 전체 목차(ToC)입니다:
 
@@ -134,16 +189,81 @@ def select_pages_prompt(toc_text: str, total_pages, previous_pages_section: str,
 - 연속된 페이지라면 사이 페이지도 포함합니다."""
 
 
-def text_fallback_prompt(context_section: str, question: str, full_text: str) -> str:
-    """Vision 분석 실패 시 텍스트만으로 답변을 생성하는 폴백 프롬프트."""
+def vision_source_section(document_name: str, breadcrumb: str, pages: list[int]) -> str:
+    """Vision 프롬프트에 넣을 '이 페이지가 어디서 왔는지' 블록을 만듭니다.
+
+    문서명·ToC 계층·원문 페이지 번호를 모델에 알려 주어, 답변이 출처를 정확히
+    밝히고 첨부 페이지 밖의 내용을 지어내지 않게 하는 것이 목적입니다.
+    재료가 하나도 없으면 빈 문자열을 반환해 프롬프트에서 통째로 빠집니다.
+    """
+    parts = [part for part in (document_name.strip(), breadcrumb.strip()) if part]
+    location = " > ".join(parts)
+    page_text = ", ".join(f"p.{p}" for p in pages)
+
+    if not location and not page_text:
+        return ""
+
+    lines = ["\n[첨부 페이지 출처]"]
+    if location:
+        lines.append(f"- 위치: {location}")
+    if page_text:
+        lines.append(f"- 원문 페이지: {page_text}")
+    return "\n".join(lines) + "\n"
+
+
+def vision_answer_prompt(source_section: str, context_section: str, question: str) -> str:
+    """Phase 3: 미니 PDF 를 첨부해 최종 답변을 생성하는 Vision 프롬프트."""
     return f"""당신은 산업용 매뉴얼 전문 분석가입니다.
-아래는 매뉴얼에서 추출한 텍스트입니다. 이 텍스트를 분석하여 사용자의 질문에 정확하게 답변하세요.
-{context_section}
+첨부된 PDF 페이지를 분석하여 아래 질문에 정확하게 답변하세요.
+{source_section}{context_section}
 질문: "{question}"
+
+답변 형식 (마크다운):
+## 답변 요약
+(핵심 답변을 1-2문장으로)
+
+### 상세 내용
+(매뉴얼 내용을 기반으로 상세하게)
+
+### 조치 방법 (해당 시)
+1. 단계별 조치 방법
+2. ...
+
+> 참고: 해당 정보는 매뉴얼의 첨부 페이지에서 확인된 내용입니다.
+
+규칙:
+- 시각적 정보(표, 도면, 다이어그램)가 있다면 해당 내용을 텍스트로 설명해 주세요.
+- 매뉴얼에 없는 내용은 추측하지 마세요.
+- [첨부 페이지 출처]가 주어졌다면, 근거를 인용할 때 해당 원문 페이지 번호를 함께 밝히세요.
+- 한국어로 답변하세요.
+"""
+
+
+def vision_history_section(chat_history: list[dict] | None) -> str:
+    """Vision 프롬프트의 이전 대화 맥락 블록. 이력이 없으면 빈 문자열.
+
+    절단 규칙은 chat_context_section 과 공유하고, 후속 질문 처리 지시만 덧붙입니다.
+    """
+    context = chat_context_section(chat_history)
+    if not context:
+        return ""
+    return context + "위 대화를 참고하여, 사용자의 후속 질문에 자연스럽게 답변하세요.\n"
+
+
+def text_fallback_prompt(context_section: str, question: str, full_text: str) -> str:
+    """Vision 분석 실패 시 텍스트만으로 답변을 생성하는 폴백 프롬프트.
+
+    ⚠️ 변수 순서 주의: 본문이 가변 요소(대화 맥락·질문)보다 먼저 와야
+    같은 페이지에 재질문할 때 캐시 프리픽스가 유지됩니다.
+    """
+    return f"""당신은 산업용 매뉴얼 전문 분석가입니다.
+아래는 매뉴얼에서 추출한 텍스트입니다. 이 텍스트를 분석하여 텍스트 뒤에 제시되는 사용자의 질문에 정확하게 답변하세요.
 
 --- 매뉴얼 텍스트 시작 ---
 {full_text}
 --- 매뉴얼 텍스트 끝 ---
+{context_section}
+질문: "{question}"
 
 답변 형식 (마크다운):
 ## 답변 요약

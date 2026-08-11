@@ -146,7 +146,7 @@ class LocalTransport:
 
     name = "local"
 
-    async def stream(self, question, document_id, chat_history, user_email):
+    async def stream(self, question, document_id, chat_history, user_email, previous_reference=None):
         from app.services.agentic import run_agentic_pipeline
         async for chunk in run_agentic_pipeline(
             document_id=document_id,
@@ -155,6 +155,7 @@ class LocalTransport:
             image=None,
             user_email=user_email,
             session_id=None,  # 대화 저장 안 함
+            previous_reference=previous_reference,
         ):
             yield chunk
 
@@ -169,12 +170,14 @@ class RemoteTransport:
         self.token = token
         self.timeout = timeout
 
-    async def stream(self, question, document_id, chat_history, user_email):
+    async def stream(self, question, document_id, chat_history, user_email, previous_reference=None):
         body = {"message": question}
         if document_id:
             body["document_id"] = document_id
         if chat_history:
             body["chat_history"] = chat_history
+        if previous_reference:
+            body["previous_reference"] = previous_reference
         headers = {"Authorization": f"Bearer {self.token}"}
         timeout = httpx.Timeout(self.timeout, connect=15.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -188,13 +191,17 @@ class RemoteTransport:
                     yield text
 
 
-async def _ask(transport, question, document_id, chat_history, user_email, timeout) -> dict:
+async def _ask(
+    transport, question, document_id, chat_history, user_email, timeout, previous_reference=None
+) -> dict:
     """질문 1턴을 실행하고 SSE 이벤트를 수집합니다."""
     obs = _new_obs()
     buf = SSEBuffer()
 
     async def consume():
-        async for chunk in transport.stream(question, document_id, chat_history, user_email):
+        async for chunk in transport.stream(
+            question, document_id, chat_history, user_email, previous_reference
+        ):
             for ev in buf.feed(chunk):
                 _ingest(obs, ev)
 
@@ -370,8 +377,18 @@ async def run_case(case: dict, defaults: dict, transport, judge_enabled: bool, e
     timeout = float(case.get("timeout", defaults.get("timeout", 180)))
     question = case["question"]
 
+    # 멀티턴 케이스: 이 질문 앞에 이미 오간 대화를 그대로 재현한다.
+    # history 는 프론트가 보내는 형태({role, content} 리스트)와 동일하고,
+    # previous_reference 는 직전 답변이 참조한 문서 맥락(프론트가 매 턴 함께 보냄)이다.
+    # 지시대명사 후속 질문("그럼 그 알람은?")은 이 둘이 모두 있어야 실제 UX와 같은 경로를 탄다.
+    case_history = case.get("history")
+    case_prev_ref = case.get("previous_reference")
+
     t0 = time.monotonic()
-    turn1 = await _ask(transport, question, case.get("document_id"), None, user_email, timeout)
+    turn1 = await _ask(
+        transport, question, case.get("document_id"), case_history, user_email, timeout,
+        previous_reference=case_prev_ref,
+    )
     final = turn1
     selected = None
     turns = 1
@@ -383,7 +400,7 @@ async def run_case(case: dict, defaults: dict, transport, judge_enabled: bool, e
             case.get("select_document") or expected.get("document"),
         )
         if selected:
-            history = [
+            history = (case_history or []) + [
                 {"role": "user", "content": question},
                 {"role": "assistant", "content": turn1["clarification_content"]},
             ]
