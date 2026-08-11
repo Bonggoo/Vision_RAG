@@ -1,5 +1,11 @@
 # 🌐 Cloud Run & Vercel 커스텀 도메인 연결 설정 가이드
 
+> ⚠️ **이 문서는 프론트/백엔드를 분리 배포하던 시절(Vercel + Cloud Run)에 작성됐습니다.**
+> 현재는 **Cloud Run 단일 오리진**으로, 프론트엔드 정적 export 가 백엔드 이미지에 함께
+> 담겨 배포됩니다(`backend/cloudbuild.yaml`). 별도 프론트엔드 호스트가 없으므로
+> **아래 "프론트엔드 (Vercel)" 관련 절은 더 이상 적용되지 않습니다.**
+> Cloud Run 도메인 매핑 절차는 그대로 유효합니다.
+
 본 문서는 TechNote(Vision RAG) 시스템의 백엔드(Cloud Run)와 프론트엔드(Vercel)에 커스텀 도메인을 깔끔하게 연결하여, 기본 URL 노출을 차단하고 Same-Site 보안 쿠키 설정을 원활하게 만들기 위한 **인프라 설정 가이드**입니다.
 
 ---

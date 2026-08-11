@@ -4,6 +4,10 @@
 > 대상: 백엔드(`backend/`) + 프론트엔드(`frontend/`) 전체
 > 상태: **전 Phase 완료** — H2·pytest·Phase 5 포함 모든 트랙 완료
 
+> 📌 **이후 변경(2026-07~08)**: 본문이 지목하는 `services/agentic_graph.py` 는 이후
+> 커밋 `f3c1784` 에서 `services/agentic/` 패키지(pipeline·context·llm_steps·doc_filter·toc 등)로
+> 분해되었습니다. 본문의 파일명·줄번호는 당시 기준이며 현재 코드와 대응하지 않습니다.
+
 본 문서는 기능 고도화가 아닌 **코드 구조·유지보수성 개선**을 위한 리팩토링 로드맵입니다.
 기능 요구사항 현황 및 잔여 작업은 [`remaining_tasks.md`](./remaining_tasks.md)를 참고하세요.
 

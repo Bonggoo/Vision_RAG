@@ -8,7 +8,9 @@ Vision_RAG ("TechNote") — Agentic PDF RAG system. The AI navigates industrial 
 
 **Stack:**
 - Frontend: Next.js + Tailwind + PWA (`frontend/`)
-- Backend: FastAPI + Google Cloud Storage + Gemini via the `google-genai` SDK (`backend/`)
+- Backend: FastAPI + Google Cloud Storage + Gemini (`backend/`). Every LLM call goes through
+  LangChain's `ChatGoogleGenerativeAI` (`langchain-google-genai`), not the raw `google-genai`
+  client — relevant when reaching for provider features like explicit context caching.
 
 ## Commands
 
@@ -42,7 +44,7 @@ python -m evals.run_eval --judge     # include LLM-as-judge scoring
   - `doc_filter.py` — keyword-based first-pass document filter and related pure functions.
   - `toc.py` / `classification.py` / `sse.py` — page-number normalization, rule-based routing, SSE serialization.
 - `backend/app/prompts.py` — every LLM prompt template. Do not inline prompts in service code.
-  - **Variable order matters for cost.** Gemini implicit caching only discounts a shared prompt *prefix*, so large/stable content (ToC, section text, PDF part, document list) must come **before** variable content (chat context, previous reference, question). Functions carrying a `⚠️ 변수 순서 주의` docstring are ordered deliberately — reordering them silently breaks cache hits (Phase 2 measured 0% → 95% from this alone). See `docs/context-management-results.md`.
+  - **Variable order matters for cost.** Gemini implicit caching only discounts a shared prompt *prefix*, so large/stable content (ToC, section text, PDF part, document list) must come **before** variable content (chat context, previous reference, question). Functions carrying a `⚠️ 변수 순서 주의` docstring are ordered deliberately — reordering them silently breaks cache hits (Phase 2 measured 0% → 95% from this alone). See `doc/context-management-results.md`.
   - `chat_context_section()` is the single source of chat-history truncation (6 messages × 300 chars, matching what the frontend sends). Do not re-implement slicing at call sites.
 - `backend/app/utils/llm_usage.py` — per-call token/cache metering. Every chat-path Gemini call logs `🧮 [Usage] <stage>: in=… out=… cached=… (…%)`; `cached` comes from `usage_metadata.input_token_details.cache_read`.
 - `backend/app/services/pdf_service.py` — GCS Signed URL generation and sparse-PDF patching.

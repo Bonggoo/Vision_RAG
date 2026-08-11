@@ -269,7 +269,7 @@ async def select_pages(
 
     이 단계는 대화 이력을 받지 않고 `previous_reference` 의 페이지 힌트만 씁니다.
     이력 주입을 시도해 봤으나 멀티턴 골든 케이스에서 이득이 측정되지 않았고
-    타겟 페이지가 넓어지는 부작용만 보여 되돌렸습니다 (docs/context-management-results.md).
+    타겟 페이지가 넓어지는 부작용만 보여 되돌렸습니다 (doc/context-management-results.md).
 
     Returns:
         {"target_pages": [int], "section_title": str,

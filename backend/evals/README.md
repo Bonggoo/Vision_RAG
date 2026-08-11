@@ -11,13 +11,17 @@
 | **remote** (기본) | Cloud Run 배포 서버에 HTTP로 `POST /chat/stream` — 실제 서비스 그대로 테스트 |
 | **local** (`--local`) | `run_agentic_pipeline`을 프로세스 내 직접 호출 — 서버·배포 없이 코드 검증 |
 
+> ⚠️ **`--local`은 `USE_LOCAL_STORAGE=False`가 필요합니다.** 골든 데이터셋의 문서는 GCS에
+> 있는데 `backend/.env`의 기본값이 `True`(로컬 파일시스템)라, 그냥 돌리면 문서 목록이
+> 0건으로 잡혀 전 케이스가 무의미하게 실패합니다.
+
 ## 실행
 
 ```bash
 cd backend
 source venv/bin/activate
 python -m evals.run_eval                  # 원격 (dataset defaults.base_url = Cloud Run)
-python -m evals.run_eval --local          # 로컬 파이프라인 직접 호출
+USE_LOCAL_STORAGE=False python -m evals.run_eval --local   # 로컬 파이프라인 직접 호출
 python -m evals.run_eval --only greeting  # id 부분 일치 필터
 python -m evals.run_eval --judge          # LLM-as-judge 채점 포함
 python -m evals.run_eval --min-pass 0.8   # CI/루틴용: 통과율 미달 시 exit 1
@@ -129,6 +133,37 @@ expected에 **명시한 항목만** 검사하며, 모두 통과해야 케이스 
 
 `expected.type: clarification`인 케이스는 되묻기에서 멈추는 게 정답이므로 자동 선택하지 않습니다.
 케이스 작성 예시는 `dataset.yaml`의 주석 템플릿 참고.
+
+## 멀티턴 케이스 (`history` / `previous_reference`)
+
+지시대명사·생략형 후속 질문("그럼 그 알람은?", "AL.12는?")의 회귀를 잡으려면
+케이스에 **이전 대화를 직접 심어** 줍니다.
+
+```yaml
+- id: followup-pronoun-alarm
+  history:
+    - role: user
+      content: "미쓰비시 MELSERVO-J4 서보에서 AL.10 알람이 떴는데 원인이 뭐야?"
+    - role: assistant
+      content: "AL.10은 부족전압 알람입니다. ..."
+  previous_reference:
+    document_id: "13c1b0ec-..."
+    document_name: "미쓰비시 MELSERVO-J4 ... (트러블 슈팅 편)"
+    referenced_pages: [12, 13]
+  question: "그럼 그 알람은 어떻게 조치해?"
+  expected:
+    type: technical
+    document: "MELSERVO-J4"
+```
+
+> ⚠️ **둘을 함께 지정해야 합니다.** 프론트엔드는 매 턴 `chat_history`와
+> `previous_reference`를 같이 보냅니다(`useChatStream.ts`). `history`만 주면 맥락
+> 이어받기 분기를 타지 않아 실제 UX와 다른 코드 경로를 재게 됩니다.
+
+되묻기 2턴 플로우가 함께 발생하면 케이스의 `history` 뒤에 그 턴의 대화가 이어붙습니다.
+
+현재 골든셋에는 지시대명사 / 생략형 / **맥락전환 음성 케이스**(다른 장비를 명시하면
+이전 문서를 이어받으면 **안 되는** 케이스) 3건이 들어 있습니다.
 
 ## 정기 루틴으로 돌리기 (Claude Desktop 등)
 

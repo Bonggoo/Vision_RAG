@@ -20,6 +20,9 @@
 | **대용량 비동기 GCS 업로드** | Pre-flight 해시 사전 중복 검증, 브라우저 ↔ GCS Direct 업로드(서버 메모리 보호) 및 FastAPI BackgroundTasks 비동기 분석 |
 | **GCS Signed URL 다운로드** | UTF-8 한글 명세(RFC 5987) 준수 및 고속 서명 다운로드 링크(Signed URL) 제공 |
 | **Vision 기반 ToC 자동 보강** | PDF 목차 페이지를 자동 탐색하여 3레벨 계층 목차 추출 (최대 291개 항목) |
+| **비PDF 문서 자동 정규화** | docx/xlsx/pptx/txt/md/이미지 업로드를 PDF로 변환해 동일 파이프라인으로 처리 (원본은 보존하여 다운로드 시 제공) |
+| **답변 출처 명시** | Vision 분석 시 해당 페이지의 ToC 계층(장 > 절)과 원문 페이지 번호를 함께 전달하여 인용 정확도 향상 |
+| **토큰·캐시 계측** | 파이프라인 단계별 입력/출력/캐시 적중 토큰을 로깅. 프롬프트를 캐시 친화적으로 정렬해 Phase 2 입력 토큰의 95%를 할인 적중 |
 | **AI 제조사/모델 자동 분류** | 업로드 시 Gemini Vision을 통해 표지를 분석하여 제조사 및 모델 시리즈를 자동 매핑 |
 | **사이드바 2단 아코디언 트리** | 제조사 > 모델 시리즈 2단 아코디언 트리 제공 (문서가 3개 이하일 땐 스마트 플랫 리스트로 자동 대응) |
 | **인라인 메타데이터 수정** | 사이드바에서 문서명, 제조사, 모델을 실시간 수정 가능 (기존 제조사 리스트 자동완성 추천 제공) |
@@ -67,11 +70,11 @@
 | **Frontend** | Next.js 16.2 + React 19 + Zustand 5 + TailwindCSS 4 |
 | **Backend** | Python 3.10+ / FastAPI 0.136 |
 | **PDF 처리** | PyMuPDF 1.27 (fitz) — ToC 추출, 미니 PDF, 썸네일 |
-| **AI Model** | Gemini Flash-Lite (`google-genai` SDK — 추론/탐색/Vision 전 구간 통합) |
-| **Orchestration** | LangChain Core 1.4 + LangChain Google GenAI 4.2 + LangGraph 1.2 |
+| **AI Model** | Gemini Flash-Lite (추론/탐색/Vision 전 구간 통합) |
+| **Orchestration** | LangChain Core 1.4 + LangChain Google GenAI 4.2 (`ChatGoogleGenerativeAI` 경유 호출) + LangGraph 1.2 |
 | **Security & Auth** | JWT Access & Refresh Token + Google OAuth |
 | **Storage** | Google Cloud Storage (GCS) — 문서 및 대화 세션 모두 저장 |
-| **배포** | Vercel (프론트) + Cloud Run (백엔드, asia-northeast3) |
+| **배포** | Cloud Run 단일 오리진 (asia-northeast3) — 프론트 정적 export를 백엔드 이미지에 포함해 함께 배포 |
 | **PWA** | 수동 Service Worker + Web App Manifest |
 
 ---
@@ -88,8 +91,10 @@ GOOGLE_CLIENT_ID=your_google_oauth_client_id
 JWT_SECRET=your_jwt_secret_key
 
 # 아래는 선택사항 (기본값 있음)
-# GEMINI_MODEL_NAME=gemini-2.0-flash-lite
+# GEMINI_MODEL_NAME=gemini-3.1-flash-lite
+# GEMINI_FLASH_MODEL_NAME=gemini-3.1-flash-lite
 # ALLOWED_ORIGINS=http://localhost:3000
+# USE_LOCAL_STORAGE=True   # GCS 대신 로컬 파일시스템 사용 (오프라인 개발용)
 
 # frontend/.env.local
 NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -155,24 +160,35 @@ TechNote/
 │   │   ├── main.py                   # FastAPI 앱 + lifespan + CORS + 라우터 등록
 │   │   ├── config.py                 # 환경 변수 설정 (Pydantic Settings)
 │   │   ├── exceptions.py             # 커스텀 예외 정의
-│   │   ├── prompts.py                # LLM 프롬프트 모음 (외부화)
+│   │   ├── prompts.py                # LLM 프롬프트 모음 (외부화) + 프롬프트 변수 순서 규칙
 │   │   ├── routers/
 │   │   │   ├── auth.py               # 구글 OAuth & 토큰 재발급 라우터
 │   │   │   ├── chat.py               # 질의·응답 SSE 스트리밍 라우터
 │   │   │   ├── conversations.py      # 대화 세션 CRUD 라우터 (GCS 영속)
 │   │   │   ├── documents.py          # 문서 관리 CRUD 라우터
+│   │   │   ├── internal.py           # 내부 호출 전용 라우터 (Cloud Tasks 콜백)
 │   │   │   └── upload.py             # 업로드 및 ToC 재추출 라우터
 │   │   ├── services/
 │   │   │   ├── auth_service.py       # 구글 ID Token 검증 및 JWT 발급 서비스
-│   │   │   ├── agentic_graph.py      # 3단계 파이프라인 (PipelineContext + stage 분해)
-│   │   │   ├── agent_service.py      # Gemini LLM 호출 (ToC, Vision)
+│   │   │   ├── agentic/              # 3단계 파이프라인 (역할별 분해 패키지)
+│   │   │   │   ├── pipeline.py       #   stage 오케스트레이션 (외부 공개: run_agentic_pipeline)
+│   │   │   │   ├── context.py        #   PipelineContext — 공유 상태·SSE 수집·대화 저장
+│   │   │   │   ├── llm_steps.py      #   단계별 LLM 호출 (문서선택·페이지선택·정밀탐색·폴백)
+│   │   │   │   ├── doc_filter.py     #   질문 키워드 기반 1차 문서 필터 (순수 함수)
+│   │   │   │   └── toc.py / classification.py / sse.py
+│   │   │   ├── agent_service.py      # Gemini LLM 호출 (ToC, Vision, 이미지 분석)
+│   │   │   ├── document_conversion.py # 비PDF 업로드(Office/텍스트/이미지) → PDF 정규화
+│   │   │   ├── dedup_service.py      # SHA-256 기반 중복 업로드 검증
+│   │   │   ├── task_queue.py         # 백그라운드 분석 큐 (Cloud Tasks / 로컬 폴백)
 │   │   │   ├── conversation_service.py # GCS 기반 대화 세션 저장/조회
 │   │   │   ├── metadata_service.py   # 문서 메타데이터 CRUD (GCS)
 │   │   │   └── pdf_service.py        # PDF 처리 + ToC 추출 전략(build_toc)
 │   │   ├── schemas/
 │   │   │   ├── request.py            # 요청 스키마 (ChatRequest 등)
 │   │   │   └── response.py           # 응답 스키마 (UploadResponse 등)
-│   │   └── utils/                    # 로거 및 유틸리티
+│   │   └── utils/
+│   │       ├── logger.py             # GCP Cloud Logging 호환 JSON 로거
+│   │       └── llm_usage.py          # Gemini 토큰·캐시 사용량 계측
 │   ├── Dockerfile                    # Cloud Run 배포용 컨테이너 이미지
 │   ├── cloudbuild.yaml               # GitHub → Cloud Run 자동 배포
 │   └── requirements.txt
@@ -211,6 +227,8 @@ TechNote/
 │   ├── near_duplicate_document_handling.md # 유사(중복) 문서 처리 ADR (L1 채택)
 │   ├── custom_domain_mapping.md      # 커스텀 도메인 매핑 가이드
 │   ├── content_plan.md               # 데모 영상·기술 블로그 콘텐츠 플랜
+│   ├── context-management-results.md # 컨텍스트 관리 감사·토큰 실측·적용 결과
+│   ├── context-management-benchmark.md # 위 작업의 사전 조사 (진단부 일부 반증됨)
 │   └── 질문.md                        # 대화 품질 평가용 골든 질문셋
 ├── backend/evals/                    # 질문 품질 자동 평가 하네스 (골든/생성/Claude 500문항)
 └── gcs_cors.json                     # GCS CORS 설정
