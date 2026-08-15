@@ -397,13 +397,20 @@ async def _stage_resolve_document(ctx: PipelineContext):
         if candidates:
             menu = _build_clarification_menu(candidates, all_docs, docs_for_selection)
 
-            # 질문의 고유어가 보유 문서 어디에도 없으면 '모호한 질문'이 아니라
-            # '보유하지 않은 장비를 물은 질문'일 가능성이 크다 (예: "다이치 메뉴얼").
+            # '보유하지 않은 장비를 물은 질문'인지 두 신호로 판단한다.
+            #  - 접촉 없음: 질문 고유어가 보유 문서 어디에도 없음 (예: "다이치 메뉴얼").
+            #  - unknown_target: 질문이 미보유 브랜드를 지목했다는 LLM 판정.
+            # 후자가 필요한 이유는 "다이치 너트런너 매뉴얼" 같은 질문 때문이다 —
+            # '너트런너'가 SETech 문서 목차에 있어 접촉은 성립하지만, 정작 지목된
+            # '다이치'는 보유 목록에 없다. 브랜드명과 일반 장비명을 가르는 것은
+            # 사전이 필요한 의미 판단이라 키워드 매칭으로는 불가능하다.
             has_contact = question_has_corpus_contact(ctx.question, all_docs)
+            unknown_target = bool(doc_result.get("unknown_target", False))
+            targets_unowned = unknown_target or not has_contact
 
-            if menu and not has_contact and candidates[0]["confidence"] < NO_MATCH_CONFIDENCE_CEILING:
+            if menu and targets_unowned and candidates[0]["confidence"] < NO_MATCH_CONFIDENCE_CEILING:
                 logger.info(
-                    f"🚫 [관련 문서 없음] 질문 키워드가 보유 문서에 전무하고 "
+                    f"🚫 [관련 문서 없음] unknown_target={unknown_target}, 코퍼스 접촉={has_contact}, "
                     f"최상위 confidence={candidates[0]['confidence']:.2f} → 되묻기 대신 미발견 안내"
                 )
                 yield ctx.clarification(NO_MATCH_MESSAGE, menu, [], mode="no_match")
@@ -420,13 +427,15 @@ async def _stage_resolve_document(ctx: PipelineContext):
                 suggested = doc_result.get("suggested_questions") or (
                     build_default_clarification_questions(ctx.question, menu)
                 )
-                if suggested and not has_contact:
+                if suggested and targets_unowned:
                     # 보강 질문은 원 질문 앞에 제조사/모델을 덧붙이는 재작성이라,
-                    # 코퍼스에 없는 이름에 적용하면 실존하지 않는 문서명이 만들어진다
-                    # ("다이치 메뉴얼" → "미쓰비시 MELSEC-Q 시리즈 다이치 메뉴얼").
+                    # 보유하지 않은 브랜드를 물은 질문에 적용하면 서로 다른 두 브랜드가
+                    # 한 문장에 붙어 실존하지 않는 매뉴얼처럼 읽힌다
+                    # ("다이치 너트런너 매뉴얼" → "SETECH ... 다이치 너트런너 매뉴얼").
                     # LLM 이 confidence 를 높게 준 탓에 위 미발견 분기를 비껴간 경우의 방어선.
                     logger.warning(
-                        f"⚠️ [보강 질문 폐기] 질문 키워드가 보유 문서에 전무: {suggested}"
+                        f"⚠️ [보강 질문 폐기] unknown_target={unknown_target}, "
+                        f"코퍼스 접촉={has_contact}: {suggested}"
                     )
                     suggested = []
                 yield ctx.clarification(CLARIFICATION_MESSAGE, menu, suggested)

@@ -188,6 +188,7 @@ async def select_document(
             "reasoning": "문서가 1개이므로 해당 문서를 자동 선택합니다.",
             "needs_clarification": False,
             "suggested_questions": [],
+            "unknown_target": False,
         }
 
     previous_reference_section = ""
@@ -214,6 +215,10 @@ async def select_document(
         if result["classification"] == "technical":
             result["candidates"] = _validate_candidates(result.get("candidates", []), documents)
             result["needs_clarification"] = bool(result.get("needs_clarification", False))
+            # 질문이 보유하지 않은 제조사·브랜드를 지목했는지에 대한 LLM 판정.
+            # 키워드 매칭으로는 '다이치'(미보유 브랜드)와 '너트런너'(일반 장비명)를
+            # 가를 수 없어, 사전이 필요한 이 판단만 LLM 에 맡긴다.
+            result["unknown_target"] = bool(result.get("unknown_target", False))
             raw_questions = result.get("suggested_questions", [])
             suggested = (
                 [str(q) for q in raw_questions[:MAX_SUGGESTED_QUESTIONS]]
@@ -230,11 +235,13 @@ async def select_document(
             result["candidates"] = []
             result["needs_clarification"] = False
             result["suggested_questions"] = []
+            result["unknown_target"] = False
 
         top_confidence = result["candidates"][0]["confidence"] if result["candidates"] else "N/A"
         logger.info(
             f"📊 [Phase 1] 문서 선택 결과: classification={result['classification']}, "
             f"needs_clarification={result['needs_clarification']}, "
+            f"unknown_target={result['unknown_target']}, "
             f"top_confidence={top_confidence}, "
             f"suggested_questions={len(result['suggested_questions'])}개"
         )
@@ -254,6 +261,7 @@ async def select_document(
             "reasoning": f"문서 선택 중 오류 발생: {e}",
             "needs_clarification": False,
             "suggested_questions": [],
+            "unknown_target": False,
         }
 
 

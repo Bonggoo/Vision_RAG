@@ -12,6 +12,7 @@ import fitz
 import pytest
 
 from app.services.agentic import pipeline as pl
+from app.services.agentic.doc_filter import question_has_corpus_contact
 
 
 # ─── 헬퍼 ────────────────────────────────────────────────────────────────────
@@ -195,6 +196,47 @@ def test_unrelated_question_reports_no_match(monkeypatch):
     assert "찾지 못했습니다" in clarification["content"]
     # 직접 고를 수 있도록 문서 목록 자체는 남긴다
     assert len(clarification["candidates"]) == 2
+
+
+def test_unknown_brand_reports_no_match_even_with_corpus_contact(monkeypatch):
+    """일반 장비명이 목차에 걸려 접촉이 성립해도, 브랜드가 미보유면 '못 찾음'이다.
+
+    회귀 배경: "다이치 너트런너 메뉴얼"에서 '너트런너'가 SETech 문서 목차에 있어
+    코퍼스 접촉이 True 가 되는 바람에 미발견 분기를 비껴갔고,
+    "SETECH AC SERVO NUTRUNNER ... 다이치 너트런너 메뉴얼" 처럼 서로 다른 두
+    브랜드가 한 문장에 붙은 추천 질문이 그대로 노출됐다.
+    """
+    docs = [
+        make_doc("a", filename="SETech 너트런너 매뉴얼.pdf", manufacturer="SETECH",
+                 model="AC SERVO NUTRUNNER",
+                 toc=[{"level": 1, "title": "너트런너 설치", "page": 10}]),
+        make_doc("b", filename="Q매뉴얼.pdf", manufacturer="MITSUBISHI", model="MELSEC-Q"),
+    ]
+    monkeypatch.setattr(pl, "get_all_documents_async", _async_return(docs))
+    monkeypatch.setattr(
+        pl,
+        "select_document",
+        _async_return({
+            "classification": "technical",
+            "candidates": [
+                {"document_id": "a", "confidence": 0.2, "reason": ""},
+                {"document_id": "b", "confidence": 0.05, "reason": ""},
+            ],
+            "needs_clarification": True,
+            "unknown_target": True,
+            "suggested_questions": ["SETECH AC SERVO NUTRUNNER 다이치 너트런너 메뉴얼"],
+        }),
+    )
+
+    # 전제: '너트런너'가 목차에 있어 코퍼스 접촉 자체는 성립한다
+    assert question_has_corpus_contact("다이치 너트런너 메뉴얼", docs) is True
+
+    events = collect(pl.run_agentic_pipeline(None, "다이치 너트런너 메뉴얼"))
+
+    clarification = events[-2]
+    assert clarification["type"] == "clarification"
+    assert clarification["mode"] == "no_match"
+    assert clarification["suggested_questions"] == []
 
 
 def test_unrelated_question_drops_suggestions_even_if_llm_is_confident(monkeypatch):
