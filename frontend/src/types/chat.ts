@@ -48,8 +48,17 @@ export interface ClarificationCandidate {
   confidence: number;
 }
 
+/**
+ * 되묻기 카드의 표시 모드.
+ * - 'ambiguous': 후보가 여럿이라 되묻는 경우. confidence 퍼센트가 선택에 도움이 된다.
+ * - 'no_match' : 질문과 일치하는 문서를 못 찾은 경우. confidence 는 전부 바닥값이라
+ *                퍼센트를 보여주면 '조금은 관련 있음'으로 오독되므로 숨긴다.
+ */
+export type ClarificationMode = 'ambiguous' | 'no_match';
+
 export interface ClarificationState {
   content: string;
   candidates: ClarificationCandidate[];
   suggested_questions?: string[];
+  mode?: ClarificationMode;
 }

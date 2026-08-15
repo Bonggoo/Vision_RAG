@@ -3,7 +3,7 @@
  * page.tsx 의 스트림 파서가 처리하는 `data.type` 별 페이로드를 역설계해 정의.
  * (런타임 연결은 후속 작업(M5: useChatStream 훅 분리)에서 적용)
  */
-import type { ClarificationCandidate } from './chat';
+import type { ClarificationCandidate, ClarificationMode } from './chat';
 
 /** AI 추론 과정 한 줄 */
 export interface SSEReasoningEvent {
@@ -32,6 +32,8 @@ export interface SSEClarificationEvent {
   content: string;
   candidates?: ClarificationCandidate[];
   suggested_questions?: string[];
+  /** 없으면 'ambiguous' 로 간주 (구버전 백엔드 호환) */
+  mode?: ClarificationMode;
 }
 
 /** 오류 메시지 */

@@ -30,6 +30,7 @@ from .doc_filter import (
     build_default_clarification_questions,
     collect_identifiers,
     filter_documents_by_keywords,
+    question_has_corpus_contact,
     question_mentions_identifier,
 )
 from .llm_steps import (
@@ -54,6 +55,19 @@ CLARIFY_CONFIDENCE_MARGIN = 0.2
 # 되묻기 메뉴에 올릴 후보 수 (최소 이상이어야 되묻고, 최대까지만 노출)
 MIN_CLARIFICATION_CANDIDATES = 2
 MAX_CLARIFICATION_CANDIDATES = 5
+# 질문이 보유 문서와 접촉조차 없을 때, 이 값 미만이면 '관련 문서 없음'으로 본다.
+# 되묻기 임계값(0.7)보다 훨씬 낮게 잡아, 애매한 질문이 아니라 '무관한 질문'만 걸리게 한다.
+NO_MATCH_CONFIDENCE_CEILING = 0.3
+
+CLARIFICATION_MESSAGE = (
+    "질문을 좀 더 구체화하면 정확한 답변을 드릴 수 있어요. "
+    "아래에서 질문을 선택하거나, 해당 매뉴얼을 직접 선택해 주세요."
+)
+NO_MATCH_MESSAGE = (
+    "질문하신 내용과 일치하는 매뉴얼을 보유 문서에서 찾지 못했습니다. "
+    "다른 이름으로 등록돼 있을 수 있으니 아래 문서에서 직접 선택하시거나, "
+    "제조사·모델명을 포함해 다시 질문해 주세요."
+)
 
 # 섹션이 이 페이지 수 이하면 Phase 2 정밀 탐색을 건너뛰고 1차 결과를 그대로 쓴다.
 SKIP_REFINE_SECTION_SIZE = 3
@@ -381,10 +395,24 @@ async def _stage_resolve_document(ctx: PipelineContext):
 
         candidates = doc_result.get("candidates", [])
         if candidates:
+            menu = _build_clarification_menu(candidates, all_docs, docs_for_selection)
+
+            # 질문의 고유어가 보유 문서 어디에도 없으면 '모호한 질문'이 아니라
+            # '보유하지 않은 장비를 물은 질문'일 가능성이 크다 (예: "다이치 메뉴얼").
+            has_contact = question_has_corpus_contact(ctx.question, all_docs)
+
+            if menu and not has_contact and candidates[0]["confidence"] < NO_MATCH_CONFIDENCE_CEILING:
+                logger.info(
+                    f"🚫 [관련 문서 없음] 질문 키워드가 보유 문서에 전무하고 "
+                    f"최상위 confidence={candidates[0]['confidence']:.2f} → 되묻기 대신 미발견 안내"
+                )
+                yield ctx.clarification(NO_MATCH_MESSAGE, menu, [], mode="no_match")
+                yield await ctx.finish()
+                return
+
             needs_clarification = _should_ask_clarification(
                 ctx.question, candidates, doc_result, all_docs
             )
-            menu = _build_clarification_menu(candidates, all_docs, docs_for_selection)
 
             # 관련 문서가 실제로 1개뿐이면 모호함이 없으므로 그대로 답변한다
             if needs_clarification and len(menu) >= MIN_CLARIFICATION_CANDIDATES:
@@ -392,12 +420,16 @@ async def _stage_resolve_document(ctx: PipelineContext):
                 suggested = doc_result.get("suggested_questions") or (
                     build_default_clarification_questions(ctx.question, menu)
                 )
-                yield ctx.clarification(
-                    "질문을 좀 더 구체화하면 정확한 답변을 드릴 수 있어요. "
-                    "아래에서 질문을 선택하거나, 해당 매뉴얼을 직접 선택해 주세요.",
-                    menu,
-                    suggested,
-                )
+                if suggested and not has_contact:
+                    # 보강 질문은 원 질문 앞에 제조사/모델을 덧붙이는 재작성이라,
+                    # 코퍼스에 없는 이름에 적용하면 실존하지 않는 문서명이 만들어진다
+                    # ("다이치 메뉴얼" → "미쓰비시 MELSEC-Q 시리즈 다이치 메뉴얼").
+                    # LLM 이 confidence 를 높게 준 탓에 위 미발견 분기를 비껴간 경우의 방어선.
+                    logger.warning(
+                        f"⚠️ [보강 질문 폐기] 질문 키워드가 보유 문서에 전무: {suggested}"
+                    )
+                    suggested = []
+                yield ctx.clarification(CLARIFICATION_MESSAGE, menu, suggested)
                 yield await ctx.finish()
                 return
 

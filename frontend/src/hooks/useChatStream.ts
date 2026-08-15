@@ -148,6 +148,7 @@ export function useChatStream() {
                     content: data.content,
                     candidates: data.candidates || [],
                     suggested_questions: data.suggested_questions,
+                    mode: data.mode ?? "ambiguous",
                   });
                   finishStreaming(targetSessionId);
                   streamDone = true;

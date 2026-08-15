@@ -22,6 +22,12 @@ MAX_DEFAULT_CLARIFICATION_QUESTIONS = 3
 # 메타데이터가 비어 있을 때 저장되는 값
 UNKNOWN = "미상"
 
+# 문서 자체를 가리키는 범용어 — 질문의 '주제'로 치지 않는다
+# (파일명에 '매뉴얼'이 흔히 들어 있어 무엇을 물어도 매칭되기 때문)
+_DOCUMENT_WORDS = {
+    "매뉴얼", "메뉴얼", "설명서", "문서", "자료", "manual", "document", "documents", "pdf",
+}
+
 # 주요 산업 도메인 동의어 (한글 질문 ↔ 영문 ToC 매칭 지원)
 _SYNONYMS = {
     "위치결정": ["positioning"],
@@ -206,6 +212,28 @@ def _expand_keywords(question: str) -> set[str]:
             if kor_key in kw:
                 expanded.update(eng_vals)
     return expanded
+
+
+def question_has_corpus_contact(question: str, all_docs: list[dict]) -> bool:
+    """질문의 고유어 중 하나라도 보유 문서의 메타데이터/목차에 등장하는지 봅니다.
+
+    DF 컷(변별력 필터)을 **거치지 않은** 원본 키워드로 검사하는 것이 핵심입니다.
+    filter_documents_by_keywords 의 fallback_none 은 '변별력 있는 키워드가 없음'
+    이라서, 흔한 단어로만 이뤄진 정상 질문("서보 진동이 심해요")에서도 발생합니다.
+    반면 이 함수가 False 라는 것은 질문에 등장한 어떤 단어도 보유 문서 어디에도
+    없다는 뜻 — 보유하지 않은 장비/제조사를 물었을 가능성이 큽니다.
+
+    '매뉴얼', '설명서' 같은 문서 자체를 가리키는 단어는 파일명에 흔히 들어 있어
+    무엇을 물어도 접촉이 성립해 버리므로 제외합니다. "다이치 매뉴얼" 질문이
+    파일명의 '매뉴얼' 때문에 접촉으로 판정되는 것을 막습니다.
+    """
+    doc_texts = [_DocText(d) for d in all_docs]
+    for kw in _expand_keywords(question):
+        if kw in _DOCUMENT_WORDS:
+            continue
+        if any(dt.hit(kw) for dt in doc_texts):
+            return True
+    return False
 
 
 def _select_discriminative_keywords(

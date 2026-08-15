@@ -13,6 +13,7 @@ from app.services.agentic.doc_filter import (
     build_default_clarification_questions,
     extract_model_codes,
     filter_documents_by_keywords,
+    question_has_corpus_contact,
     strip_josa,
 )
 from app.services.agentic.sse import sse_event
@@ -177,6 +178,46 @@ class TestFilterDocuments:
         for q in ["ㅁㄴㅇㄹ", "설정", "이 모델 나사산 규격", ""]:
             docs, _, _ = filter_documents_by_keywords(q, self._corpus())
             assert len(docs) >= 1
+
+
+class TestCorpusContact:
+    """질문 고유어가 보유 문서에 존재하는지 — '보유하지 않은 장비' 판정 신호.
+
+    실측 배경: "다이치 메뉴얼"(보유하지 않은 제조사)을 물었을 때 되묻기가 뜨면서
+    "미쓰비시 MELSEC-Q 시리즈 다이치 메뉴얼" 같은 보강 질문이 생성됐다 —
+    존재하지 않는 문서가 있는 것처럼 읽히는 화면.
+    """
+
+    # 위 필터 테스트와 같은 코퍼스를 써야 두 신호의 차이를 대조할 수 있다
+    # (상속하면 pytest 가 부모의 테스트까지 다시 수집하므로 메서드만 빌려온다)
+    _doc = TestFilterDocuments._doc
+    _corpus = TestFilterDocuments._corpus
+
+    def test_unknown_manufacturer_has_no_contact(self):
+        assert question_has_corpus_contact("다이치 메뉴얼", self._corpus()) is False
+
+    def test_document_words_alone_are_not_contact(self):
+        # '매뉴얼'은 CV-X 문서 파일명에 있지만 문서 자체를 가리키는 범용어라
+        # 접촉으로 치지 않는다 — 이게 없으면 무엇을 물어도 접촉이 성립한다
+        assert question_has_corpus_contact("다이치 매뉴얼", self._corpus()) is False
+        assert question_has_corpus_contact("설명서 좀", self._corpus()) is False
+
+    def test_generic_but_real_question_has_contact(self):
+        # 같은 질문이 filter_documents_by_keywords 에서는 DF 컷 때문에 fallback_none 이
+        # 되지만(위 test_df_cut_ignores_corpus_generic_words), 접촉은 성립해야 한다.
+        # 두 신호가 다르다는 것이 이 함수의 존재 이유다.
+        _, mode, _ = filter_documents_by_keywords("설치 방법 알려줘", self._corpus())
+        assert mode in ("fallback_none", "fallback_weak")
+        assert question_has_corpus_contact("설치 방법 알려줘", self._corpus()) is True
+
+    def test_model_code_is_contact(self):
+        assert question_has_corpus_contact("L7NH 알람 확인", self._corpus()) is True
+
+    def test_offtopic_question_has_no_contact(self):
+        assert question_has_corpus_contact("김치찌개 끓이는 법", self._corpus()) is False
+
+    def test_empty_corpus_has_no_contact(self):
+        assert question_has_corpus_contact("서보 알람", []) is False
 
 
 class TestTocEvidence:

@@ -160,6 +160,72 @@ def test_ambiguous_question_asks_clarification(monkeypatch):
     assert all("알람 코드 원인이 뭐야" in q for q in clarification["suggested_questions"])
 
 
+def test_unrelated_question_reports_no_match(monkeypatch):
+    """보유하지 않은 장비를 물으면 되묻기가 아니라 '못 찾음'으로 끝낸다.
+
+    회귀 배경: "다이치 메뉴얼"(보유 없는 제조사)에 대해 되묻기 카드가 뜨면서
+    "미쓰비시 MELSEC-Q 시리즈 다이치 메뉴얼" 같은 보강 질문이 생성돼,
+    존재하지 않는 매뉴얼이 있는 것처럼 보였다.
+    """
+    docs = [
+        make_doc("a", filename="Q매뉴얼.pdf", manufacturer="MITSUBISHI", model="MELSEC-Q"),
+        make_doc("b", filename="XGT매뉴얼.pdf", manufacturer="LS", model="XGT"),
+    ]
+    monkeypatch.setattr(pl, "get_all_documents_async", _async_return(docs))
+    monkeypatch.setattr(
+        pl,
+        "select_document",
+        _async_return({
+            "classification": "technical",
+            "candidates": [
+                {"document_id": "a", "confidence": 0.1, "reason": ""},
+                {"document_id": "b", "confidence": 0.05, "reason": ""},
+            ],
+            "needs_clarification": True,
+            "suggested_questions": ["MITSUBISHI MELSEC-Q 시리즈 다이치 메뉴얼"],
+        }),
+    )
+
+    events = collect(pl.run_agentic_pipeline(None, "다이치 메뉴얼"))
+
+    assert event_types(events)[-2:] == ["clarification", "done"]
+    clarification = events[-2]
+    assert clarification["mode"] == "no_match"
+    assert clarification["suggested_questions"] == []
+    assert "찾지 못했습니다" in clarification["content"]
+    # 직접 고를 수 있도록 문서 목록 자체는 남긴다
+    assert len(clarification["candidates"]) == 2
+
+
+def test_unrelated_question_drops_suggestions_even_if_llm_is_confident(monkeypatch):
+    """LLM 이 confidence 를 높게 줘 미발견 분기를 비껴가도 보강 질문은 폐기한다."""
+    docs = [
+        make_doc("a", filename="Q매뉴얼.pdf", manufacturer="MITSUBISHI", model="MELSEC-Q"),
+        make_doc("b", filename="XGT매뉴얼.pdf", manufacturer="LS", model="XGT"),
+    ]
+    monkeypatch.setattr(pl, "get_all_documents_async", _async_return(docs))
+    monkeypatch.setattr(
+        pl,
+        "select_document",
+        _async_return({
+            "classification": "technical",
+            "candidates": [
+                {"document_id": "a", "confidence": 0.5, "reason": ""},
+                {"document_id": "b", "confidence": 0.45, "reason": ""},
+            ],
+            "needs_clarification": True,
+            "suggested_questions": ["MITSUBISHI MELSEC-Q 시리즈 다이치 매뉴얼"],
+        }),
+    )
+
+    events = collect(pl.run_agentic_pipeline(None, "다이치 매뉴얼"))
+
+    clarification = events[-2]
+    assert clarification["type"] == "clarification"
+    assert clarification["mode"] == "ambiguous"
+    assert clarification["suggested_questions"] == []
+
+
 def test_confident_question_skips_clarification(monkeypatch, stub_answer_path):
     """식별자가 명확하고 confidence 가 높으면 되묻지 않고 바로 답변한다."""
     docs = [

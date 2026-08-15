@@ -62,13 +62,27 @@ class PipelineContext:
         """error 이벤트를 만듭니다. `yield ctx.error(...)`."""
         return sse_event("error", content=content)
 
-    def clarification(self, content: str, candidates: list[dict], suggested_questions: list[str]) -> str:
-        """되묻기 이벤트를 만듭니다 (문서 후보 카드 + 추천 질문)."""
+    def clarification(
+        self,
+        content: str,
+        candidates: list[dict],
+        suggested_questions: list[str],
+        mode: str = "ambiguous",
+    ) -> str:
+        """되묻기 이벤트를 만듭니다 (문서 후보 카드 + 추천 질문).
+
+        mode 는 프론트의 표시 방식을 가릅니다.
+          "ambiguous" — 후보가 여럿이라 되묻는 정상 케이스. confidence 를 노출한다.
+          "no_match"  — 질문과 일치하는 문서를 못 찾은 케이스. 이때 confidence 는
+                        전부 바닥값이라 정보가 없고 '조금은 관련 있다'로 오독되므로
+                        프론트가 퍼센트를 숨기고 문서 목록만 보여준다.
+        """
         return sse_event(
             "clarification",
             content=content,
             candidates=candidates,
             suggested_questions=suggested_questions,
+            mode=mode,
         )
 
     def reference(self, page_number: int, image_base64: str) -> str:
