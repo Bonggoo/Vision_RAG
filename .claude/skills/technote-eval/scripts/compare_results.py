@@ -20,8 +20,8 @@ import statistics
 import sys
 from pathlib import Path
 
-CORE_AXES = ["routing", "document"]  # 신뢰도 높은 축
-NOISY_AXES = ["pages"]               # 근사 정답 기반 — 참고용
+CORE_AXES = ["routing", "document", "recall"]  # 신뢰도 높은 축
+NOISY_AXES = ["pages"]                         # 근사 정답 기반 — 참고용
 
 
 def find_results_dir(explicit: str | None) -> Path:
@@ -121,8 +121,9 @@ def print_trend(runs: list[dict], last: int) -> None:
     for ds, rs in ordered:
         rs = rs[-last:]
         print(f"\n■ 데이터셋: {ds}   (최근 {len(rs)}회)")
-        print(f"  {'실행':<16} {'n':>3}  {'routing':>8} {'document':>9} {'pages':>7}  {'전체':>7}  평균지연")
-        print("  " + "-" * 68)
+        cols = ("routing", "document", "recall", "pages")
+        print(f"  {'실행':<16} {'n':>3}  {'routing':>8} {'document':>9} {'recall':>8} {'pages':>7}  {'전체':>7}  평균지연")
+        print("  " + "-" * 78)
         for r in rs:
             ax = axis_stats(r)
             res = r["results"]
@@ -130,19 +131,29 @@ def print_trend(runs: list[dict], last: int) -> None:
             overall = sum(1 for x in res if x.get("passed"))
             lats = [x.get("latency_sec", 0) for x in res if x.get("latency_sec")]
             avg = f"{statistics.mean(lats):.0f}s" if lats else "-"
-            cells = []
-            for a in ("routing", "document", "pages"):
-                v = ax.get(a, [])
-                cells.append(fmt_rate(sum(v), len(v)))
-            print(f"  {r['_path'].stem:<16} {n:>3}  {cells[0]:>8} {cells[1]:>9} {cells[2]:>7}  "
+            cells = [fmt_rate(sum(ax.get(a, [])), len(ax.get(a, []))) for a in cols]
+            print(f"  {r['_path'].stem:<16} {n:>3}  {cells[0]:>8} {cells[1]:>9} {cells[2]:>8} {cells[3]:>7}  "
                   f"{fmt_rate(overall, n):>7}  {avg:>6}")
+
+        # 누적 집계 — 하루 20문항은 통과율 99% 부근의 지표를 판정하기엔 표본이
+        # 너무 작습니다(기대 실패 0.2건/회). 개별 회차의 ±1건 차이를 회귀로 읽지
+        # 말고, 구간 전체를 합친 아래 숫자를 기준으로 판단하세요.
+        pooled = {a: [] for a in cols}
+        for r in rs:
+            ax = axis_stats(r)
+            for a in cols:
+                pooled[a].extend(ax.get(a, []))
+        total_n = sum(len(r["results"]) for r in rs)
+        print("  " + "-" * 78)
+        parts = [f"{a} {fmt_rate(sum(pooled[a]), len(pooled[a]))}" for a in cols if pooled[a]]
+        print(f"  누적 {len(rs)}회 / {total_n}문항 → " + " · ".join(parts))
 
         # 핵심 축 요약 — 전체 통과율의 흔들림이 pages 때문인지 판별
         core_perfect = all(
             all(axis_stats(r).get(a, [True])) for r in rs for a in CORE_AXES
         )
         if core_perfect and len(rs) > 1:
-            print("\n  → 이 구간 routing·document는 전부 만점입니다. "
+            print("\n  → 이 구간 핵심 축(routing·document·recall)은 전부 만점입니다. "
                   "전체 통과율의 변동은 pages(근사 지표) 때문이므로 품질 저하로 읽지 마세요.")
 
 

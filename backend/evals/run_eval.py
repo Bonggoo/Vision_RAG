@@ -48,6 +48,7 @@ import json
 import logging
 import os
 import random
+import re
 import statistics
 import sys
 import time
@@ -421,12 +422,14 @@ async def run_case(case: dict, defaults: dict, transport, judge_enabled: bool, e
             checks["document"]["detail"] += f" | 되묻기 후보에 소스 {'포함' if source_in_menu else '누락'}"
 
         got_docs = sorted({r["document"] for r in final["references"] if r["document"]})
+        equiv_accepted = False
         if not checks["document"]["pass"] and got_docs:
             try:
                 equivalent, reason = await _judge_document_equivalence(
                     question, expected.get("document", ""), got_docs
                 )
                 if equivalent:
+                    equiv_accepted = True
                     checks["document"]["pass"] = True
                     checks["document"]["detail"] += f" | 동등 문서 인정: {reason}"
                     checks["document"]["equiv_accepted"] = True
@@ -434,6 +437,23 @@ async def run_case(case: dict, defaults: dict, transport, judge_enabled: bool, e
                     checks["document"]["detail"] += f" | 실오답 확인: {reason}"
             except Exception as e:
                 checks["document"]["detail"] += f" | 동등성 판정 실패: {e}"
+
+        # recall 축: 소스 문서에 '도달이라도 했는지'.
+        # document 실패의 원인이 검색 단계(후보로도 못 띄움)인지 선택 단계(후보엔
+        # 떴는데 잘못 고름)인지를 분리합니다 — 고쳐야 할 계층이 완전히 다릅니다.
+        # 동등 문서로 인정된 건은 애초에 모델 특정 질문이 아니므로 대상에서 제외.
+        referenced = any(want in d.casefold() for d in got_docs)
+        if equiv_accepted:
+            checks["recall"] = {"pass": True, "detail": "동등 문서 인정 — 대상 아님"}
+        elif referenced:
+            checks["recall"] = {"pass": True, "detail": "소스 문서 참조됨"}
+        elif source_in_menu:
+            checks["recall"] = {"pass": True, "detail": "되묻기 후보로 제시됨 (선택 단계 문제)"}
+        else:
+            checks["recall"] = {
+                "pass": False,
+                "detail": "소스 문서가 참조·후보 어디에도 없음 (검색 recall 문제)",
+            }
 
     # 되묻기 플로우 검사 (expect_clarification 명시 시)
     if "expect_clarification" in expected:
@@ -465,6 +485,7 @@ async def run_case(case: dict, defaults: dict, transport, judge_enabled: bool, e
         "id": case["id"],
         "question": question,
         "style": case.get("style"),
+        "band": case.get("band"),
         "passed": all(c["pass"] for c in checks.values()) if checks else False,
         "checks": checks,
         "turns": turns,
@@ -493,31 +514,58 @@ def _print_report(results: list[dict]):
     print("=" * 72)
 
     total = len(results)
-    passed = sum(1 for r in results if r["passed"])
-    print(f"\n통과: {passed}/{total} ({passed / total:.0%})" if total else "\n실행된 케이스 없음")
+    if not total:
+        print("\n실행된 케이스 없음")
+        return
 
     by_check: dict[str, list[bool]] = {}
     for r in results:
         for name, c in r["checks"].items():
             by_check.setdefault(name, []).append(c["pass"])
-    for name, vals in sorted(by_check.items()):
-        print(f"  - {name}: {sum(vals)}/{len(vals)}")
 
-    # 문체별 분리 집계 (--generate의 terse/sentence 혼합 시)
-    by_style: dict[str, list[dict]] = {}
-    for r in results:
-        if r.get("style"):
-            by_style.setdefault(r["style"], []).append(r)
-    if len(by_style) > 1:
-        print("  문체별:")
-        for style, rs in sorted(by_style.items()):
-            p = sum(1 for r in rs if r["passed"])
-            doc_p = sum(1 for r in rs if r["checks"].get("document", {}).get("pass"))
-            print(f"    - {style}: 전체 {p}/{len(rs)}, document {doc_p}/{len(rs)}")
+    def line(name: str) -> str:
+        vals = by_check.get(name)
+        return f"{sum(vals)}/{len(vals)}" if vals else "—"
 
-    if results:
-        latencies = [r["latency_sec"] for r in results]
-        print(f"  - 평균 응답 시간: {statistics.mean(latencies):.1f}s (최대 {max(latencies):.1f}s)")
+    # 핵심 지표와 참고 지표를 분리해서 출력합니다.
+    # pages는 ToC 챕터 시작점을 근사 정답으로 쓰는 노이즈 큰 축이라(실측 55~90%),
+    # 전 축 AND인 '전체 통과율'에 섞으면 헤드라인 숫자가 사실상 pages 통과율이
+    # 되어 멀쩡한 실행이 품질 저하로 오독됩니다.
+    print(f"\n[핵심] routing {line('routing')} · document {line('document')} · recall {line('recall')}")
+    print(f"[참고] pages {line('pages')} (근사 지표 — 개별 실패는 추적 가치 낮음)")
+
+    core = [r for r in results
+            if all(c["pass"] for n, c in r["checks"].items() if n != "pages")]
+    print(f"[핵심 통과] {len(core)}/{total} ({len(core) / total:.0%})   "
+          f"[전 축 통과] {sum(1 for r in results if r['passed'])}/{total} (pages 포함)")
+
+    errored = sum(1 for r in results if r.get("errors"))
+    if errored:
+        share = errored / total
+        print(f"  ⚠ 실행 오류 {errored}/{total} — 채점 실패가 아니라 환경 문제"
+              + ("  ※ 오류 비중이 커 이번 실행의 채점은 무효로 보세요" if share >= 0.2 else ""))
+
+    def _subgroup(key: str, label: str, skip: set[str]):
+        groups: dict[str, list[dict]] = {}
+        for r in results:
+            v = r.get(key)
+            if v and v not in skip:
+                groups.setdefault(v, []).append(r)
+        if len(groups) > 1:
+            print(f"  {label}:")
+            for g, rs in sorted(groups.items()):
+                doc_p = sum(1 for r in rs if r["checks"].get("document", {}).get("pass"))
+                rec_p = sum(1 for r in rs if r["checks"].get("recall", {}).get("pass"))
+                print(f"    - {g}: document {doc_p}/{len(rs)}, recall {rec_p}/{len(rs)}")
+
+    # 문체별(terse/sentence) — general은 document 축이 없어 제외
+    _subgroup("style", "문체별", skip={"general"})
+    # 난이도 밴드별 — 질문에 모델코드가 있으면 문서선택이 문자열 매칭으로 풀려
+    # 쉬워집니다. 진짜 검색 성능은 uncoded 쪽 숫자를 봐야 합니다.
+    _subgroup("band", "난이도별(coded=질문에 모델코드 포함)", skip={"general"})
+
+    latencies = [r["latency_sec"] for r in results]
+    print(f"  - 평균 응답 시간: {statistics.mean(latencies):.1f}s (최대 {max(latencies):.1f}s)")
 
 
 # ─── 질문 자동 생성 (--generate) ──────────────────────────────────────────────
@@ -528,13 +576,75 @@ async def _fetch_documents(local: bool, base_url: str | None, token: str | None,
         from app.services.metadata_service import get_all_documents_async
         return await get_all_documents_async(owner_email=user_email)
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.get(
-            f"{base_url.rstrip('/')}/documents",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-        resp.raise_for_status()
-        return resp.json().get("documents", [])
+    # 예약 실행(매일 06:00)은 일시적 DNS/네트워크 흔들림 한 번에 통째로 죽습니다.
+    # 실제로 2026-08-14 실행이 ConnectError 하나로 문항 생성도 못 하고 종료됐음.
+    last_err: Exception | None = None
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.get(
+                    f"{base_url.rstrip('/')}/documents",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                resp.raise_for_status()
+                return resp.json().get("documents", [])
+        except (httpx.HTTPError, httpx.InvalidURL) as e:
+            last_err = e
+            if attempt < 2:
+                wait = 5 * (attempt + 1)
+                print(f"  문서 목록 조회 실패({type(e).__name__}) — {wait}s 후 재시도")
+                await asyncio.sleep(wait)
+    raise RuntimeError(f"문서 목록 조회 3회 실패: {last_err}")
+
+
+# 질문만 읽고는 대상을 특정할 수 없는 지시어 질문을 걸러내기 위한 패턴.
+# 생성 프롬프트에서 금지하고 있지만 Flash가 종종 어기며(실측: 480건 중 소수),
+# 그런 질문은 어떤 검색으로도 정답 문서에 도달할 수 없어 '가짜 실패'가 됩니다.
+_DEICTIC_RE = re.compile(
+    r"(이|본|해당|위)\s*(모델|장비|제품|기기|시리즈|매뉴얼|컨트롤러|센서|유닛)|이번\s*개정판"
+)
+
+
+def _is_valid_question(q: str) -> tuple[bool, str]:
+    """생성 질문이 채점 가능한 형태인지 검사합니다. (통과여부, 사유)"""
+    if not q or len(q) < 5:
+        return False, "너무 짧음"
+    if len(q) > 200:
+        return False, "너무 김"
+    if _DEICTIC_RE.search(q):
+        return False, "지시어로 대상을 가리킴"
+    if "\n" in q.strip():
+        return False, "여러 줄"
+    return True, ""
+
+
+# 일상대화 질문의 소재 — 매 실행 무작위로 골라 Flash가 문장을 새로 씁니다.
+# (routing 축이 technical 한 갈래만 재는 것을 막기 위한 대조군)
+_GENERAL_TOPICS = [
+    "인사와 안부", "이 시스템이 무엇을 할 수 있는지", "고맙다는 인사",
+    "오늘 날씨 잡담", "사용법을 어디서부터 배우면 되는지", "간단한 자기소개 요청",
+    "점심 메뉴 잡담", "요즘 힘들다는 푸념",
+]
+
+
+async def _synthesize_general_question() -> str:
+    """매뉴얼과 무관한 일상대화 입력을 1개 생성합니다 (routing=general 기대)."""
+    from app.services.agent_service import _create_flash_llm, _extract_text_content
+    from langchain_core.messages import HumanMessage
+
+    topic = random.choice(_GENERAL_TOPICS)
+    prompt = f"""산업용 매뉴얼 챗봇을 쓰는 사용자가 '{topic}'에 대해 던지는
+    일상적인 한 마디를 정확히 1개 작성하세요.
+
+규칙:
+- 매뉴얼 검색이 전혀 필요 없는, 기술 질문이 아닌 순수 잡담/인사여야 함
+- 특정 장비명·에러코드·부품명을 절대 포함하지 말 것
+- 한 문장, 40자 이내, 한국어
+- 다른 설명 없이 그 한 마디만 출력"""
+
+    llm = _create_flash_llm(temperature=1.0)
+    resp = await llm.ainvoke([HumanMessage(content=prompt)])
+    return _extract_text_content(resp.content).strip().strip('"').strip()
 
 
 async def _synthesize_question(doc: dict, entry: dict, style: str = "sentence") -> str:
@@ -579,9 +689,24 @@ async def _synthesize_question(doc: dict, entry: dict, style: str = "sentence") 
     return _extract_text_content(resp.content).strip().strip('"').strip()
 
 
+# 질문 안에 모델코드(영숫자 식별자)가 그대로 들어 있으면 문서선택이 사실상
+# 문자열 매칭으로 풀려 난이도가 급감합니다(실측: 생성 질문의 약 49%가 해당).
+# 진짜 검색 난이도는 '코드 없는' 질문 쪽에 있으므로 밴드를 나눠 집계합니다.
+_MODEL_CODE_RE = re.compile(r"[A-Za-z]{2,}-?\d{2,}|[A-Z]{2,}-[A-Z0-9]{2,}")
+
+
+def _difficulty_band(question: str) -> str:
+    return "coded" if _MODEL_CODE_RE.search(question) else "uncoded"
+
+
 async def generate_cases(local: bool, base_url: str | None, token: str | None, user_email: str, n: int) -> list[dict]:
     """실제 매뉴얼 ToC에서 n개 (문서, 섹션)을 무작위로 뽑아 질문을 합성합니다.
-    뽑힌 문서/페이지가 곧 정답이므로 routing/document/pages 채점의 expected로 씁니다."""
+    뽑힌 문서/페이지가 곧 정답이므로 routing/document/pages 채점의 expected로 씁니다.
+
+    n의 일부는 매뉴얼과 무관한 일상대화로 채웁니다. 기술질문만 생성하면 routing
+    축의 기대값이 전부 technical로 고정되어 '항상 20/20'인 무의미한 지표가 되기
+    때문입니다(실측: 24회 480건 연속 100%, 실패는 전부 네트워크 오류였음).
+    """
     documents = await _fetch_documents(local, base_url, token, user_email)
 
     def _entries_for(doc: dict) -> list[dict]:
@@ -596,22 +721,37 @@ async def generate_cases(local: bool, base_url: str | None, token: str | None, u
         print("생성할 ToC 항목이 없습니다 (문서 없음 또는 ToC 미추출).")
         return []
 
+    # 20문항 중 3문항은 일상대화(routing=general 기대). 나머지가 기술질문.
+    n_general = max(1, round(n * 0.15)) if n >= 5 else 0
+    n_tech = n - n_general
+
     # ToC가 방대한 문서(예: 1000+ 항목)가 무작위 추출을 독식하지 않도록,
     # 항목 단위가 아니라 "문서" 단위로 먼저 고르게 분산시켜 뽑습니다.
     random.shuffle(eligible_docs)
-    doc_cycle = (eligible_docs * (n // len(eligible_docs) + 1))[:max(n, len(eligible_docs))]
+    doc_cycle = (eligible_docs * (n_tech // len(eligible_docs) + 1))[:max(n_tech, len(eligible_docs))]
     random.shuffle(doc_cycle)
-    picks = [(d, random.choice(_entries_for(d))) for d in doc_cycle[:n]]
+    picks = [(d, random.choice(_entries_for(d))) for d in doc_cycle[:n_tech]]
 
     # 문체 배분: 30%는 전보식(terse — "2051 서보 알람" 같은 키워드 나열 입력),
     # 나머지는 문장형. 실사용자의 급한 검색형 입력에서도 파이프라인이 버티는지
     # 매 실행마다 함께 측정합니다.
-    n_terse = round(n * 0.3)
-    styles = ["terse"] * n_terse + ["sentence"] * (n - n_terse)
+    n_terse = round(n_tech * 0.3)
+    styles = ["terse"] * n_terse + ["sentence"] * (n_tech - n_terse)
     random.shuffle(styles)
 
+    async def _synthesize_valid(doc, entry, style, attempts: int = 3) -> str:
+        """지시어 질문 등 채점 불가능한 결과가 나오면 다시 생성합니다."""
+        question = ""
+        for _ in range(attempts):
+            question = await _synthesize_question(doc, entry, style)
+            ok, why = _is_valid_question(question)
+            if ok:
+                return question
+            print(f"    ↻ 질문 재생성 ({why}): {question[:40]}")
+        return question  # 마지막 시도를 그대로 사용 (생성 실패로 케이스를 잃지 않음)
+
     async def _build(i, doc, entry, style):
-        question = await _synthesize_question(doc, entry, style)
+        question = await _synthesize_valid(doc, entry, style)
         page = int(entry["page"]) if isinstance(entry["page"], int) else entry["page"]
         # ToC 항목 페이지는 "섹션 시작점"일 뿐 실제 관련 내용은 몇 페이지
         # 뒤에 있을 수 있음 — 문서가 클수록 그 간격도 비례해서 커지는 경향이
@@ -622,6 +762,7 @@ async def generate_cases(local: bool, base_url: str | None, token: str | None, u
             "id": f"gen-{i:02d}-{str(doc.get('document_id', ''))[:8]}",
             "question": question,
             "style": style,
+            "band": _difficulty_band(question),
             "expected": {
                 "type": "technical",
                 "document": doc.get("filename", ""),
@@ -630,9 +771,21 @@ async def generate_cases(local: bool, base_url: str | None, token: str | None, u
             },
         }
 
-    return await asyncio.gather(
-        *[_build(i, doc, entry, style) for i, ((doc, entry), style) in enumerate(zip(picks, styles), 1)]
-    )
+    async def _build_general(i):
+        return {
+            "id": f"gen-{i:02d}-general",
+            "question": await _synthesize_general_question(),
+            "style": "general",
+            "band": "general",
+            "expected": {"type": "general"},
+        }
+
+    tech = [_build(i, doc, entry, style)
+            for i, ((doc, entry), style) in enumerate(zip(picks, styles), 1)]
+    general = [_build_general(i) for i in range(n_tech + 1, n + 1)]
+    cases = await asyncio.gather(*(tech + general))
+    random.shuffle(cases)
+    return cases
 
 
 # ─── 진입점 ──────────────────────────────────────────────────────────────────
@@ -696,7 +849,13 @@ def main():
 
     if args.generate > 0:
         print(f"실제 매뉴얼 ToC에서 질문 {args.generate}개 생성 중...")
-        cases = asyncio.run(generate_cases(args.local, base_url, token, defaults.get("user_email", ""), args.generate))
+        try:
+            cases = asyncio.run(
+                generate_cases(args.local, base_url, token, defaults.get("user_email", ""), args.generate)
+            )
+        except Exception as e:
+            print(f"문항 생성 실패 — {type(e).__name__}: {e}")
+            sys.exit(1)
         if not cases:
             sys.exit(1)
     else:
@@ -755,9 +914,13 @@ def main():
         print("실행된 케이스가 없습니다 → 실패 종료")
         sys.exit(1)
 
-    pass_rate = (sum(1 for r in results if r["passed"]) / len(results)) if results else 0.0
+    # 게이트는 노이즈가 큰 pages를 뺀 '핵심 통과율'로 겁니다.
+    # pages를 포함하면 정상 실행도 55~90%로 출렁여 게이트가 무의미해집니다.
+    core = [r for r in results
+            if all(c["pass"] for n, c in r["checks"].items() if n != "pages")]
+    pass_rate = (len(core) / len(results)) if results else 0.0
     if pass_rate < args.min_pass:
-        print(f"통과율 {pass_rate:.0%} < 기준 {args.min_pass:.0%} → 실패 종료")
+        print(f"핵심 통과율 {pass_rate:.0%} < 기준 {args.min_pass:.0%} → 실패 종료")
         sys.exit(1)
 
 
