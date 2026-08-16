@@ -211,7 +211,10 @@ async def _ask(
     except asyncio.TimeoutError:
         obs["errors"].append(f"TIMEOUT ({timeout:.0f}s)")
     except Exception as e:
-        obs["errors"].append(f"요청 실패: {e}")
+        # 예외 타입을 반드시 남긴다 — httpx.ConnectError 처럼 str(e) 가 빈 문자열인
+        # 예외가 흔해서, 메시지만 찍으면 "요청 실패: " 만 남아 원인 추적이 불가능하다
+        # (2026-08-16 06:00 루틴에서 8건이 이 형태로 남아 진단이 막혔음).
+        obs["errors"].append(f"요청 실패: {type(e).__name__}: {e}".rstrip(": "))
     return obs
 
 

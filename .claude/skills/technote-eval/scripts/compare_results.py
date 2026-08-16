@@ -22,6 +22,8 @@ from pathlib import Path
 
 CORE_AXES = ["routing", "document", "recall"]  # 신뢰도 높은 축
 NOISY_AXES = ["pages"]                         # 근사 정답 기반 — 참고용
+# 이 비율 이상이 실행 오류면 그 회차의 채점은 무효로 본다 (run_eval 리포트와 동일 기준)
+INVALID_ERROR_SHARE = 0.2
 
 
 def find_results_dir(explicit: str | None) -> Path:
@@ -60,23 +62,39 @@ def dataset_label(run: dict) -> str:
     return ds if ds == "generated" else Path(ds).name
 
 
-def axis_stats(run: dict) -> dict[str, list[bool]]:
+def axis_stats(run: dict, skip_errored: bool = False) -> dict[str, list[bool]]:
+    """축별 통과 여부 목록. skip_errored 면 실행 오류로 죽은 케이스를 제외한다.
+
+    회차별 표는 실제로 기록된 값을 그대로 보여야 하므로 기본값은 False지만,
+    구간 누적 집계는 True 로 부른다 — 죽은 케이스를 '오답'으로 합산하면
+    "판단은 누적으로 하라"는 지침이 오히려 오판을 부른다.
+    """
     ax: dict[str, list[bool]] = {}
     for r in run["results"]:
+        if skip_errored and r.get("errors"):
+            continue
         for name, c in (r.get("checks") or {}).items():
             ax.setdefault(name, []).append(bool(c.get("pass")))
     return ax
 
 
 def style_stats(run: dict) -> dict[str, dict]:
+    """문체별 document 통과율. document 축이 채점되지 않은 케이스는 세지 않는다.
+
+    일상대화(style="general")는 애초에 document 축이 없어, 포함하면 'general 0/3'
+    처럼 전멸한 것처럼 보인다. 실행 오류로 죽은 케이스도 같은 이유로 제외한다.
+    """
     by: dict[str, dict] = {}
     for r in run["results"]:
         s = r.get("style")
-        if not s:
+        if not s or r.get("errors"):
+            continue
+        doc_check = (r.get("checks") or {}).get("document")
+        if doc_check is None:
             continue
         b = by.setdefault(s, {"n": 0, "doc": 0})
         b["n"] += 1
-        if (r.get("checks") or {}).get("document", {}).get("pass"):
+        if doc_check.get("pass"):
             b["doc"] += 1
     return by
 
@@ -122,8 +140,10 @@ def print_trend(runs: list[dict], last: int) -> None:
         rs = rs[-last:]
         print(f"\n■ 데이터셋: {ds}   (최근 {len(rs)}회)")
         cols = ("routing", "document", "recall", "pages")
-        print(f"  {'실행':<16} {'n':>3}  {'routing':>8} {'document':>9} {'recall':>8} {'pages':>7}  {'전체':>7}  평균지연")
-        print("  " + "-" * 78)
+        print(f"  {'실행':<16} {'n':>3}  {'routing':>8} {'document':>9} {'recall':>8} {'pages':>7}  "
+              f"{'전체':>7}  {'오류':>5}  평균지연")
+        print("  " + "-" * 88)
+        invalid_runs = []
         for r in rs:
             ax = axis_stats(r)
             res = r["results"]
@@ -132,21 +152,35 @@ def print_trend(runs: list[dict], last: int) -> None:
             lats = [x.get("latency_sec", 0) for x in res if x.get("latency_sec")]
             avg = f"{statistics.mean(lats):.0f}s" if lats else "-"
             cells = [fmt_rate(sum(ax.get(a, [])), len(ax.get(a, []))) for a in cols]
+            # 실행 오류 건수를 같은 줄에 노출한다. 이게 없으면 8건이 죽은 실행이
+            # 'routing 12/20'으로만 보여 품질 회귀로 오독된다(2026-08-16 06:00 루틴).
+            errored = sum(1 for x in res if x.get("errors"))
+            share = errored / n if n else 0
+            mark = f"{errored}건" if errored else "-"
+            if share >= INVALID_ERROR_SHARE:
+                mark += "⚠"
+                invalid_runs.append(r["_path"].stem)
             print(f"  {r['_path'].stem:<16} {n:>3}  {cells[0]:>8} {cells[1]:>9} {cells[2]:>8} {cells[3]:>7}  "
-                  f"{fmt_rate(overall, n):>7}  {avg:>6}")
+                  f"{fmt_rate(overall, n):>7}  {mark:>5}  {avg:>6}")
+        if invalid_runs:
+            print(f"\n  ⚠ 오류 비중 {INVALID_ERROR_SHARE:.0%} 이상 — 채점이 무효인 실행: "
+                  f"{', '.join(invalid_runs)}")
+            print("    이 회차의 축 점수는 품질 근거로 쓰지 말고, 환경 문제로 분리해 보고하세요.")
 
         # 누적 집계 — 하루 20문항은 통과율 99% 부근의 지표를 판정하기엔 표본이
         # 너무 작습니다(기대 실패 0.2건/회). 개별 회차의 ±1건 차이를 회귀로 읽지
         # 말고, 구간 전체를 합친 아래 숫자를 기준으로 판단하세요.
         pooled = {a: [] for a in cols}
         for r in rs:
-            ax = axis_stats(r)
+            ax = axis_stats(r, skip_errored=True)
             for a in cols:
                 pooled[a].extend(ax.get(a, []))
-        total_n = sum(len(r["results"]) for r in rs)
-        print("  " + "-" * 78)
+        total_n = sum(1 for r in rs for x in r["results"] if not x.get("errors"))
+        dropped = sum(1 for r in rs for x in r["results"] if x.get("errors"))
+        print("  " + "-" * 88)
         parts = [f"{a} {fmt_rate(sum(pooled[a]), len(pooled[a]))}" for a in cols if pooled[a]]
-        print(f"  누적 {len(rs)}회 / {total_n}문항 → " + " · ".join(parts))
+        suffix = f"  (실행 오류 {dropped}건 제외)" if dropped else ""
+        print(f"  누적 {len(rs)}회 / {total_n}문항 → " + " · ".join(parts) + suffix)
 
         # 핵심 축 요약 — 전체 통과율의 흔들림이 pages 때문인지 판별
         core_perfect = all(
