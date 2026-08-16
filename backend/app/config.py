@@ -3,8 +3,12 @@ from typing import List
 
 class Settings(BaseSettings):
     GEMINI_API_KEY: str
-    GEMINI_MODEL_NAME: str = "gemini-3.1-flash-lite"
-    GEMINI_FLASH_MODEL_NAME: str = "gemini-3.1-flash-lite"
+    # Cloud Run 에는 이 두 값의 환경변수가 설정돼 있지 않으므로, 배포 환경은 이 기본값을
+    # 그대로 사용한다 — 모델을 바꾸려면 여기를 고치는 것이 배포 경로다.
+    # GEMINI_MODEL_NAME 은 Phase 3 Vision 답변, FLASH 쪽은 나머지 전 단계에 쓰인다.
+    # 지금은 같은 모델이지만 분리돼 있어 Vision 만 상위 모델로 올릴 수 있다.
+    GEMINI_MODEL_NAME: str = "gemini-3.5-flash-lite"
+    GEMINI_FLASH_MODEL_NAME: str = "gemini-3.5-flash-lite"
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     PDF_UPLOAD_DIR: str = "/tmp/uploads"

@@ -91,8 +91,8 @@ GOOGLE_CLIENT_ID=your_google_oauth_client_id
 JWT_SECRET=your_jwt_secret_key
 
 # 아래는 선택사항 (기본값 있음)
-# GEMINI_MODEL_NAME=gemini-3.1-flash-lite
-# GEMINI_FLASH_MODEL_NAME=gemini-3.1-flash-lite
+# GEMINI_MODEL_NAME=gemini-3.5-flash-lite
+# GEMINI_FLASH_MODEL_NAME=gemini-3.5-flash-lite
 # ALLOWED_ORIGINS=http://localhost:3000
 # USE_LOCAL_STORAGE=True   # GCS 대신 로컬 파일시스템 사용 (오프라인 개발용)
 
