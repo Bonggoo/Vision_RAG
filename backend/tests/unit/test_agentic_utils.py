@@ -180,6 +180,51 @@ class TestFilterDocuments:
             assert len(docs) >= 1
 
 
+class TestNonTopicalEvidence:
+    """비주제어는 증거 쪽지를 만들지 않지만, 점수에는 그대로 기여한다.
+
+    실측 배경: '처음'이 55개 문서 중 4개 목차("처음에", "처음으로 전원을 투입하는
+    경우")에만 나와 희귀 컷을 통과하는 바람에, "이거 처음 써보는데 뭐부터 보면
+    될까요?" 같은 일상 질문에도 증거 블록이 만들어졌다. 그 블록을 근거로 문서 선택
+    LLM 이 general → technical 로 판정을 뒤집었다(실측 0/5 → 수정 후 5/5 general).
+    """
+
+    def _corpus(self):
+        def doc(doc_id, titles):
+            return {
+                "document_id": doc_id,
+                "filename": f"{doc_id} 매뉴얼",
+                "manufacturer": "테스트",
+                "model_series": "",
+                "toc": [{"title": t, "page": i + 1} for i, t in enumerate(titles)],
+            }
+
+        return [
+            doc("a", ["처음에", "SMATV 광 송장비", "알람 코드"]),
+            doc("b", ["처음으로 전원을 투입하는 경우", "파라미터 설정"]),
+            doc("c", ["링크 이상국 분리", "배선"]),
+        ]
+
+    def test_non_topical_word_makes_no_evidence(self):
+        _, _, evidence = filter_documents_by_keywords("이거 처음 써보는데", self._corpus())
+        assert evidence == {}
+
+    def test_topical_word_still_makes_evidence(self):
+        _, _, evidence = filter_documents_by_keywords("SMATV 분배", self._corpus())
+        assert any("SMATV" in t for titles in evidence.values() for t in titles)
+
+    def test_fault_word_is_not_treated_as_stopword(self):
+        # '이상'은 산업 매뉴얼에서 고장을 뜻하는 주제어 — 불용어로 넣으면 안 된다
+        _, _, evidence = filter_documents_by_keywords("이상 발생", self._corpus())
+        assert any("이상국" in t for titles in evidence.values() for t in titles)
+
+    def test_non_topical_word_still_counts_for_scoring(self):
+        # 증거에서만 빼고 점수에는 남긴다 — 배제형 필터에서 recall 을 잃지 않기 위함
+        docs, mode, evidence = filter_documents_by_keywords("처음", self._corpus())
+        assert evidence == {}
+        assert len(docs) >= 1  # 점수 기여는 유지되어 후보가 비지 않는다
+
+
 class TestCorpusContact:
     """질문 고유어가 보유 문서에 존재하는지 — '보유하지 않은 장비' 판정 신호.
 
