@@ -2,9 +2,11 @@ from fastapi import APIRouter, HTTPException, status, Response, Cookie
 from pydantic import BaseModel
 from typing import Optional
 from app.services.auth_service import (
-    verify_google_token, create_access_token, create_refresh_token, verify_refresh_token,
+    verify_google_token, create_access_token, create_refresh_token,
+    verify_refresh_token_async, email_from_refresh_token_unverified,
     set_refresh_cookie, delete_refresh_cookie
 )
+from app.services.token_revocation import revoke_all_refresh_tokens_async
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -64,8 +66,8 @@ async def refresh_tokens(response: Response, refresh_token: Optional[str] = Cook
             detail="로그인 세션이 만료되었습니다. 다시 로그인해 주세요."
         )
         
-    # 1. Refresh Token 검증 → email 추출
-    email = verify_refresh_token(refresh_token)
+    # 1. Refresh Token 검증 (서명·만료 + 서버 측 폐기 여부) → email 추출
+    email = await verify_refresh_token_async(refresh_token)
     
     # 2. 새 토큰 쌍 발급
     new_access_token = create_access_token(data={"email": email})
@@ -79,9 +81,17 @@ async def refresh_tokens(response: Response, refresh_token: Optional[str] = Cook
     )
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(response: Response, refresh_token: Optional[str] = Cookie(None)):
     """
-    로그아웃 시 브라우저의 Refresh Token 보안 쿠키 파기
+    로그아웃: 브라우저 쿠키를 지우고, 서버 측에서도 해당 사용자의 리프레시 토큰을 폐기한다.
+
+    쿠키만 지우면 토큰 자체는 최대 30일 살아 있어, 유출된 토큰으로 계속 세션을
+    되살릴 수 있었다(감사 H-3). 이제 폐기 시각을 올려 기존 토큰을 전부 무효화한다.
     """
+    if refresh_token:
+        email = email_from_refresh_token_unverified(refresh_token)
+        if email:
+            await revoke_all_refresh_tokens_async(email)
+
     delete_refresh_cookie(response)
     return {"message": "Successfully logged out"}

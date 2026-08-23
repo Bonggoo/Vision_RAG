@@ -356,10 +356,14 @@ def generate_gcs_signed_url(bucket_name: str, blob_name: str, method: str, expir
         logger.error(f"❌ generate_gcs_signed_url 실패: {e}")
         return None
 
-def get_document_signed_url(document_id: str, download_name: str, owner_email: Optional[str] = None, blob_filename: str = "original.pdf", content_type: str = "application/pdf") -> Optional[str]:
+def get_document_signed_url(document_id: str, download_name: str, owner_email: Optional[str] = None, blob_filename: str = "original.pdf", content_type: str = "application/pdf", disposition: str = "attachment") -> Optional[str]:
     """
-    GCS에 저장된 문서 파일(기본: 원본 PDF)의 5분 만료 임시 다운로드 서명 링크(Signed URL)를 생성합니다.
+    GCS에 저장된 문서 파일(기본: 원본 PDF)의 5분 만료 임시 서명 링크(Signed URL)를 생성합니다.
     로컬 모드인 경우 None을 반환합니다.
+
+    disposition="inline" 이면 브라우저가 내려받지 않고 내장 PDF 뷰어로 바로 연다.
+    참조 페이지 보기(`#page=N`)가 동작하려면 반드시 inline 이어야 한다 — attachment 로는
+    브라우저가 파일을 저장해 버려 해시 프래그먼트가 무시된다.
     """
     if settings.USE_LOCAL_STORAGE:
         return None
@@ -370,7 +374,7 @@ def get_document_signed_url(document_id: str, download_name: str, owner_email: O
         # RFC 5987 표준 한글 파일명 헤더 세팅 주입 (ASCII fallback은 blob 확장자 유지)
         fallback_ext = os.path.splitext(blob_filename)[1] or ".pdf"
         encoded_filename = quote(download_name)
-        content_disposition = f"attachment; filename=\"document{fallback_ext}\"; filename*=UTF-8''{encoded_filename}"
+        content_disposition = f"{disposition}; filename=\"document{fallback_ext}\"; filename*=UTF-8''{encoded_filename}"
 
         # blob 경로 결정
         if owner_email:
@@ -576,8 +580,8 @@ async def update_document_metadata_async(document_id: str, updates: Dict[str, An
 async def delete_document_async(document_id: str, owner_email: Optional[str] = None) -> bool:
     return await asyncio.to_thread(delete_document, document_id, owner_email)
 
-async def get_document_signed_url_async(document_id: str, download_name: str, owner_email: Optional[str] = None, blob_filename: str = "original.pdf", content_type: str = "application/pdf") -> Optional[str]:
-    return await asyncio.to_thread(get_document_signed_url, document_id, download_name, owner_email, blob_filename, content_type)
+async def get_document_signed_url_async(document_id: str, download_name: str, owner_email: Optional[str] = None, blob_filename: str = "original.pdf", content_type: str = "application/pdf", disposition: str = "attachment") -> Optional[str]:
+    return await asyncio.to_thread(get_document_signed_url, document_id, download_name, owner_email, blob_filename, content_type, disposition)
 
 async def create_document_metadata_async(document_id: str, metadata: Dict[str, Any], owner_email: str) -> bool:
     return await asyncio.to_thread(create_document_metadata, document_id, metadata, owner_email)

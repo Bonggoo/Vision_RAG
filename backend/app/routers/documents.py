@@ -361,3 +361,57 @@ async def download_document_url(document_id: UUID, current_user: dict = Depends(
         }
 
 
+@router.get("/{document_id}/view-url")
+async def view_document_url(document_id: UUID, current_user: dict = Depends(get_current_user)):
+    """
+    답변 참조 페이지를 원본 PDF에서 열기 위한 인라인 보기 URL을 발급합니다.
+
+    `/download-url`과 두 가지가 다르다:
+      1. Content-Disposition 이 inline — 브라우저 내장 PDF 뷰어가 바로 열어야
+         `#page=N` 해시로 해당 페이지까지 스크롤된다. attachment 면 그냥 저장된다.
+      2. 항상 변환본 `original.pdf` 를 가리킨다 — 참조 페이지 번호는 이 PDF 기준으로
+         매겨지므로, 비-PDF 원본(.docx 등)을 주면 페이지가 어긋난다.
+    """
+    doc_id = str(document_id)
+    if not await metadata_service.verify_document_owner_async(doc_id, current_user["email"]):
+        raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
+    meta = await metadata_service.get_document_async(doc_id, owner_email=current_user["email"])
+    if meta is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 문서입니다.")
+
+    view_name = _build_download_name(meta, ".pdf")
+
+    signed_url = await metadata_service.get_document_signed_url_async(
+        doc_id, view_name, owner_email=current_user["email"],
+        blob_filename="original.pdf", content_type="application/pdf",
+        disposition="inline",
+    )
+
+    if signed_url:
+        return {"mode": "gcs", "url": signed_url, "filename": view_name}
+
+    # 로컬 모드/서명 실패: 인증 헤더가 필요한 로컬 엔드포인트를 돌려주고
+    # 프론트가 blob 으로 받아서 연다 (새 탭은 Authorization 헤더를 못 싣는다).
+    return {"mode": "local", "url": f"/documents/{doc_id}/view", "filename": view_name}
+
+
+@router.get("/{document_id}/view")
+async def view_document(document_id: UUID, current_user: dict = Depends(get_current_user)):
+    """변환본 original.pdf 를 inline 으로 서빙합니다. (로컬 모드 뷰어 경로)"""
+    doc_id = str(document_id)
+    if not await metadata_service.verify_document_owner_async(doc_id, current_user["email"]):
+        raise HTTPException(status_code=403, detail="해당 문서에 대한 접근 권한이 없습니다.")
+
+    file_path = await metadata_service.get_document_path_async(
+        doc_id, owner_email=current_user["email"], blob_filename="original.pdf"
+    )
+    if file_path is None or not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="문서 파일을 찾을 수 없습니다.")
+
+    return FileResponse(
+        file_path,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="document.pdf"'},
+    )
+
+

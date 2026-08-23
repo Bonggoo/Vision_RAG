@@ -54,6 +54,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Vision RAG API", version="1.0.0", redirect_slashes=False, lifespan=lifespan)
 
+# 요청 속도 제한 미들웨어 (H-1)
+# 등록 순서상 가장 안쪽에 놓여 로깅 미들웨어가 429 응답까지 기록하고,
+# CORS 미들웨어가 가장 바깥이라 브라우저가 429 본문을 읽을 수 있다.
+from app.middleware.rate_limit import rate_limit_middleware
+app.middleware("http")(rate_limit_middleware)
+
 # API 로깅 및 전역 예외 처리 미들웨어
 @app.middleware("http")
 async def logging_and_exception_middleware(request: Request, call_next):

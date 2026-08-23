@@ -52,9 +52,16 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 def create_refresh_token(email: str) -> str:
-    """JWT Refresh Token 생성 (email만 포함)"""
+    """JWT Refresh Token 생성 (email + 발급 시각)
+
+    `iat_ms`(밀리초)는 서버 측 폐기 판정용이다. 표준 `iat`(초)를 쓰지 않는 이유는
+    로그아웃 직후 재로그인이 같은 '초'에 일어나면 새 토큰까지 폐기 대상으로
+    걸리기 때문이다. → app/services/token_revocation.py
+    """
+    from app.services.token_revocation import now_ms
+
     expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode = {"email": email, "exp": expire, "type": "refresh"}
+    to_encode = {"email": email, "exp": expire, "type": "refresh", "iat_ms": now_ms()}
     encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
 
@@ -118,8 +125,8 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
             detail="올바르지 않은 세션 토큰입니다."
         )
 
-def verify_refresh_token(refresh_token: str) -> str:
-    """Refresh Token 검증 후 email 반환"""
+def decode_refresh_token(refresh_token: str) -> dict:
+    """Refresh Token을 검증(서명·만료·타입)하고 페이로드를 반환합니다."""
     try:
         payload = jwt.decode(refresh_token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         if payload.get("type") != "refresh":
@@ -133,7 +140,8 @@ def verify_refresh_token(refresh_token: str) -> str:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Refresh Token에 이메일 정보가 누락되었습니다."
             )
-        return email
+        payload["email"] = email
+        return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -144,6 +152,51 @@ def verify_refresh_token(refresh_token: str) -> str:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="올바르지 않은 Refresh Token입니다."
         )
+
+
+def verify_refresh_token(refresh_token: str) -> str:
+    """Refresh Token 검증 후 email 반환 (서버 측 폐기 검사는 하지 않음)"""
+    return decode_refresh_token(refresh_token)["email"]
+
+
+async def verify_refresh_token_async(refresh_token: str) -> str:
+    """Refresh Token 검증 + 서버 측 폐기 검사 후 email 반환.
+
+    로그아웃한 사용자의 (유출된) 리프레시 토큰이 만료 전까지 계속 통하던 구멍을
+    막는다. 저장소 조회가 필요해 async 다. → 감사 항목 H-3
+    """
+    from app.services.token_revocation import is_revoked_async
+
+    payload = decode_refresh_token(refresh_token)
+    email = payload["email"]
+
+    if await is_revoked_async(email, payload.get("iat_ms")):
+        logger.warning(f"⛔ 폐기된 Refresh Token 사용 시도: {email}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="로그아웃된 세션입니다. 다시 로그인해 주세요."
+        )
+    return email
+
+
+def email_from_refresh_token_unverified(refresh_token: str) -> Optional[str]:
+    """만료 여부와 무관하게 리프레시 토큰에서 email만 꺼낸다 (로그아웃 폐기용).
+
+    로그아웃은 만료된 토큰으로도 호출될 수 있고, 그때도 폐기 시각은 올려두는 편이
+    안전하다. 서명은 그대로 검증하므로 남의 계정을 폐기시킬 수는 없다.
+    """
+    try:
+        payload = jwt.decode(
+            refresh_token,
+            settings.JWT_SECRET,
+            algorithms=[settings.JWT_ALGORITHM],
+            options={"verify_exp": False},
+        )
+        if payload.get("type") != "refresh":
+            return None
+        return (payload.get("email") or "").lower() or None
+    except jwt.InvalidTokenError:
+        return None
 
 
 def set_refresh_cookie(response: Response, refresh_token: str):

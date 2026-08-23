@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 30분
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30  # 30일
+    # 요청 속도 제한 (버킷별 규칙은 app/middleware/rate_limit.py). 테스트에서만 끈다.
+    RATE_LIMIT_ENABLED: bool = True
 
     # Cloud Tasks (미설정 시 로컬 asyncio.create_task 폴백)
     # 형식: projects/{project}/locations/{region}/queues/{queue_name}

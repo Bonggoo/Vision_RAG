@@ -233,8 +233,10 @@ export const api = {
       };
       
     } catch (error: any) {
-      // 409 중복 에러 등 명시적 서버 에러는 Fallback 하지 않고 전파
-      if (error.status === 409) {
+      // 409 중복 에러 등 명시적 서버 에러는 Fallback 하지 않고 전파.
+      // 429(속도 제한)도 마찬가지 — 동기 업로드로 재시도해봐야 같은 버킷에서 또 막히고
+      // 한도만 한 번 더 쓴다.
+      if (error.status === 409 || error.status === 429) {
         throw error;
       }
       console.error("[Upload] 비동기 업로드 오류로 동기 Fallback 실행:", error);
@@ -380,6 +382,43 @@ export const api = {
       // 메모리 유수 방지를 위해 해제
       window.URL.revokeObjectURL(blobUrl);
       document.body.removeChild(a);
+    }
+  },
+
+  /**
+   * 참조 페이지를 원본 PDF 뷰어에서 연다 (`#page=N` 으로 해당 페이지까지 자동 스크롤).
+   * 썸네일은 150 DPI PNG 라 흐릿하고 텍스트 선택이 안 되지만, 이 경로는 원본 PDF 라
+   * 확대·텍스트 검색·드래그가 모두 된다.
+   */
+  openDocumentPage: async (docId: string, pageNumber: number) => {
+    // 팝업 차단을 피하려면 클릭과 같은 틱에 창을 먼저 열어두고, URL 은 나중에 넣어야 한다.
+    const win = window.open("", "_blank");
+    try {
+      const res = await authFetch(`${API_BASE_URL}/documents/${docId}/view-url`);
+      if (!res.ok) throw new Error("원본 PDF 주소를 받아오지 못했습니다.");
+      const data = await res.json();
+
+      let href: string;
+      if (data.mode === "gcs") {
+        // Signed URL 은 서명이 쿼리에 있으므로 해시(#)는 그 뒤에 붙인다
+        href = `${data.url}#page=${pageNumber}`;
+      } else {
+        // 로컬 모드: 새 탭에는 Authorization 헤더를 실을 수 없어 blob 으로 받아서 연다
+        const fileRes = await authFetch(`${API_BASE_URL}${data.url}`);
+        if (!fileRes.ok) throw new Error("원본 PDF 를 불러오지 못했습니다.");
+        const blob = await fileRes.blob();
+        href = `${window.URL.createObjectURL(blob)}#page=${pageNumber}`;
+      }
+
+      if (win) {
+        win.location.href = href;
+      } else {
+        // 팝업이 막힌 경우 같은 탭 대신 한 번 더 시도 (사용자가 허용하면 열린다)
+        window.open(href, "_blank");
+      }
+    } catch (e) {
+      win?.close();
+      throw e;
     }
   },
 

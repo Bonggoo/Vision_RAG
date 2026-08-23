@@ -107,6 +107,15 @@ export function useChatStream() {
 
       // 응답 상태 체크 (서버 오류 처리)
       if (!response.ok) {
+        if (response.status === 429) {
+          // 속도 제한. 서버가 Retry-After 를 주므로 몇 초 뒤인지까지 알려준다.
+          const retryAfter = Number(response.headers.get("Retry-After"));
+          throw new Error(
+            Number.isFinite(retryAfter) && retryAfter > 0
+              ? `질문이 너무 잦습니다. ${retryAfter}초 뒤에 다시 시도해 주세요.`
+              : "질문이 너무 잦습니다. 잠시 후 다시 시도해 주세요."
+          );
+        }
         throw new Error(`서버 오류 (${response.status})`);
       }
 
