@@ -16,7 +16,7 @@
 |------|------|
 | [PRD.md](./PRD.md) | 제품 요구사항 정의서 (목표·사용자·범위) |
 | [API_Contract.md](./API_Contract.md) | Backend(FastAPI) ↔ Frontend(Next.js) 통신 규약 |
-| [질문.md](./질문.md) | 대화 품질 평가용 골든 질문셋 (`backend/evals`에서 사용) |
+| [질문.md](./질문.md) | 초기 수기 질문 목록 (제조사별). ⚠️ **코드에서 참조하지 않는다** — `backend/evals`는 `dataset.yaml`/`claude_dataset.yaml` 또는 `--generate`로 매번 합성한 문항을 쓴다. 소재 참고용 |
 
 ## 📋 현황 / 계획 (Status & Planning)
 지금 무엇이 되어 있고 다음에 무엇을 할지 — **여기서 시작하세요.**

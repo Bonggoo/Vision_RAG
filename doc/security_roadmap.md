@@ -3,6 +3,28 @@
 본 문서는 Vision RAG 시스템의 장기적인 운영 안전성과 사용자의 개인정보 보안 수준을 엔터프라이즈 급으로 격상하기 위해 필요한 **중·장기 보안 설계 및 기술적 조치 로드맵**입니다.
 
 > **관련 문서**: 2026-07-18 전면 코드 감사에서 발견된 구체적 보안 취약점(즉시 조치 필요 Critical/High 포함)은 [audit_findings_2026-07.md](./audit_findings_2026-07.md) 참고. 아래 Phase 1(Refresh Token 쿠키화)·Phase 2(Secret Manager)는 감사의 H-3·L-3 항목과 직접 연결됩니다.
+>
+> ## 📌 진행 상태 (2026-08-23, v1.0 기준)
+>
+> | Phase | 상태 |
+> |---|---|
+> | **Phase 1 — Refresh Token 쿠키화** | ✅ **완료** (아래 절은 이력) |
+> | **Phase 2 — GCP Secret Manager** | ⏳ 미착수 (감사 L-3) |
+> | **Phase 3 — 컨테이너 하드닝** | ⏳ 미착수 |
+>
+> **Phase 1 완료 내역**: Refresh Token 은 `HttpOnly` + `SameSite=Lax` 쿠키로 내려가고
+> (`auth_service.set_refresh_cookie`), `/api/auth/refresh` 는 Request Body 가 아니라
+> Cookie 헤더에서 토큰을 읽는다. Access Token 은 Zustand 메모리에만 있다.
+> `secure` 는 프로덕션에서만 True (로컬 http 대응).
+>
+> 계획 대비 달라진 점 — `sameSite`: 통합 오리진(프론트+백엔드 same-origin) 배포로
+> 전환하면서 `None` 이 아니라 **`Lax`** 를 택했다. `None` 은 iOS WebKit(ITP)의
+> third-party 쿠키 차단에 걸려 로그인이 유지되지 않았다.
+>
+> **추가 완료(로드맵 밖)**: 감사 H-3(리프레시 토큰 서버 측 폐기)도 2026-08-23 해결됐다.
+> 쿠키화만으로는 이미 유출된 토큰을 무효화할 수 없어, 사용자별 폐기 시각을 도입해
+> 로그아웃이 그 계정의 모든 리프레시 토큰을 끊도록 했다 (`services/token_revocation.py`).
+> 감사 H-1(rate limiting)도 함께 처리됐다 (`middleware/rate_limit.py`).
 
 ---
 
@@ -13,8 +35,8 @@ gantt
     title 보안 개선 로드맵 일정
     dateFormat  YYYY-MM-DD
     section Phase 1
-    Zustand 스토어 ➔ HttpOnly Cookie 이관      :active, p1, 2026-06-10, 5d
-    쿠키 기반 토큰 갱신 백엔드 API 보완          :active, p2, after p1, 3d
+    Zustand 스토어 ➔ HttpOnly Cookie 이관      :done, p1, 2026-06-10, 5d
+    쿠키 기반 토큰 갱신 백엔드 API 보완          :done, p2, after p1, 3d
     section Phase 2
     GCP Secret Manager 보안 인프라 구축       :p3, 2026-06-18, 4d
     Cloud Run 비밀 변수 매핑 연동             :p4, after p3, 3d
@@ -25,9 +47,11 @@ gantt
 
 ---
 
-## 🔒 1단계: Refresh Token 쿠키 기반 저장 아키텍처 전환 (XSS 원천 방어)
+## 🔒 1단계: Refresh Token 쿠키 기반 저장 아키텍처 전환 (XSS 원천 방어) — ✅ 완료
 
-현재 Next.js 프론트엔드는 Zustand의 `localStorage` 연동을 통해 토큰을 영구 저장하므로 XSS(Cross-Site Scripting) 취약점에 노출되어 있습니다. 이를 쿠키(Cookie) 구조로 전환합니다.
+> 아래는 착수 당시의 계획 원문이다. 실제 구현과 다른 점은 위 '진행 상태' 절 참고.
+
+당시 Next.js 프론트엔드는 Zustand의 `localStorage` 연동을 통해 토큰을 영구 저장하므로 XSS(Cross-Site Scripting) 취약점에 노출되어 있습니다. 이를 쿠키(Cookie) 구조로 전환합니다.
 
 ### 1) 기술적 변경 내역 (Technical Details)
 - **프론트엔드 (Zustand & API Client)**:

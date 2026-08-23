@@ -128,7 +128,7 @@ npm run dev
 |--------|-----------|------|------|
 | `POST` | `/api/auth/google` | 구글 OAuth ID Token 검증 및 백엔드 JWT 발급 | 필요 없음 |
 | `POST` | `/api/auth/refresh` | JWT Refresh Token을 통한 신규 Access Token 재발급 | 필요 없음 |
-| `POST` | `/api/auth/logout` | 로그아웃 (Refresh Token 쿠키 파기) | **필수** |
+| `POST` | `/api/auth/logout` | 로그아웃 — 쿠키 파기 + **서버 측 리프레시 토큰 전체 폐기** | 필요 없음 (쿠키로 식별) |
 | `POST` | `/upload` | [동기식] PDF 업로드 + ToC 추출 (소형 파일용) | **필수** |
 | `POST` | `/upload/preflight` | [비동기식] SHA-256 중복 체크 및 GCS Signed URL 발급 | **필수** |
 | `POST` | `/upload/analyze` | [비동기식] 업로드 완료 후 백그라운드 AI 분석 트리거 | **필수** |
@@ -138,7 +138,9 @@ npm run dev
 | `PATCH` | `/documents/{id}` | 메타데이터(파일명, 제조사, 모델) 수정 | **필수** |
 | `DELETE` | `/documents/{id}` | 문서 삭제 | **필수** |
 | `GET` | `/documents/{id}/download` | [서버 중개] 문서 PDF 직접 다운로드 | **필수** |
-| `GET` | `/documents/{id}/download-url` | [고속] GCS Signed URL 다운로드 서명 링크 발급 | **필수** |
+| `GET` | `/documents/{id}/download-url` | [고속] GCS Signed URL 다운로드 서명 링크 발급 (`attachment`) | **필수** |
+| `GET` | `/documents/{id}/view-url` | [뷰어] 원본 PDF 인라인 보기 링크 발급 (`inline`, `#page=N`용) | **필수** |
+| `GET` | `/documents/{id}/view` | [뷰어] 원본 PDF 인라인 서빙 (로컬 모드 폴백) | **필수** |
 | `POST` | `/documents/reclassify` | 미분류 문서 일괄 Gemini Vision 재분류 (백그라운드) | **필수** |
 | `GET` | `/documents/{id}/toc` | ToC 전체 조회 | **필수** |
 | `POST` | `/documents/{id}/reindex` | Vision 기반 ToC 재추출 | **필수** |
@@ -148,6 +150,9 @@ npm run dev
 | `GET` | `/conversations/{session_id}` | 대화 세션 상세 조회 | **필수** |
 | `DELETE` | `/conversations/{session_id}` | 대화 세션 삭제 | **필수** |
 | `PATCH` | `/conversations/{session_id}/rename` | 대화 제목 변경 | **필수** |
+
+> **속도 제한**: 모든 API에 적용됩니다 (채팅 20회/분, 업로드 10회/분, 인증 20회/분, 그 외 120회/분).
+> 초과 시 `429` + `Retry-After` 헤더. 상세는 [doc/API_Contract.md](./doc/API_Contract.md) 참고.
 
 ---
 
@@ -238,16 +243,32 @@ TechNote/
 
 ---
 
-## 📊 테스트 결과
+## 📊 테스트 및 품질 측정
 
-| 질문 | 결과 |
-|------|------|
-| 원점결정 버퍼메모리 주소 | ✅ `1500+100n` / `4300+100n` + Cd.3 |
-| 알람코드 104 의미 | ✅ 하드웨어 스트로크 리미트+ |
-| 알람코드 2505 분류 | ✅ 서보앰프 에러 (2000~2999) |
-| 버퍼메모리 2800 기능 | ✅ 19번축 Pr.91 임의 데이터 모니터 |
-| 멀티턴: "그 근처 주소들" | ✅ 2791~2803 주변 주소 목록 |
-| 전체 벤치마크 | ✅ 93.33% 성공률 |
+### 자동 테스트
+```bash
+cd backend && source venv/bin/activate && pytest
+```
+`274 passed, 2 skipped` (2026-08-23 기준). 파이프라인 헬퍼, 문서 변환, 중복 판정,
+속도 제한, 토큰 폐기, 문서 뷰어 엔드포인트를 덮습니다.
+
+### 품질 평가 (`backend/evals/`)
+골든셋 또는 실제 매뉴얼에서 생성한 질문을 파이프라인에 흘려 **routing / document /
+recall / pages** 4개 축으로 채점합니다.
+
+```bash
+python -m evals.run_eval                 # 골든셋(dataset.yaml) 기준
+python -m evals.run_eval --generate 20   # 실제 보유 매뉴얼에서 20문항 매번 새로 생성
+```
+
+> ⚠️ **이 점수를 진척도로 읽지 마세요.** 데이터셋이 20문항이라 1문항이 5%p인데
+> 실행 간 표준편차가 ±15%p입니다. 즉 **4문항 미만의 품질 변화는 원리적으로 관측되지
+> 않습니다.** 큰 회귀를 잡는 용도로만 유효하며, 축마다 신뢰도도 다릅니다
+> (`pages`는 노이즈가 큰 참고 지표). 판독 규칙은 `technote-eval` 스킬 문서에 있고,
+> 배경은 [doc/v1.0_release_checklist.md](./doc/v1.0_release_checklist.md) 참고.
+
+자동 실행은 하지 않습니다. 검색·라우팅·문서선택 로직을 건드린 직후에만 수동으로 돌리고,
+단발 회차 대신 누적 집계로 판단합니다.
 
 ---
 

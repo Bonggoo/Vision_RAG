@@ -2,7 +2,7 @@
 
 > Backend(FastAPI) ↔ Frontend(Next.js) 간 통신 규약
 > 
-> 작성일: 2026-05-12 | 최종 수정: 2026-06-09 | 버전: v4.0
+> 작성일: 2026-05-12 | 최종 수정: 2026-08-23 | 버전: v5.0 (v1.0 릴리스)
 
 ---
 
@@ -13,9 +13,46 @@
 | **Base URL (개발)** | `http://localhost:8000` |
 | **Base URL (운영)** | 배포 후 확정 (Cloud Run URL) |
 | **인증** | 구글 OAuth 2.0 기반 자체 JWT 인증 (`Authorization: Bearer <JWT>`) |
-| **인증 예외** | `/api/auth/google`, `/api/auth/refresh` (이외 모든 엔드포인트는 인증 필수) |
+| **인증 예외** | `/api/auth/google`, `/api/auth/refresh`, `/api/auth/logout`, `/api/health` (이외 모든 엔드포인트는 인증 필수) |
+| **속도 제한** | 있음 — 초과 시 `429` + `Retry-After`. 아래 "공통 에러" 참고 |
 | **Content-Type** | `application/json` (동기식 `/upload` 멀티파트 업로드 제외) |
 | **에러 형식** | `{ "detail": "에러 메시지" }` + HTTP Status Code |
+
+### 공통 에러
+
+| 코드 | 의미 | 비고 |
+|------|------|------|
+| `401` | 인증 실패 — 토큰 없음/만료/폐기 | 프론트는 `/api/auth/refresh` 로 1회 자동 재시도. 로그아웃된 세션의 리프레시 토큰도 401 |
+| `403` | 타 사용자 소유 리소스 접근 | 멀티테넌시 격리 |
+| `404` | 리소스 없음 | |
+| `409` | 중복 업로드 (SHA-256 일치) | `/upload/preflight` |
+| **`429`** | **요청 속도 제한 초과** | 아래 참고 |
+| `500` | 서버 내부 오류 | 상세는 서버 로그에만 남는다 |
+
+#### `429 Too Many Requests`
+
+```
+HTTP/1.1 429 Too Many Requests
+Retry-After: 37
+
+{ "detail": "요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요." }
+```
+
+버킷별 한도 (식별자: 검증된 JWT 이메일 → 없으면 IP):
+
+| 버킷 | 대상 경로 | 한도 |
+|------|-----------|------|
+| chat | `/chat/*` | 20회/분, 300회/시 |
+| upload | `/upload/*`, `*/reclassify` | 10회/분, 100회/시 |
+| auth | `/api/auth/*` | 20회/분, 200회/시 |
+| default | 그 외 API | 120회/분 |
+
+제외: 정적 프론트(`/`, `/_next/*`), `/api/health`, `/internal/*`.
+`Retry-After` 는 초 단위다. 클라이언트는 **재시도 전에 이 시간을 기다려야 하며**,
+다른 경로로 우회 재시도해서는 안 된다 (같은 버킷이면 또 막히고 한도만 더 쓴다).
+
+> ⚠️ Cloud Run 인스턴스마다 카운터가 독립이라 전역 정확도는 없다. 단일 클라이언트
+> 폭주 차단이 목적인 방어선이며, 보안 경계로 취급하지 않는다.
 
 ---
 
@@ -317,6 +354,56 @@ Status가 `toc_required`인 대용량 스캔 PDF에 대해 사용자가 지정�
   "filename": "MITSUBISHI_MELSEC-Q_사용자매뉴얼.pdf"
 }
 ```
+
+---
+
+### 6-3. [뷰어] 원본 PDF 인라인 보기 링크 발급
+### `GET /documents/{document_id}/view-url`
+
+답변의 참조 페이지를 원본 PDF에서 열기 위한 **인라인** 보기 URL을 발급합니다.
+프론트는 반환된 URL 뒤에 `#page={pageNumber}` 를 붙여 새 탭으로 연다.
+
+`6-2. /download-url` 과 두 가지가 다르다:
+
+| | `/download-url` | `/view-url` |
+|---|---|---|
+| Content-Disposition | `attachment` (내려받기) | **`inline`** (브라우저 PDF 뷰어로 바로 열기) |
+| 대상 파일 | 비-PDF 업로드면 보관된 **원본**(`source_original.docx` 등) | 항상 변환본 **`original.pdf`** |
+
+> ⚠️ **`inline` 이어야 하는 이유**: `attachment` 면 브라우저가 파일을 저장해 버려
+> `#page=N` 해시가 무시된다. 그리고 참조 페이지 번호는 `original.pdf` 기준으로
+> 매겨지므로, 비-PDF 원본을 주면 페이지가 어긋난다.
+
+#### 요청
+* **Headers**: `Authorization: Bearer <JWT>`
+
+#### 응답 — `200 OK`
+```json
+{
+  "mode": "gcs", // "gcs" | "local"
+  "url": "https://storage.googleapis.com/...", // GCS Signed URL 또는 로컬 경로 (/documents/{id}/view)
+  "filename": "MITSUBISHI_MELSEC-Q_사용자매뉴얼.pdf"
+}
+```
+
+* `mode: "gcs"` → 서명이 쿼리에 있으므로 그대로 새 탭에서 열면 된다 (`url + "#page=N"`)
+* `mode: "local"` → 인증 헤더가 필요한 로컬 경로다. 새 탭에는 `Authorization` 헤더를
+  실을 수 없으므로 **blob 으로 받아서 열어야 한다** (`api.openDocumentPage()` 참고)
+
+---
+
+### 6-4. [뷰어] 원본 PDF 인라인 서빙 (로컬 모드)
+### `GET /documents/{document_id}/view`
+
+`original.pdf` 를 `inline` 으로 서빙합니다. `USE_LOCAL_STORAGE=True` 이거나 Signed URL
+발급에 실패했을 때 `6-3` 이 가리키는 경로다.
+
+#### 요청
+* **Headers**: `Authorization: Bearer <JWT>`
+
+#### 응답 — `200 OK`
+* **Content-Type**: `application/pdf`
+* **Response Headers**: `Content-Disposition: inline; filename="document.pdf"`
 
 ---
 
