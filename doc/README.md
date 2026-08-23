@@ -1,8 +1,10 @@
 # 📖 TechNote (Vision RAG) 문서 인덱스
 
-이 폴더의 문서를 성격별로 분류한 인덱스입니다. 처음이라면 **PRD → API_Contract → remaining_tasks** 순서를 권장합니다.
+이 폴더의 문서를 성격별로 분류한 인덱스입니다. 처음이라면 **PRD → API_Contract → v1.0_release_checklist** 순서를 권장합니다.
 
-> **최종 정리**: 2026-08-11 — 별도로 생겼던 `docs/` 폴더를 이 폴더로 합쳤습니다(문서 폴더는 `doc/` 하나).
+> **최종 정리**: 2026-08-23 — v1.0 동결. `remaining_tasks.md` → `v2_backlog.md`(동결)로 이름을 바꾸고,
+> 마무리 절차는 `v1.0_release_checklist.md`, 추적 중인 품질 이슈는 `open_quality_issues.md`로 분리했습니다.
+> 이전 정리(2026-08-11) — 별도로 생겼던 `docs/` 폴더를 이 폴더로 합쳤습니다(문서 폴더는 `doc/` 하나).
 > 이전 정리(2026-07-18): 중복되던 작업 추적 문서 3종(`task.md` 루트, `improvement_list.md`)을 `remaining_tasks.md`로 통합.
 
 ---
@@ -21,7 +23,10 @@
 
 | 문서 | 내용 |
 |------|------|
-| [remaining_tasks.md](./remaining_tasks.md) | **마스터 보드** — 잔여 작업 + 완료 현황(카테고리별) + 향후 로드맵 |
+| [release_notes_v1.0.md](./release_notes_v1.0.md) | **v1.0 릴리스 노트** — 무엇을 만들었고 무엇이 알려진 이슈인지. 프로젝트를 처음 보는 사람에게 이걸 먼저 |
+| [v1.0_release_checklist.md](./v1.0_release_checklist.md) | v1.0을 끝내는 유한한 체크리스트(1·2·3단계) + 왜 필요한지의 근거 |
+| [open_quality_issues.md](./open_quality_issues.md) | 열려 있는 품질 이슈 — 동결 대상이 아니라 계속 추적하는 항목 |
+| [v2_backlog.md](./v2_backlog.md) | **동결된 v2 백로그** (구 `remaining_tasks.md`) — 완료 현황 + 향후 아이디어. 실사용자 요구 전엔 착수하지 않는다 |
 | [audit_findings_2026-07.md](./audit_findings_2026-07.md) | 전체 코드 감사(UI/UX·보안·백엔드) 결과 — 처리 완료분 + 잔여 항목 |
 | [security_roadmap.md](./security_roadmap.md) | 중장기 보안 개선 로드맵 (쿠키화·Secret Manager·컨테이너 격리) |
 

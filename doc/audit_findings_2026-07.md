@@ -54,22 +54,45 @@
 
 ---
 
-## 🟠 High — 별도 작업으로 진행 권장 (패치 한 줄로 안 끝남)
+## 🟠 High — ✅ H-1·H-3 처리 완료 (2026-08-23, v1.0), H-2는 기존 완료
 
-### H-1. Rate limiting 전무
+### ~~H-1. Rate limiting 전무~~ → **해결됨 (2026-08-23)**
 - **위치**: 앱 전역 (`/chat/stream`, `/upload`, `/upload/analyze`, `/documents/reclassify`, `/auth/*`)
 - **내용**: 요청 제한 미들웨어가 전혀 없음. 인증 사용자(또는 C-1 조합 시 무인증)가 반복 호출로 Gemini 과금 폭주 또는 Cloud Run 동시성(`concurrency=8`) 고갈 유발 가능.
-- **방향**: `slowapi` 등으로 사용자/IP 단위 제한, 또는 Cloud Armor/API Gateway 정책. "사용자당 분당 N회" 정책 결정 필요.
+- **조치**: `backend/app/middleware/rate_limit.py` 신규. 외부 의존성 없이 인스턴스 로컬
+  슬라이딩 윈도우로 구현(`slowapi` 미도입 — 의존성 하나를 아끼고 버킷 규칙을 직접 쥐기 위해).
+  - 버킷별 한도: chat 20/분·300/시, upload 10/분·100/시, auth 20/분·200/시, 그 외 120/분
+  - 식별자: 검증된 JWT 이메일 우선 → 없으면 IP. **위조/만료 토큰은 IP로 강등**해 임의 이메일로 키를 흩뿌리는 우회를 막는다
+  - 대상 제외: 정적 프론트(`/`, `/_next/*`), `/api/health`, `/internal/*`
+  - 초과 시 429 + `Retry-After`. CORS 미들웨어가 바깥이라 브라우저가 본문을 읽을 수 있다
+  - 스위치: `RATE_LIMIT_ENABLED`
+- **남은 한계**: Cloud Run 인스턴스마다 카운터가 독립이라 전역 정확도는 없다. 목적이
+  '단일 클라이언트 폭주 차단'이므로 인스턴스당 상한으로 충분하다고 판단. 전역 정확도가
+  필요해지면 저장소만 Memorystore(Redis)로 교체 → [v2_backlog.md](./v2_backlog.md)
+- **테스트**: `backend/tests/unit/test_rate_limit.py` (20건)
 
 ### H-2. 업로드 파일 크기 상한 없음
 - **위치**: `pdf_service.py:168`(`file.read()` 크기 미검증), `upload.py:83-101`(Signed PUT URL에 `x-goog-content-length-range` 제약 없음)
 - **내용**: 임의 크기 파일 업로드 시 2Gi 인스턴스 메모리 고갈 또는 GCS 저장비용 무제한 증가. GCS 직접 업로드 경로는 앱 코드를 아예 안 거침.
 - **방향**: preflight 체크에 크기 상한 + Signed URL에 `x-goog-content-length-range` + 서버 측 `UploadFile` 크기 검증. 프론트 에러 메시지도 함께.
 
-### H-3. 리프레시 토큰 서버 측 폐기(revocation) 부재
-- **위치**: `auth_service.py:54-59,121-146`, `auth.py:56-87`
+### ~~H-3. 리프레시 토큰 서버 측 폐기(revocation) 부재~~ → **해결됨 (2026-08-23)**
+- **위치**: `auth_service.py`, `auth.py`
 - **내용**: 리프레시 토큰이 순수 stateless JWT(30일)라 denylist/allowlist 없음. `/auth/logout`은 쿠키만 지우고 토큰 자체는 무효화 안 함. 토큰 유출 시(XSS 등) 로그아웃해도 최대 30일 유효.
-- **방향**: 서버 측 토큰 저장소(jti + 폐기 목록, 또는 rotation-family 추적) 도입. 현재 완전 stateless 방식을 얼마나 바꿀지 설계 논의 필요. (관련: [security_roadmap.md](./security_roadmap.md) Phase 1)
+- **조치**: `backend/app/services/token_revocation.py` 신규. **jti denylist 대신 사용자별
+  폐기 시각(epoch) 방식**을 택했다 — 저장량이 사용자당 1건으로 고정돼 GC가 필요 없고,
+  실제 위협("로그아웃했는데 유출 토큰이 산다")을 그대로 덮는다.
+  - 리프레시 토큰에 `iat_ms` 클레임 추가. 표준 `iat`(초)를 쓰지 않은 이유는 로그아웃 직후
+    같은 '초'에 재로그인하면 새 토큰까지 폐기 대상이 되기 때문
+  - `/auth/logout` → `refresh_revoked_before_ms = now` → 그 사용자의 **모든** 리프레시 토큰 즉시 무효
+  - 저장: GCS `users/{email}/auth_state.json` / 로컬 `{PDF_UPLOAD_DIR 상위}/auth_state/{email}.json`
+  - 조회는 `/auth/refresh`에서만 (액세스 토큰 30분 수명 → 사용자당 30분에 1회) 발생해
+    핫 패스가 아니므로 **캐시를 두지 않았다.** 캐시 TTL만큼 폐기가 늦게 반영되는 창을 만들지 않기 위해
+  - 저장소 장애 시 **fail-open** — 장애로 전 사용자가 로그아웃되지 않게
+  - `iat_ms`가 없는 레거시 토큰은 폐기 기록이 있는 사용자에 한해 폐기로 판정(안전 쪽)
+- **남은 한계**: rotation 재사용 탐지(회전된 옛 토큰 재사용 시 패밀리 전체 차단)는 미구현.
+  jti 단위 추적이 필요해 v2로 → [v2_backlog.md](./v2_backlog.md)
+- **테스트**: `backend/tests/unit/test_token_revocation.py` (13건)
 
 ---
 

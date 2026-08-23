@@ -48,10 +48,23 @@ python -m evals.run_eval --judge     # include LLM-as-judge scoring
   - `chat_context_section()` is the single source of chat-history truncation (6 messages × 300 chars, matching what the frontend sends). Do not re-implement slicing at call sites.
 - `backend/app/utils/llm_usage.py` — per-call token/cache metering. Every chat-path Gemini call logs `🧮 [Usage] <stage>: in=… out=… cached=… (…%)`; `cached` comes from `usage_metadata.input_token_details.cache_read`.
 - `backend/app/services/pdf_service.py` — GCS Signed URL generation and sparse-PDF patching.
+  Note the two document URL endpoints differ by disposition: `/documents/{id}/download-url` signs with
+  `attachment` (and may target the non-PDF source file), while `/documents/{id}/view-url` signs `original.pdf`
+  with `inline` — required for the reference-page viewer, since `attachment` makes the browser save the file
+  and drop the `#page=N` fragment.
 - `backend/app/routers/` — `auth`, `chat`, `conversations`, `documents`, `upload`, `internal`.
+- `backend/app/middleware/rate_limit.py` — 요청 속도 제한. 인스턴스 로컬 슬라이딩 윈도우(외부 의존성 없음).
+  버킷별 한도(chat/upload/auth/default)이며 식별자는 검증된 JWT 이메일 → 없으면 IP. 정적 프론트와
+  `/api/health`·`/internal/*`은 대상 제외 — **정적 자산까지 세면 페이지 한 번 로드에 한도가 터진다.**
+  Cloud Run은 인스턴스마다 카운터가 독립이라 전역 정확도는 없다(의도된 트레이드오프).
 - `backend/evals/` — golden-dataset quality eval harness (routing/document/page/keyword checks + optional LLM-as-judge). See `backend/evals/README.md`.
 
 **Auth:** Google OAuth → JWT (access + refresh). `backend/app/routers/auth.py` + `services/auth_service.py`. All routes require JWT except health check.
+`services/token_revocation.py` holds per-user revocation: refresh tokens carry an `iat_ms` claim, and
+`/auth/logout` raises that user's `refresh_revoked_before_ms` so **every** outstanding refresh token dies at once
+(a jti denylist was rejected — this keeps storage at one record per user). Reads happen only on `/auth/refresh`,
+so there is deliberately no cache: a TTL would reopen the window revocation is meant to close.
+Storage failures fail **open** — an outage must not log everyone out.
 
 **Storage:** PDFs live in GCS. Pre-flight SHA-256 hash check prevents duplicate uploads (returns 409). Direct browser→GCS upload (server memory bypass) for large files. Non-PDF uploads (docx/xlsx/pptx/txt/md/images) are normalized to PDF at ingestion (`backend/app/services/document_conversion.py` — LibreOffice headless / PyMuPDF) and stored as `original.pdf` so the ToC/Vision pipeline runs unchanged; the raw upload is kept as `source_original.{ext}` and served on download.
 

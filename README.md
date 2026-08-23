@@ -218,7 +218,9 @@ TechNote/
 │   ├── README.md                     # 📖 문서 인덱스 (여기부터 시작)
 │   ├── PRD.md                        # 제품 요구사항 정의서
 │   ├── API_Contract.md               # API 규약
-│   ├── remaining_tasks.md            # 잔여 작업 + 완료 현황 + 향후 로드맵 마스터 보드
+│   ├── v1.0_release_checklist.md    # v1.0 릴리스 체크리스트 (1·2·3단계 마무리 절차)
+│   ├── v2_backlog.md                # v2 백로그 (동결) — 구 remaining_tasks.md
+│   ├── open_quality_issues.md       # 열려 있는 품질 이슈 (동결 대상 아님)
 │   ├── audit_findings_2026-07.md     # 전체 코드 감사(UI/UX·보안·백엔드) 결과
 │   ├── refactoring_plan.md           # 코드 구조 리팩토링 로드맵 및 진행 현황 (완료)
 │   ├── security_roadmap.md           # 중장기 보안 개선 로드맵

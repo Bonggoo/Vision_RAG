@@ -1,14 +1,33 @@
-# 📋 TechNote 개선 프로젝트 — 진행 현황 및 잔여 작업 마스터 보드
+# 🧊 TechNote v2 백로그 (동결)
 
-> **최종 업데이트**: 2026-08-11  
-> **총 15개 항목 중 14개 완료 · 1개 남음 (다음 테스크로 진행 예정)**  
-> **최근 추가 완료(보드 외)**: 인앱 토스트/확인창, 적응형 웰컴 온보딩, 세션 갱신 회복력, 대화 기록 로컬 스토리지 지원, 전체 코드 감사 후속 수정(A·B그룹 7건) — 아래 참고
-> **🔍 코드 감사 잔여 항목**: 2026-07-18 UI/UX·보안·백엔드 전면 감사에서 발견된 미처리 항목은 별도 문서 참고 → [audit_findings_2026-07.md](./audit_findings_2026-07.md)
-> **🧮 컨텍스트 관리(2026-08-11 완료)**: 토큰·캐시 계측 도입, 프롬프트 캐시 정렬(Phase 2 적중 0%→95%), 대화 이력 절단 로직 단일화, Vision 출처 동봉, eval 멀티턴 케이스 추가 → [context-management-results.md](./context-management-results.md)
+> **동결일**: 2026-08-23 — v1.0 릴리스와 함께 이 보드를 닫았다.
+> 이전 이름은 `remaining_tasks.md` (진행 중인 마스터 보드).
+>
+> **읽는 법**: 여기 있는 항목은 **v1.0의 범위가 아니다.** 실사용자가 요구하기 전까지
+> 착수하지 않는다. "다음에 뭘 할까"를 이 문서에서 고르는 순간 [v1.0 릴리스 체크리스트](./v1.0_release_checklist.md)가
+> 말하는 무한 개선 루프로 되돌아간다. 다음 작업의 입력은 **실사용자 피드백**이다.
+>
+> - v1.0을 끝내는 유한한 체크리스트 → [v1.0_release_checklist.md](./v1.0_release_checklist.md)
+> - 열려 있는 품질 이슈(동결 대상 아님) → [open_quality_issues.md](./open_quality_issues.md)
+> - 감사 잔여 항목 → [audit_findings_2026-07.md](./audit_findings_2026-07.md)
 
 ---
 
-## 🔲 잔여 작업 (1개)
+## ✅ v1.0에서 닫힌 항목 (2026-08-23)
+
+동결 시점에 마무리한 것들. 상세는 [v1.0_release_checklist.md](./v1.0_release_checklist.md) 1단계 참고.
+
+- **참조 페이지 원본 PDF 뷰어** (아래 P3 항목) — `GET /documents/{id}/view-url` + `ReferenceImages.tsx`
+- **H-1 rate limiting** — `backend/app/middleware/rate_limit.py`
+- **H-3 리프레시 토큰 서버 측 폐기** — `backend/app/services/token_revocation.py`
+
+---
+
+## 📦 아래는 동결된 원본 내용 (이력 보존)
+
+---
+
+## 🔲 잔여 작업 (1개) — ✅ v1.0에서 완료
 
 ### 🟢 P3 — 품질 향상 (다음 순서 진행 예정)
 
@@ -22,8 +41,9 @@
   * 브라우저 기본 PDF 뷰어나 혹은 임베디드 뷰어로 해당 PDF를 열고, `#page=N` 해시 파라미터를 추가하여 참조 페이지(`p.N`)로 즉시 자동 스크롤되도록 연결합니다.
   * 예: `https://storage.googleapis.com/.../original.pdf#page=45`
 * **작업 내용**:
-  * [ ] 프론트엔드: 참조 썸네일 클릭 시, 해당 문서의 `download-url` API 비동기 호출
-  * [ ] 프론트엔드: 반환된 URL 뒤에 `#page={pageNumber}`를 붙여 새 탭 또는 iframe으로 로드하는 뷰어 모달 구현
+  * [x] 프론트엔드: 참조 썸네일 펼침 상태에 '원본 PDF N쪽 열기' 버튼 (`api.openDocumentPage()`)
+  * [x] 백엔드: `GET /documents/{id}/view-url` — `inline` disposition Signed URL (`attachment`면 `#page=N`이 무시된다)
+  * ✅ **2026-08-23 완료** — `download-url` 대신 전용 `view-url`을 새로 뒀다. 다운로드 경로는 attachment 동작을 유지해야 해서다.
 * **예상 공수**: 2~3일
 
 ---
@@ -65,6 +85,13 @@ Cloud Tasks 연동 코드는 배포됐으나, 아래 GCP 인프라 설정이 있
 - [x] ~~**다양한 문서 포맷 지원**~~ — `.docx`/`.xlsx`/`.pptx`/텍스트/이미지 → PDF 변환 후 기존 파이프라인 통과 (PR #14 완료, `document_conversion.py`)
 - [ ] **유저 피드백 수집** — 답변 좋아요/싫어요 → GCS 로그 적재 → 품질 개선 데이터로 환류
 - [ ] **관리자 대시보드** — 문서 수, 일별 대화 수, 오류율 등 운영 지표 페이지
+- [ ] **리프레시 토큰 rotation 재사용 탐지** — v1.0은 '로그아웃 시 전체 폐기'까지만 구현했다
+      (`token_revocation.py`). 회전된 옛 토큰의 재사용을 탐지해 토큰 패밀리 전체를 끊는
+      단계는 jti 단위 추적이 필요해 미착수.
+
+### ⚠️ 여기 없는 것 — 열려 있는 품질 이슈
+`toc_evidence` 라우팅 편향은 **이 백로그에 넣지 않았다.** 동결 대상이 아니라 계속 추적하는
+열린 이슈이며 [open_quality_issues.md](./open_quality_issues.md) 에서 관리한다.
 
 ### 🔵 장기 — 고도화 아이디어
 - [ ] **Memory (암묵지 자산화)** — 대화에서 사용자 코멘트·노하우 추출 → 개인 지식 베이스 축적
