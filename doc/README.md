@@ -34,6 +34,7 @@
 | 문서 | 내용 |
 |------|------|
 | [near_duplicate_document_handling.md](./near_duplicate_document_handling.md) | 유사(중복) 문서 처리 설계 — L1 채택 |
+| [manual_skill_experiment.md](./manual_skill_experiment.md) | 목차 탐색을 Agent Skill로 만들어 판매하는 안 — A/B 실험 후 **폐기**. TechNote에 가져올 발견 7개 포함 |
 
 ## 📦 구현 완료 보고서 (Implementation History)
 이미 반영된 기능의 상세 아키텍처·결정 기록. 이력 보존용이며 신규 작업 시 배경 참고.
