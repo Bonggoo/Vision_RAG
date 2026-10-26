@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: as200-al21-cause
+expected_outcome: |
+  Explains AS200 AL.21 (encoder communication error) with the manual's causes and actions, citing the AS200 manual page.
+context:
+  scaffold_script: place-files.sh

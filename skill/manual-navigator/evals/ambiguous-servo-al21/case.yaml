@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: ambiguous-servo-al21
+expected_outcome: |
+  Notices AL.21 differs between AS100 (overload 2) and AS200 (encoder communication error) and asks which model or gives both, labeled.
+context:
+  scaffold_script: place-files.sh

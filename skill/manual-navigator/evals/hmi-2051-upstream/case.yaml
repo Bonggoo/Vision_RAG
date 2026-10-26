@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: hmi-2051-upstream
+expected_outcome: |
+  Recognizes 2051 is not an AS200 alarm but an MC500 motion controller error (servo READY OFF) and points to the servo's own alarm display.
+context:
+  scaffold_script: place-files.sh

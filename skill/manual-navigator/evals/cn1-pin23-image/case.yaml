@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: cn1-pin23-image
+expected_outcome: |
+  Finds the CN1 pin table that exists only as an image in the installation guide: pin 23 = ALM alarm output.
+context:
+  scaffold_script: place-files.sh

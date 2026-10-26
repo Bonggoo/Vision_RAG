@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: it300-p17-param
+expected_outcome: |
+  From the IT300 manual with weak bookmarks: P-17 torque upper limit, default 150.0 %, range 0.0-300.0 %.
+context:
+  scaffold_script: place-files.sh

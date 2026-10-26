@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: as200-homing-methods
+expected_outcome: |
+  Lists the four AS200 homing methods with the page.
+context:
+  scaffold_script: place-files.sh

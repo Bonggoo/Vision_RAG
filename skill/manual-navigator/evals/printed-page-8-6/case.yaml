@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: printed-page-8-6
+expected_outcome: |
+  Maps printed page 8-6 to physical page 106 and describes Table 8-2 (alarm reset methods).
+context:
+  scaffold_script: place-files.sh

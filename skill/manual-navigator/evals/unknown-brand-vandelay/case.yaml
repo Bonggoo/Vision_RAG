@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: unknown-brand-vandelay
+expected_outcome: |
+  Says no Vandelay manual is available and does not pass off Acme's AL.16 or remembered meanings as the answer.
+context:
+  scaffold_script: place-files.sh

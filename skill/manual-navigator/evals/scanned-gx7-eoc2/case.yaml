@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: scanned-gx7-eoc2
+expected_outcome: |
+  Reads the scanned GX7 manual: E.OC2 = overcurrent at constant speed, with its check items and page.
+context:
+  scaffold_script: place-files.sh
